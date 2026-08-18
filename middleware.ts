@@ -18,16 +18,20 @@ export function middleware(req: NextRequest) {
 
   // Normalize hostname (strip port numbers if running locally)
   const currentHost = hostname
-    .replace(`:${url.port}`, "")
+    .replace(/:\d+$/, "")
     .replace(".localhost", "");
 
-  // 1. Root Domain (motywo.pl / localhost)
-  if (
+  // Check if request is to root domain, localhost, or Vercel preview/deployment domain (*.vercel.app)
+  const isVercel = currentHost.endsWith(".vercel.app") || currentHost === "vercel.app";
+  const isLocalhost = currentHost === "localhost" || currentHost === "127.0.0.1";
+  const isRootDomain =
     currentHost === rootDomain ||
-    currentHost === "localhost" ||
-    currentHost === "127.0.0.1" ||
-    currentHost === `www.${rootDomain}`
-  ) {
+    currentHost === `www.${rootDomain}` ||
+    isLocalhost ||
+    isVercel;
+
+  // 1. Root Domain / Vercel / Localhost
+  if (isRootDomain) {
     return NextResponse.next();
   }
 
@@ -54,7 +58,11 @@ export function middleware(req: NextRequest) {
 
   if (currentHost.endsWith(`.${rootDomain}`)) {
     subdomain = currentHost.replace(`.${rootDomain}`, "");
-  } else if (!currentHost.includes(rootDomain) && currentHost !== "localhost") {
+  } else if (
+    !currentHost.includes(rootDomain) &&
+    !isLocalhost &&
+    !isVercel
+  ) {
     // Custom domain scenario (e.g. twojamarka.pl)
     subdomain = currentHost;
   }
