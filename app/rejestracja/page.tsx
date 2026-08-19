@@ -20,7 +20,10 @@ export default function RejestracjaPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) {
+    const formattedEmail = email.trim().toLowerCase();
+    const formattedName = name.trim();
+
+    if (!formattedName || !formattedEmail || !password || !confirmPassword) {
       setError("Wypełnij wszystkie pola formularza.");
       return;
     }
@@ -38,7 +41,7 @@ export default function RejestracjaPage() {
     }
 
     setError("");
-    register(name, email);
+    register(formattedName, formattedEmail);
     router.push("/potwierdzenie-email");
   };
 

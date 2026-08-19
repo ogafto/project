@@ -695,32 +695,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = (email: string, password?: string) => {
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (cleanEmail === "projekt@motywo.pl") {
-      let adminUser = allUsers.find((u) => u.email.toLowerCase() === "projekt@motywo.pl");
+    if (!cleanEmail) {
+      return { success: false, message: "Wprowadź swój adres e-mail." };
+    }
+
+    if (cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl") {
+      let adminUser = allUsers.find(
+        (u) => u.email.toLowerCase() === "projekt@motywo.pl" || u.email.toLowerCase() === "projekt@iskral.pl"
+      );
       if (!adminUser) {
         adminUser = ADMIN_USER;
         setAllUsers((prev) => [ADMIN_USER, ...prev]);
       }
       setUser(adminUser);
-      setMessage({ type: "success", text: "Zalogowano jako Właściciel / Superadmin (projekt@motywo.pl)!" });
+      setMessage({ type: "success", text: "Zalogowano jako Właściciel / Superadmin!" });
       return { success: true };
     }
 
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (!existing) {
-      return { success: false, message: "Konto o podanym adresie e-mail nie istnieje." };
+      return {
+        success: false,
+        message: "Konto o podanym adresie e-mail nie istnieje. Sprawdź pisownię lub załóż darmowe konto.",
+      };
+    }
+
+    if (existing.isEmailVerified === false) {
+      return {
+        success: false,
+        message: "Adres e-mail nie został jeszcze zweryfikowany. Sprawdź skrzynkę odbiorczą i kliknij link aktywacyjny.",
+      };
     }
 
     if (existing.accountStatus === "Blocked") {
-      return { success: false, message: "Twoje konto zostało zablokowane przez administratora." };
+      return {
+        success: false,
+        message: "Twoje konto zostało zablokowane przez administratora serwisu. Skontaktuj się z pomocą techniczną.",
+      };
+    }
+
+    if (existing.accountStatus === "Suspended") {
+      return {
+        success: false,
+        message: "Konto Twojego sklepu zostało tymczasowo zawieszone.",
+      };
     }
 
     if (existing.is2FAEnabled) {
       setRequires2FA(true);
       setPending2FAUser(existing);
-      return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod 2FA." };
+      return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
     }
 
     setUser(existing);

@@ -21,22 +21,24 @@ export default function LogowaniePage() {
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
+    const formattedEmail = email.trim().toLowerCase();
+
+    if (!formattedEmail) {
       setError("Wprowadź swój adres e-mail.");
       return;
     }
 
     setError("");
-    const res = login(email, password);
+    const res = login(formattedEmail, password);
     if (!res.success) {
-      setError(res.message || "Błąd logowania.");
+      setError(res.message || "Błąd logowania. Sprawdź wprowadzone dane.");
     } else if (res.requires2FA) {
       setStep2FA(true);
       setSuccess("Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod.");
     } else {
       setSuccess("Logowanie pomyślne! Przekierowywanie...");
       setTimeout(() => {
-        if (email.toLowerCase().includes("projekt@motywo.pl") || email.toLowerCase().includes("admin")) {
+        if (formattedEmail.includes("projekt@motywo.pl") || formattedEmail.includes("projekt@iskral.pl") || formattedEmail.includes("admin")) {
           router.push("/admin");
         } else {
           router.push("/dashboard");
