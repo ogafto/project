@@ -427,7 +427,7 @@ export default function DashboardPage() {
   };
 
   const handleGenerateLegalTermsTemplate = () => {
-    const defaultTerms = `REGULAMIN SKLEPU INTERNETOWEGO ${currentStore.name.toUpperCase()}\n\n1. POSTANOWIENIA OGÓLNE\n1.1. Sklep Internetowy działający pod adresem https://${currentStore.subdomain}.motywo.pl prowadzony jest przez ${user?.name || "Właściciela Sklepu"}.\n1.2. Niniejszy Regulamin określa zasady korzystania ze Sklepu, składania zamówień oraz realizowania umów sprzedaży towarów fizycznych i cyfrowych.\n\n2. ZAMÓWIENIA I PŁATNOŚCI\n2.1. Wszystkie ceny w sklepie podawane są w złotych polskich (PLN).\n2.2. Płatności realizowane są za pośrednictwem bezpiecznego operatora płatności Stripe.\n\n3. DOSTAWA I ZWROTY\n3.1. Kupujący ma prawo odstąpić od umowy bez podania przyczyny w terminie 14 dni od dnia otrzymania towaru.\n3.2. W przypadku materiałów cyfrowych prawo odstąpienia od umowy wygasa w momencie pobrania pliku.`;
+    const defaultTerms = `REGULAMIN SKLEPU INTERNETOWEGO ${currentStore.name.toUpperCase()}\n\n1. POSTANOWIENIA OGÓLNE\n1.1. Sklep Internetowy działający pod adresem https://${currentStore.subdomain}.iskral.pl prowadzony jest przez ${user?.name || "Właściciela Sklepu"}.\n1.2. Niniejszy Regulamin określa zasady korzystania ze Sklepu, składania zamówień oraz realizowania umów sprzedaży towarów fizycznych i cyfrowych.\n\n2. ZAMÓWIENIA I PŁATNOŚCI\n2.1. Wszystkie ceny w sklepie podawane są w złotych polskich (PLN).\n2.2. Płatności realizowane są za pośrednictwem bezpiecznego operatora płatności Stripe.\n\n3. DOSTAWA I ZWROTY\n3.1. Kupujący ma prawo odstąpić od umowy bez podania przyczyny w terminie 14 dni od dnia otrzymania towaru.\n3.2. W przypadku materiałów cyfrowych prawo odstąpienia od umowy wygasa w momencie pobrania pliku.`;
 
     const defaultPrivacy = `POLITYKA PRYWATNOŚCI I PLIKÓW COOKIES SKLEPU ${currentStore.name.toUpperCase()}\n\n1. ADMINISTRATOR DANYCH OSOBOWYCH\nAdministratorem danych osobowych zbieranych za pośrednictwem Sklepu jest ${currentStore.name}.\n\n2. CEL PRZETWARZANIA DANYCH\nDane przetwarzane są w celu realizacji zamówień, wystawienia dowodów zakupu oraz dostarczania zakupionych towarów.\n\n3. PRAWA UŻYTKOWNIKA\nUżytkownik posiada prawo dostępu do swoich danych, sprostowania oraz żądania ich usunięcia (RODO).`;
 
@@ -659,7 +659,7 @@ export default function DashboardPage() {
                 Tryb Podglądu Admina
               </span>
               <span className="text-amber-950">
-                Zarządzasz obecnie sklepem: <strong className="text-black underline">{currentStore.name}</strong> ({currentStore.subdomain}.motywo.pl)
+                Zarządzasz obecnie sklepem: <strong className="text-black underline">{currentStore.name}</strong> ({currentStore.subdomain}.iskral.pl)
               </span>
             </div>
           </div>
@@ -819,7 +819,7 @@ export default function DashboardPage() {
                   </span>
                 </span>
                 <span className="text-[10px] text-cyan-400 font-mono leading-tight">
-                  {currentStore.subdomain}.motywo.pl
+                  {currentStore.subdomain}.iskral.pl
                 </span>
               </div>
 
@@ -967,7 +967,7 @@ export default function DashboardPage() {
                               rel="noreferrer"
                               className="text-xs text-cyan-400 hover:underline font-mono flex items-center gap-1"
                             >
-                              <span>{st.subdomain}.motywo.pl</span>
+                              <span>{st.subdomain}.iskral.pl</span>
                               <ExternalLink className="w-3 h-3" />
                             </a>
                           </div>
@@ -1120,7 +1120,7 @@ export default function DashboardPage() {
                   >
                     <option value="all">🌐 Wszystkie Sklepy Razem ({userStores.length})</option>
                     {userStores.map((s) => (
-                      <option key={s.id} value={s.id}>🏬 {s.name} ({s.subdomain}.motywo.pl)</option>
+                      <option key={s.id} value={s.id}>🏬 {s.name} ({s.subdomain}.iskral.pl)</option>
                     ))}
                   </select>
                 </div>
@@ -1216,7 +1216,7 @@ export default function DashboardPage() {
                                 <div className="flex items-center justify-between text-xs">
                                   <div className="flex items-center gap-2">
                                     <strong className="text-white font-extrabold">{st.name}</strong>
-                                    <span className="text-[10px] text-cyan-400 font-mono">({st.subdomain}.motywo.pl)</span>
+                                    <span className="text-[10px] text-cyan-400 font-mono">({st.subdomain}.iskral.pl)</span>
                                   </div>
                                   <div className="flex items-center gap-3">
                                     <span className="text-zinc-400 text-[11px]">{stPaidOrders.length} zam.</span>
@@ -1259,7 +1259,7 @@ export default function DashboardPage() {
                                   <tr key={st.id} className="hover:bg-white/5 transition-colors">
                                     <td className="py-2.5 px-3">
                                       <div className="font-extrabold text-white">{st.name}</div>
-                                      <span className="text-[10px] text-cyan-400 font-mono">{st.subdomain}.motywo.pl</span>
+                                      <span className="text-[10px] text-cyan-400 font-mono">{st.subdomain}.iskral.pl</span>
                                     </td>
                                     <td className="py-2.5 px-3">
                                       <span className="px-2 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded text-[10px] font-extrabold uppercase">
@@ -1356,7 +1356,7 @@ export default function DashboardPage() {
                       <option value="all">🏬 Wszystkie Twoje Sklepy</option>
                       {userStores.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.name} ({s.subdomain}.motywo.pl)
+                          {s.name} ({s.subdomain}.iskral.pl)
                         </option>
                       ))}
                     </select>
@@ -1398,7 +1398,7 @@ export default function DashboardPage() {
                             <td className="p-4 font-mono font-bold text-white">{c.email}</td>
                             <td className="p-4">
                               <span className="font-extrabold text-white block">{c.storeName}</span>
-                              <span className="text-[10px] text-cyan-400 font-mono">{c.storeSubdomain}.motywo.pl</span>
+                              <span className="text-[10px] text-cyan-400 font-mono">{c.storeSubdomain}.iskral.pl</span>
                             </td>
                             <td className="p-4 text-emerald-400 font-extrabold text-sm">{c.amountPLN} PLN</td>
                             <td className="p-4 text-right text-zinc-400 font-mono">{c.date}</td>
@@ -1725,7 +1725,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Subdomena Sklepu (nazwa.motywo.pl)</label>
+                      <label className="block text-xs font-bold text-zinc-400 mb-1">Subdomena Sklepu (nazwa.iskral.pl)</label>
                       <div className="flex items-center">
                         <input
                           type="text"
@@ -1734,7 +1734,7 @@ export default function DashboardPage() {
                           className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs text-cyan-400 font-mono font-bold"
                         />
                         <span className="px-3 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs text-zinc-400 font-mono">
-                          .motywo.pl
+                          .iskral.pl
                         </span>
                       </div>
                     </div>
@@ -2245,7 +2245,7 @@ export default function DashboardPage() {
 
                     <div className="p-3 bg-[#111216] border border-white/5 rounded-xl text-xs text-zinc-400 space-y-1 font-mono">
                       <p className="font-bold text-white">Instrukcja Rekordów DNS u Twojego Rejestratora:</p>
-                      <p>• Rekord CNAME: <span className="text-cyan-400">cname.motywo.pl</span></p>
+                      <p>• Rekord CNAME: <span className="text-cyan-400">cname.iskral.pl</span></p>
                       <p>• Rekord A: <span className="text-cyan-400">76.76.21.21</span></p>
                     </div>
                   </div>
@@ -2297,7 +2297,7 @@ export default function DashboardPage() {
                   <div className="p-4 bg-[#090A0C] border border-white/5 rounded-xl space-y-1">
                     <span className="text-[10px] text-zinc-500 uppercase font-bold">Podgląd w Wynikach Wyszukiwania Google</span>
                     <h4 className="text-sm font-bold text-blue-400 hover:underline cursor-pointer">{metaTitleInput}</h4>
-                    <p className="text-[11px] text-emerald-400 font-mono">https://{subdomainInput || "demo"}.motywo.pl</p>
+                    <p className="text-[11px] text-emerald-400 font-mono">https://{subdomainInput || "demo"}.iskral.pl</p>
                     <p className="text-xs text-zinc-400 line-clamp-2">{metaDescriptionInput}</p>
                   </div>
 
@@ -2380,7 +2380,7 @@ export default function DashboardPage() {
             >
               {userStores.map((s) => (
                 <option key={s.id} value={s.id}>
-                  🏬 {s.name} ({s.subdomain}.motywo.pl)
+                  🏬 {s.name} ({s.subdomain}.iskral.pl)
                 </option>
               ))}
             </select>

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { getAuthCookie, setAuthCookie, deleteAuthCookie } from "@/lib/cookies";
 
 export type Role = "user" | "superadmin" | "client" | "admin";
 export type PlanType = "trial_14d" | "starter" | "brand" | "pro" | "Start" | "Creator" | "Brand" | "Brak";
@@ -421,6 +422,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window !== "undefined") {
+      const cookieUser = getAuthCookie("iskra_session");
+      if (cookieUser) {
+        try { return JSON.parse(cookieUser); } catch {}
+      }
       const savedUser = localStorage.getItem("motywo_current_user_v11");
       if (savedUser) {
         try { return JSON.parse(savedUser); } catch {}
@@ -472,8 +477,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (user) {
+        setAuthCookie("iskra_session", JSON.stringify(user));
         localStorage.setItem("motywo_current_user_v11", JSON.stringify(user));
       } else {
+        deleteAuthCookie("iskra_session");
         localStorage.removeItem("motywo_current_user_v11");
       }
     }
@@ -669,7 +676,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       balanceCents: 0,
     };
 
-    applyStoreMutation(newStore, `Utworzono nowy sklep: ${name} (${finalSubdomain}.motywo.pl)!`);
+    applyStoreMutation(newStore, `Utworzono nowy sklep: ${name} (${finalSubdomain}.iskral.pl)!`);
   };
 
   const recordSaaSSubscription = (tenantId: string, userId: string, userEmail: string, planName: string, amountPaidCents: number) => {
@@ -793,6 +800,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    deleteAuthCookie("iskra_session");
     setUser(null);
     setImpersonatedStoreId(null);
     setIsEditUnlocked(false);
@@ -1213,7 +1221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setMessage({
       type: "success",
-      text: `🎉 Sklep ${updatedStore.name} aktywny na: https://${updatedStore.subdomain}.motywo.pl`,
+      text: `🎉 Sklep ${updatedStore.name} aktywny na: https://${updatedStore.subdomain}.iskral.pl`,
     });
 
     return updatedStore;
@@ -1235,7 +1243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updatedStore = { ...targetStore, ...config, subdomain: targetSubdomain };
-    applyStoreMutation(updatedStore, `Zapisano ustawienia sklepu! Subdomena: ${targetSubdomain}.motywo.pl`);
+    applyStoreMutation(updatedStore, `Zapisano ustawienia sklepu! Subdomena: ${targetSubdomain}.iskral.pl`);
   };
 
   const addCategory = (name: string) => {
@@ -1412,7 +1420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updatedStore: StoreConfig = { ...targetStore, domainVerified: true };
     applyStoreMutation(
       updatedStore,
-      `✓ Rekordy DNS domeny ${targetStore.customDomain || targetStore.subdomain + ".motywo.pl"} zostały pomyślnie zweryfikowane!`
+      `✓ Rekordy DNS domeny ${targetStore.customDomain || targetStore.subdomain + ".iskral.pl"} zostały pomyślnie zweryfikowane!`
     );
   };
 

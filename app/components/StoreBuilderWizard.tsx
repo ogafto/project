@@ -523,7 +523,7 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
                     className="flex-1 h-11 px-3 bg-transparent text-white text-xs font-mono font-bold focus:outline-none"
                   />
                   <span className="px-2.5 text-[11px] font-semibold text-[#FF5B28] bg-white/5 border-l border-white/10 h-11 flex items-center">
-                    .motywo.pl
+                    .iskral.pl
                   </span>
                 </div>
               </div>
