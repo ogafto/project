@@ -16,6 +16,7 @@ import {
   BarChart2
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { getStoreUrl } from "@/lib/cookies";
 
 interface AdminStatsOverviewProps {
   waitlistCount: number;
@@ -336,12 +337,12 @@ export default function AdminStatsOverview({ waitlistCount }: AdminStatsOverview
                   <td className="p-4 font-bold">
                     <span className="block text-white leading-tight">{item.storeName}</span>
                     <a
-                      href={`/site/${item.subdomain}`}
+                      href={getStoreUrl(item.subdomain)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-cyan-400 hover:underline font-mono text-[11px]"
                     >
-                      {item.subdomain}.motywo.pl
+                      {item.subdomain}.iskral.pl
                     </a>
                   </td>
 
@@ -358,7 +359,7 @@ export default function AdminStatsOverview({ waitlistCount }: AdminStatsOverview
                   {/* PRZEJDŹ DO SKLEPU */}
                   <td className="p-4 text-right">
                     <a
-                      href={`/site/${item.subdomain}`}
+                      href={getStoreUrl(item.subdomain)}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 rounded-full text-[11px] font-extrabold transition-all inline-flex items-center gap-1.5 cursor-pointer"

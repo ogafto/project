@@ -27,7 +27,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Root domain configuration with fallback
+  // Root domain configuration with fallback to iskral.pl
   const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "iskral.pl")
     .toLowerCase()
     .trim();
@@ -52,8 +52,28 @@ export function middleware(req: NextRequest) {
     isLocalhost ||
     isVercel;
 
-  // 1. Root domain / www / localhost / vercel -> Pass directly to Next.js routing (app/page.tsx)
+  // 1. If request is to root domain or www:
   if (isRootDomain) {
+    // If user accesses /site/[subdomain] directly on the main domain, redirect to https://[subdomain].iskral.pl
+    if (url.pathname.startsWith("/site/")) {
+      const parts = url.pathname.split("/").filter(Boolean); // ['site', 'subdomain', ...]
+      if (parts.length >= 2) {
+        const targetSubdomain = parts[1];
+        const restPath = parts.slice(2).join("/");
+        const port = req.nextUrl.port ? `:${req.nextUrl.port}` : "";
+        const protocol = req.headers.get("x-forwarded-proto") || "https";
+
+        if (isLocalhost) {
+          const redirectUrl = `http://${targetSubdomain}.localhost${port}/${restPath}`;
+          return NextResponse.redirect(redirectUrl, 301);
+        }
+
+        const redirectUrl = `${protocol}://${targetSubdomain}.${rootDomain}/${restPath}`;
+        return NextResponse.redirect(redirectUrl, 301);
+      }
+    }
+
+    // Direct access to main domain -> serve Landing Page & Dashboard (app/page.tsx, app/dashboard/...)
     return NextResponse.next();
   }
 
@@ -61,7 +81,6 @@ export function middleware(req: NextRequest) {
   if (
     hostname === `app.${rootDomain}` ||
     hostname === "app.iskral.pl" ||
-    hostname === "app.motywo.pl" ||
     hostname === "app"
   ) {
     if (url.pathname === "/") {
@@ -75,7 +94,6 @@ export function middleware(req: NextRequest) {
   if (
     hostname === `admin.${rootDomain}` ||
     hostname === "admin.iskral.pl" ||
-    hostname === "admin.motywo.pl" ||
     hostname === "admin"
   ) {
     if (url.pathname === "/") {
@@ -85,19 +103,16 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. Extract store subdomain for *.iskral.pl or custom domains
+  // 4. Extract store subdomain for *.iskral.pl or custom domain
   let subdomain: string | null = null;
 
   if (hostname.endsWith(`.${rootDomain}`)) {
     subdomain = hostname.replace(`.${rootDomain}`, "");
   } else if (hostname.endsWith(".iskral.pl")) {
     subdomain = hostname.replace(".iskral.pl", "");
-  } else if (hostname.endsWith(".motywo.pl")) {
-    subdomain = hostname.replace(".motywo.pl", "");
   } else if (
     !hostname.includes(rootDomain) &&
     !hostname.includes("iskral.pl") &&
-    !hostname.includes("motywo.pl") &&
     !isLocalhost &&
     !isVercel
   ) {
@@ -105,10 +120,12 @@ export function middleware(req: NextRequest) {
     subdomain = hostname;
   }
 
-  // Rewrite to /site/[subdomain] for valid store subdomains
+  // For store subdomains (e.g. gigant.iskral.pl), ONLY use NextResponse.rewrite()
+  // URL in browser stays https://gigant.iskral.pl while Next.js internally rewrites to /site/gigant
   if (
     subdomain &&
     subdomain !== "www" &&
+    subdomain !== "iskral.pl" &&
     subdomain !== "app" &&
     subdomain !== "admin"
   ) {

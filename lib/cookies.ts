@@ -10,6 +10,35 @@ export interface CookieOptions {
 }
 
 /**
+ * Helper to get the canonical store URL (e.g. https://gigant.iskral.pl or http://gigant.localhost:3000)
+ */
+export function getStoreUrl(subdomain: string, customDomain?: string): string {
+  if (customDomain && customDomain.trim()) {
+    const cleanCustom = customDomain.trim();
+    return cleanCustom.startsWith("http") ? cleanCustom : `https://${cleanCustom}`;
+  }
+
+  const root = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "iskral.pl").toLowerCase().trim();
+  const cleanSub = (subdomain || "sklep").toLowerCase().replace(/[^a-z0-9-]/g, "") || "sklep";
+
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.endsWith(".localhost"))
+  ) {
+    const port = window.location.port ? `:${window.location.port}` : "";
+    return `http://${cleanSub}.localhost${port}`;
+  }
+
+  const protocol =
+    typeof window !== "undefined" && window.location.protocol === "http:"
+      ? "http"
+      : "https";
+  return `${protocol}://${cleanSub}.${root}`;
+}
+
+/**
  * Sets an authentication cookie with cross-subdomain support (.iskral.pl in production)
  * Default options: path='/', sameSite='Lax', secure=true in production or https
  */

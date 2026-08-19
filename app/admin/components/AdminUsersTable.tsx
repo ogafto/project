@@ -28,7 +28,8 @@ import {
   Trash2,
   AlertCircle
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, User, Role, PlanType } from "../../context/AuthContext";
+import { getStoreUrl } from "@/lib/cookies";
 import { useRouter } from "next/navigation";
 
 interface AdminUsersTableProps {
@@ -444,7 +445,7 @@ export default function AdminUsersTable({
                       <td className="p-4">
                         {primaryStore ? (
                           <a
-                            href={`/site/${primaryStore.subdomain}`}
+                            href={getStoreUrl(primaryStore.subdomain, primaryStore.customDomain)}
                             target="_blank"
                             rel="noreferrer"
                             className="px-3 py-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 rounded-full text-xs font-bold cursor-pointer transition-all inline-flex items-center gap-1.5"
@@ -563,12 +564,12 @@ export default function AdminUsersTable({
                           </span>
                         </div>
                         <a
-                          href={`/site/${st.subdomain}`}
+                          href={getStoreUrl(st.subdomain, st.customDomain)}
                           target="_blank"
                           rel="noreferrer"
                           className="text-xs text-cyan-400 hover:underline font-mono mt-0.5 inline-block"
                         >
-                          {st.subdomain}.motywo.pl
+                          {st.subdomain}.iskral.pl
                         </a>
                       </div>
 

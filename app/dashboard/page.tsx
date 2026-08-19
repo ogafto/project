@@ -9,6 +9,7 @@ import Badge from "../components/badge";
 import Cennik from "../components/cennik";
 import StoreBuilderWizard from "../components/StoreBuilderWizard";
 import { useAuth, Product, Category, PlanType, StoreConfig, TeamMember, Campaign } from "../context/AuthContext";
+import { getStoreUrl } from "@/lib/cookies";
 import { 
   Crown, 
   Store, 
@@ -962,7 +963,7 @@ export default function DashboardPage() {
                           <div>
                             <h3 className="text-lg font-extrabold text-white">{st.name}</h3>
                             <a
-                              href={`/site/${st.subdomain}`}
+                              href={getStoreUrl(st.subdomain, st.customDomain)}
                               target="_blank"
                               rel="noreferrer"
                               className="text-xs text-cyan-400 hover:underline font-mono flex items-center gap-1"

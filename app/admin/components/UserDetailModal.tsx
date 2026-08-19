@@ -21,6 +21,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { getStoreUrl } from "@/lib/cookies";
 import { useRouter } from "next/navigation";
 
 interface UserDetailModalProps {
@@ -212,18 +213,18 @@ export default function UserDetailModal({ userId, onClose }: UserDetailModalProp
                         </span>
                       </div>
                       <a
-                        href={`/site/${st.subdomain}`}
+                        href={getStoreUrl(st.subdomain, st.customDomain)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs text-cyan-400 hover:underline font-mono mt-0.5 inline-block"
                       >
-                        {st.subdomain}.motywo.pl
+                        {st.subdomain}.iskral.pl
                       </a>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <a
-                        href={`/site/${st.subdomain}`}
+                        href={getStoreUrl(st.subdomain, st.customDomain)}
                         target="_blank"
                         rel="noreferrer"
                         className="px-3 py-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
