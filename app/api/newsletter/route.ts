@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     global._waitlistSubscribers?.unshift(newSub);
 
     if (isSupabaseConfigured) {
-      const dbClient = supabaseAdmin || supabase;
+      const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
         // Try waitlist_leads first, fallback to waitlist
         const { error: err1 } = await dbClient

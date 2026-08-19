@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
+import NotFoundPage from "@/app/not-found";
 
 interface PageProps {
   params: Promise<{ subdomain: string }>;
@@ -126,7 +127,7 @@ export default function TenantStorePage({ params }: PageProps) {
     : false;
 
   if (!isDBLoading && (!targetStore || !isOwnerActive || !isStoreActive)) {
-    notFound();
+    return <NotFoundPage />;
   }
 
   if (isDBLoading && !targetStore) {
@@ -141,7 +142,7 @@ export default function TenantStorePage({ params }: PageProps) {
   }
 
   if (!targetStore) {
-    notFound();
+    return <NotFoundPage />;
   }
 
   const store: StoreConfig = targetStore;

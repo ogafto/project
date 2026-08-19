@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Stripe Webhook] Payment received: ${amountTotalCents} cents for tenant: ${tenantId}`);
 
-    if (supabaseAdmin && tenantId) {
+    const dbAdmin: any = supabaseAdmin;
+    if (dbAdmin && tenantId) {
       try {
         // 1. Create order in orders table
-        await supabaseAdmin.from("orders").insert({
+        await dbAdmin.from("orders").insert({
           tenant_id: tenantId,
           stripe_session_id: session.id,
           amount_total_cents: amountTotalCents,
@@ -47,14 +48,14 @@ export async function POST(req: NextRequest) {
 
         // 2. Decrement stock if product order
         if (productId && metadata.type === "product") {
-          const { data: prod } = await supabaseAdmin
+          const { data: prod } = await dbAdmin
             .from("products")
             .select("stock")
             .eq("id", productId)
             .single();
 
           if (prod && prod.stock > 0) {
-            await supabaseAdmin
+            await dbAdmin
               .from("products")
               .update({ stock: prod.stock - 1 })
               .eq("id", productId);
@@ -62,14 +63,14 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Increment tenant balance_cents
-        const { data: tenantData } = await supabaseAdmin
+        const { data: tenantData } = await dbAdmin
           .from("tenants")
           .select("balance_cents")
           .eq("id", tenantId)
           .single();
 
         const currentBalance = tenantData?.balance_cents || 0;
-        await supabaseAdmin
+        await dbAdmin
           .from("tenants")
           .update({ balance_cents: currentBalance + amountTotalCents })
           .eq("id", tenantId);

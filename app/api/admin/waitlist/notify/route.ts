@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     // 2. Update Supabase waitlist_leads database if configured
     if (isSupabaseConfigured) {
-      const dbClient = supabaseAdmin || supabase;
+      const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
         // Update waitlist_leads records where notified_at IS NULL
         const { data, error } = await dbClient
