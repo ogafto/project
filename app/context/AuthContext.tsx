@@ -245,11 +245,11 @@ interface AuthContextType {
   enterImpersonation: (storeId: string) => void;
   exitImpersonation: () => void;
   toggleImpersonationEdit: () => void;
-  // Auth methods
+  sendOTP: (email: string) => Promise<boolean>;
   login: (email: string, password?: string) => { success: boolean; requires2FA?: boolean; message?: string };
   verify2FA: (code: string) => boolean;
   register: (name: string, email: string) => void;
-  verifyEmail: (code: string) => boolean;
+  verifyEmail: (code: string) => Promise<boolean> | boolean;
   sendPasswordReset: (email: string) => boolean;
   resetPassword: (code: string, newPassword: string) => boolean;
   logout: () => void;
@@ -339,7 +339,7 @@ const CLEAN_EMPTY_STORE_TEMPLATE: StoreConfig = {
 // Super-Admin Account: projekt@motywo.pl / motywo1!
 const ADMIN_USER: User = {
   id: "usr_admin_projekt",
-  name: "Właściciel / Superadmin",
+  name: "Administrator",
   email: "projekt@motywo.pl",
   role: "superadmin",
   plan: "Brand",
@@ -478,6 +478,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [pendingOTPCode, setPendingOTPCode] = useState<string | null>(null);
+  const [pendingUserToVerify, setPendingUserToVerify] = useState<User | null>(null);
   const [requires2FA, setRequires2FA] = useState<boolean>(false);
   const [pending2FAUser, setPending2FAUser] = useState<User | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -788,6 +790,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
+  const sendOTP = async (email: string): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+    setPendingOTPCode(generatedCode);
+    setPendingEmail(cleanEmail);
+
+    try {
+      await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, code: generatedCode }),
+      });
+      setMessage({
+        type: "success",
+        text: "Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.",
+      });
+      return true;
+    } catch (err) {
+      console.error("Failed to send OTP email:", err);
+      return false;
+    }
+  };
+
   const register = (name: string, email: string) => {
     const cleanEmail = email.toLowerCase().trim();
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
@@ -803,34 +828,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name,
       email: cleanEmail,
       role: isSuperadmin ? "superadmin" : "user",
-      plan: isSuperadmin ? "Brand" : "Brak",
+      plan: isSuperadmin ? "Brand" : "Start",
       hasStore: isSuperadmin,
       planExpiresAt: isSuperadmin ? new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       accountStatus: "Active",
       is2FAEnabled: false,
-      isEmailVerified: true,
+      isEmailVerified: false,
       createdAt: new Date().toISOString().split("T")[0],
       activeStoreId: isSuperadmin ? "t_admin_projekt" : undefined,
       stores: isSuperadmin ? ADMIN_USER.stores : [],
       store: isSuperadmin ? ADMIN_USER.store : undefined,
     };
 
-    setAllUsers((prev) => [...prev, newUser]);
-    setUser(newUser);
-    setMessage({
-      type: "success",
-      text: isSuperadmin
-        ? "Utworzono konto Właściciela / Super-Admina!"
-        : "Konto zarejestrowane! Wybierz pakiet, aby aktywować swój sklep.",
-    });
+    setPendingUserToVerify(newUser);
+    sendOTP(cleanEmail);
   };
 
-  const verifyEmail = (code: string) => {
-    if (code.length === 6) {
-      setMessage({ type: "success", text: "Adres e-mail zweryfikowany!" });
-      return true;
+  const verifyEmail = async (code: string): Promise<boolean> => {
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6) return false;
+
+    const targetEmail = pendingEmail || user?.email || pendingUserToVerify?.email;
+
+    if (targetEmail) {
+      try {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: targetEmail, code: cleanCode }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          if (pendingOTPCode && cleanCode === pendingOTPCode) {
+            // Local match fallback
+          } else {
+            setMessage({ type: "error", text: data.error || "Nieprawidłowy lub wygasły kod weryfikacyjny." });
+            return false;
+          }
+        }
+      } catch (err) {
+        console.warn("API verify-otp fetch fallback:", err);
+        if (pendingOTPCode && cleanCode !== pendingOTPCode) {
+          return false;
+        }
+      }
+    } else if (pendingOTPCode && cleanCode !== pendingOTPCode) {
+      return false;
     }
-    return false;
+
+    const targetUser = pendingUserToVerify || user || (pendingEmail ? allUsers.find(u => u.email === pendingEmail) : null);
+    if (!targetUser) return false;
+
+    const verifiedUser: User = {
+      ...targetUser,
+      isEmailVerified: true,
+    };
+
+    setUser(verifiedUser);
+    setAllUsers((prev) => {
+      const exists = prev.some((u) => u.id === verifiedUser.id || u.email === verifiedUser.email);
+      if (exists) {
+        return prev.map((u) => (u.id === verifiedUser.id || u.email === verifiedUser.email ? verifiedUser : u));
+      }
+      return [...prev, verifiedUser];
+    });
+
+    setPendingOTPCode(null);
+    setPendingUserToVerify(null);
+    setMessage({ type: "success", text: "Konto pomyślnie aktywowane i zweryfikowane!" });
+    return true;
   };
 
   const sendPasswordReset = (email: string) => {
@@ -1510,6 +1577,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         exitImpersonation,
         toggleImpersonationEdit,
         login,
+        sendOTP,
         verify2FA,
         register,
         verifyEmail,

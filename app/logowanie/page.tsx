@@ -113,7 +113,7 @@ export default function LogowaniePage() {
                   <label className="text-sm font-medium text-[#A1A1AA]">Adres e-mail</label>
                   <input
                     type="email"
-                    placeholder="projekt@motywo.pl"
+                    placeholder="Podaj swój adres e-mail"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-12 px-4 bg-[#0E0E11] border border-white/[0.1] rounded-[10px] text-white placeholder-[#505055] focus:outline-none focus:border-[#FF5B28] focus:ring-1 focus:ring-[#FF5B28] transition-all text-sm"
@@ -129,25 +129,11 @@ export default function LogowaniePage() {
                   </div>
                   <input
                     type="password"
-                    placeholder="motywo1!"
+                    placeholder="Podaj swoje hasło"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full h-12 px-4 bg-[#0E0E11] border border-white/[0.1] rounded-[10px] text-white placeholder-[#505055] focus:outline-none focus:border-[#FF5B28] focus:ring-1 focus:ring-[#FF5B28] transition-all text-sm"
                   />
-                </div>
-
-                {/* Szybkie uzupełnianie danych logowania */}
-                <div className="mt-1 p-3 bg-[#0E0E11]/70 border border-white/[0.06] rounded-[10px] flex flex-col gap-2">
-                  <span className="text-xs text-[#909095] font-medium">Szybki dostęp (kliknij, aby uzupełnić):</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fillQuickAccount("projekt@motywo.pl", "motywo1!")}
-                      className="flex-1 py-2 px-2 bg-[#FF5B28]/20 hover:bg-[#FF5B28]/30 border border-[#FF5B28]/40 rounded-[6px] text-xs text-[#FF5B28] font-bold text-center cursor-pointer transition-colors"
-                    >
-                      👑 Super-Admin (projekt@motywo.pl)
-                    </button>
-                  </div>
                 </div>
 
                 <button

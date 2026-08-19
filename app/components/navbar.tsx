@@ -72,7 +72,7 @@ export default function Navbar() {
             >
               <span>Panel Sklepu</span>
               <span className="bg-white/20 text-white text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded font-extrabold">
-                {user.role === "superadmin" ? "Superadmin" : user.plan}
+                {user.role === "superadmin" || user.role === "admin" ? "Administrator" : user.plan}
               </span>
             </Link>
             <button

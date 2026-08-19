@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function PotwierdzenieEmailPage() {
   const router = useRouter();
-  const { pendingEmail, verifyEmail } = useAuth();
+  const { pendingEmail, verifyEmail, sendOTP } = useAuth();
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -56,7 +56,7 @@ export default function PotwierdzenieEmailPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = digits.join("");
     if (code.length !== 6) {
@@ -64,26 +64,28 @@ export default function PotwierdzenieEmailPage() {
       return;
     }
 
-    const ok = verifyEmail(code);
+    const ok = await verifyEmail(code);
     if (ok) {
+      setError("");
       setSuccessMsg("Kod prawidłowy! Przekierowywanie do panelu...");
       setTimeout(() => {
         router.push("/dashboard");
-      }, 1200);
+      }, 1000);
     } else {
-      setError("Nieprawidłowy kod weryfikacyjny. Spróbuj użyć kodu: 123456.");
+      setError("Nieprawidłowy lub wygasły kod weryfikacyjny. Sprawdź e-mail i spróbuj ponownie.");
     }
   };
 
-  const handleResend = () => {
-    if (timer === 0) {
+  const handleResend = async () => {
+    if (timer === 0 && pendingEmail) {
       setTimer(60);
-      setSuccessMsg("Nowy kod został wysłany na Twój e-mail!");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      await sendOTP(pendingEmail);
+      setSuccessMsg("Nowy 6-cyfrowy kod weryfikacyjny został wysłany na Twój adres e-mail!");
+      setTimeout(() => setSuccessMsg(""), 4000);
     }
   };
 
-  const displayEmail = pendingEmail || "jan@kowalski.pl";
+  const displayEmail = pendingEmail || "Twój adres e-mail";
 
   return (
     <main className="relative min-h-screen w-full bg-[#0E0E11] text-white flex flex-col overflow-hidden pb-20">
@@ -95,16 +97,16 @@ export default function PotwierdzenieEmailPage() {
         <div className="mt-16 sm:mt-24 w-full flex justify-center items-center">
           <div className="w-full max-w-[480px] bg-[#17171B]/90 backdrop-blur-xl border border-white/[0.08] rounded-[24px] p-8 sm:p-10 shadow-2xl shadow-black/80 flex flex-col items-center">
             
-            <Badge tag="Weryfikacja" text="Potwierdzenie adresu e-mail" />
+            <Badge tag="Weryfikacja Email OTP" text="Potwierdzenie konta" />
 
             <h1 className="mt-4 text-[30px] sm:text-[34px] font-semibold text-white tracking-tight text-center leading-tight">
               Wpisz 6-cyfrowy kod
             </h1>
 
             <p className="mt-2 text-[14px] sm:text-[15px] font-medium text-[#707070] text-center leading-relaxed">
-              Kod weryfikacyjny został wysłany na adres:
+              Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.
               <br />
-              <strong className="text-white font-semibold">{displayEmail}</strong>
+              <strong className="text-white font-semibold mt-1 block">{displayEmail}</strong>
             </p>
 
             {error && (
@@ -134,10 +136,6 @@ export default function PotwierdzenieEmailPage() {
                     className="w-11 h-14 sm:w-12 sm:h-16 text-center text-xl font-bold bg-[#0E0E11] border border-white/[0.1] rounded-[12px] text-white focus:outline-none focus:border-[#FF5B28] focus:ring-2 focus:ring-[#FF5B28]/30 transition-all"
                   />
                 ))}
-              </div>
-
-              <div className="p-3 w-full bg-[#0E0E11]/60 border border-white/[0.05] rounded-[10px] text-center text-xs text-[#909095]">
-                Wskazówka testowa: Wprowadź dowolne 6 cyfr (np. <strong className="text-white">123456</strong>)
               </div>
 
               <button

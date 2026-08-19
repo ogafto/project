@@ -890,8 +890,8 @@ export default function DashboardPage() {
               <div className="flex flex-col text-left pr-1">
                 <span className="text-xs font-extrabold text-white leading-tight flex items-center gap-1.5">
                   <span>{user.name || user.email}</span>
-                  <span className="px-1.5 py-0.2 bg-[#FF5B28]/10 text-[#FF5B28] rounded text-[9px] font-extrabold border border-[#FF5B28]/20">
-                    Właściciel
+                  <span className="px-1.5 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] rounded text-[10px] font-extrabold border border-[#FF5B28]/20">
+                    {user.role === "superadmin" || user.role === "admin" ? "Administrator" : "Użytkownik"}
                   </span>
                 </span>
                 <span className="text-[10px] text-cyan-400 font-mono leading-tight">
@@ -907,7 +907,7 @@ export default function DashboardPage() {
               <div className="absolute right-0 mt-2 w-64 bg-[#18191E] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 animate-in fade-in duration-150">
                 <div className="px-3.5 py-2.5 border-b border-white/5 mb-1 bg-[#090A0C] rounded-xl">
                   <span className="text-[10px] uppercase font-extrabold text-[#FF5B28] block tracking-wider">
-                    🏬 Właściciel Sklepu
+                    {user.role === "superadmin" || user.role === "admin" ? "Administrator" : "Użytkownik"}
                   </span>
                   <span className="text-xs font-bold text-white truncate block mt-0.5">{user.email}</span>
                 </div>

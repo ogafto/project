@@ -87,7 +87,7 @@ export default function RejestracjaPage() {
                 <label className="text-sm font-medium text-[#A1A1AA]">Adres e-mail</label>
                 <input
                   type="email"
-                  placeholder="jan@kowalski.pl"
+                  placeholder="Podaj swój adres e-mail"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full h-12 px-4 bg-[#0E0E11] border border-white/[0.1] rounded-[10px] text-white placeholder-[#505055] focus:outline-none focus:border-[#FF5B28] focus:ring-1 focus:ring-[#FF5B28] transition-all text-sm"
@@ -98,7 +98,7 @@ export default function RejestracjaPage() {
                 <label className="text-sm font-medium text-[#A1A1AA]">Hasło</label>
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Podaj swoje hasło"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-12 px-4 bg-[#0E0E11] border border-white/[0.1] rounded-[10px] text-white placeholder-[#505055] focus:outline-none focus:border-[#FF5B28] focus:ring-1 focus:ring-[#FF5B28] transition-all text-sm"
@@ -109,7 +109,7 @@ export default function RejestracjaPage() {
                 <label className="text-sm font-medium text-[#A1A1AA]">Powtórz hasło</label>
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Podaj swoje hasło"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full h-12 px-4 bg-[#0E0E11] border border-white/[0.1] rounded-[10px] text-white placeholder-[#505055] focus:outline-none focus:border-[#FF5B28] focus:ring-1 focus:ring-[#FF5B28] transition-all text-sm"
