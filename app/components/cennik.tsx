@@ -4,8 +4,8 @@ import { useState } from "react";
 import Badge from "./badge";
 import { useAuth, PlanType } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
+import { PLANS } from "@/lib/plans";
 
-// Checkmark SVG Icon (#FFFFFF)
 const CheckIcon = () => (
   <svg
     width="16"
@@ -13,7 +13,7 @@ const CheckIcon = () => (
     viewBox="0 0 16 16"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className="flex-shrink-0 text-white"
+    className="flex-shrink-0 text-[#FF5B28]"
   >
     <path
       d="M13.3332 4L5.99984 11.3333L2.6665 8"
@@ -25,7 +25,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-interface Plan {
+interface PlanDisplay {
   id: PlanType;
   name: string;
   description: string;
@@ -33,65 +33,67 @@ interface Plan {
   priceMonthly: string;
   priceYearly: string;
   priceSubtitle: string;
+  commissionBadge: string;
   isPopular?: boolean;
   features: string[];
 }
 
-const plans: Plan[] = [
+const plans: PlanDisplay[] = [
   {
     id: "Start",
     name: "Pakiet Start",
-    description:
-      "Dla osoby, która chce stworzyć pierwszy sklep i sprawdzić swój pomysł.",
-    buttonText: "Kup Pakiet Start",
+    description: "Trial 14 dni za darmo. Bez ryzyka – wypróbuj sprzedaż i stwórz pierwszy sklep.",
+    buttonText: "Zacznij 14 Dni za Darmo",
     priceMonthly: "0.00 PLN",
     priceYearly: "0.00 PLN",
-    priceSubtitle: "Za darmo na 14 dni",
+    priceSubtitle: "przez pierwsze 14 dni",
+    commissionBadge: "Prowizja 2.0%",
     isPopular: false,
     features: [
-      "1 gotowy szablon",
-      "do 5 produktów",
-      "produkty fizyczne i cyfrowe",
-      "2,5% prowizji od sprzedaży",
-      "podstawowe statystyki",
+      "Prowizja: 2.0% od sprzedaży",
+      "Subdomena nazwa.iskral.pl (chroniona 14d + 30d karencji)",
+      "Podstawowe szablony e-commerce",
+      "Nielimitowane produkty fizyczne i cyfrowe",
+      "Podstawowe statystyki sprzedaży",
+      "Prosty i szybki checkout Stripe",
     ],
   },
   {
     id: "Creator",
     name: "Pakiet Creator",
-    description:
-      "Dla twórców i marek, które zaczynają regularnie sprzedawać.",
-    buttonText: "Kup Pakiet Creator",
-    priceMonthly: "49,99 PLN",
-    priceYearly: "24,99 PLN",
+    description: "Dla twórców i marek uruchamiających dropy i budujących bazę fanów.",
+    buttonText: "Wybierz Pakiet Creator",
+    priceMonthly: "29,99 PLN",
+    priceYearly: "14,99 PLN",
     priceSubtitle: "/miesięcznie",
+    commissionBadge: "Prowizja 1.0%",
     isPopular: true,
     features: [
-      "wszystko ze Start",
-      "nielimitowane produkty",
-      "wszystkie szablony",
-      "własna domena",
-      "dropy i countdown",
-      "kody rabatowe",
-      "1,0% prowizji od sprzedaży",
+      "Prowizja: 1.0% od sprzedaży",
+      "Szablony VIP + Podstawowe",
+      "🚀 Moduł Dropu & Odliczanie Premier",
+      "📧 Wbudowany E-mail Newsletter & Subskrybenci",
+      "👥 Współpraca zespołowa (zapraszanie członków)",
+      "Nielimitowane produkty & pliki cyfrowe",
     ],
   },
   {
     id: "Brand",
     name: "Pakiet Brand",
-    description: "Dla marek, które chcą mocniej rozwijać sprzedaż.",
-    buttonText: "Kup Pakiet Brand",
-    priceMonthly: "99,99 PLN",
-    priceYearly: "49,99 PLN",
+    description: "Dla rozwiniętych marek e-commerce wymagających własnej domeny i najniższej prowizji.",
+    buttonText: "Wybierz Pakiet Brand",
+    priceMonthly: "59,99 PLN",
+    priceYearly: "29,99 PLN",
     priceSubtitle: "/miesięcznie",
+    commissionBadge: "Prowizja 0.5%",
     isPopular: false,
     features: [
-      "wszystko z Creator",
-      "3 konta zespołowe",
-      "automatyczne kampanie e-mail",
-      "0,5% prowizji od sprzedaży",
-      "priorytetowe wsparcie",
-      "zaawansowane statystyki sprzedaży",
+      "Prowizja: 0.5% od sprzedaży (Najniższa)",
+      "🌐 Podpinanie własnej domeny zewnętrznej (twojadomena.pl)",
+      "🎨 Pełny wizualny edytor sklepu & Wszystkie szablony",
+      "Zaawansowane kampanie e-mail i automatyzacje",
+      "Priorytetowy support & Zaawansowana analityka",
+      "Bez limitu członków zespołu i sklepów",
     ],
   },
 ];
@@ -112,12 +114,12 @@ export default function Cennik() {
       router.push("/dashboard");
     } else {
       const priceCents = planId === "Creator"
-        ? (billingCycle === "rok" ? 29900 : 4990)
-        : (billingCycle === "rok" ? 59900 : 9990);
+        ? (billingCycle === "rok" ? 17988 : 2999)
+        : (billingCycle === "rok" ? 35988 : 5999);
 
       const checkoutUrl = await createStripeCheckout({
         planType: planId,
-        title: `Subskrypcja Motywo SaaS - Pakiet ${planId} (${billingCycle})`,
+        title: `Subskrypcja Iskral SaaS - Pakiet ${planId} (${billingCycle})`,
         priceCents,
       });
 
@@ -132,128 +134,117 @@ export default function Cennik() {
 
   return (
     <section className="flex flex-col items-center text-center w-full max-w-[1240px] mx-auto px-4 py-12">
-      {/* Badge Component */}
-      <Badge tag="Cennik" text="Wybierz swój pakiet" />
+      <Badge tag="Cennik SaaS" text="Wybierz elastyczny plan dla Twojego sklepu" />
 
-      {/* Main Title */}
-      <h2 className="mt-[12px] text-[48px] font-semibold text-white tracking-tight leading-[1.15] text-center">
-        Zacznij bez ryzyka. Rozwijaj
+      <h2 className="mt-3 text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight text-center">
+        Zacznij od 14 dni Trialu.
         <br />
-        sklep, kiedy chcesz.
+        Skaluj sprzedaż bez limitów.
       </h2>
 
-      {/* Subtitle / Description */}
-      <p className="mt-[24px] text-[16px] font-medium text-[#707070] text-center leading-relaxed">
-        Stwórz sklep za darmo, a na wyższy plan przejdź
-        <br />
-        wtedy, gdy zaczniesz sprzedawać więcej.
+      <p className="mt-4 text-sm sm:text-base font-medium text-zinc-400 text-center leading-relaxed">
+        Stwórz sklep w pakiecie Start za darmo. Przejdź na Creator lub Brand, gdy potrzebujesz własnej domeny, dropów i niższej prowizji.
       </p>
 
       {/* Billing Cycle Switcher */}
-      <div className="mt-[32px] inline-flex items-center p-[8px] bg-[#0E0E11]/75 backdrop-blur-md border border-white/[0.08] rounded-[12px]">
+      <div className="mt-8 inline-flex items-center p-1.5 bg-[#0E0E11]/90 backdrop-blur-md border border-white/10 rounded-2xl">
         <button
           onClick={() => setBillingCycle("miesiac")}
-          className={`px-[16px] py-[8px] rounded-[6px] text-[16px] transition-all duration-200 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
             billingCycle === "miesiac"
-              ? "bg-white/[0.05] border border-white/[0.10] text-white font-medium"
-              : "bg-transparent border border-transparent text-[#707070] hover:text-white"
+              ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/20"
+              : "bg-transparent text-zinc-400 hover:text-white"
           }`}
         >
-          Miesiąc
+          Płatność Miesięczna
         </button>
 
         <button
           onClick={() => setBillingCycle("rok")}
-          className={`px-[16px] py-[8px] rounded-[6px] text-[16px] inline-flex items-center gap-[4px] transition-all duration-200 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all duration-200 cursor-pointer ${
             billingCycle === "rok"
-              ? "bg-white/[0.05] border border-white/[0.10] text-white font-medium"
-              : "bg-transparent border border-transparent text-[#707070] hover:text-white"
+              ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/20"
+              : "bg-transparent text-zinc-400 hover:text-white"
           }`}
         >
-          <span>Rok</span>
-          <span className="bg-[#FF5A28] text-white text-[10px] font-bold px-[6px] py-[2px] rounded-[4px] leading-none inline-flex items-center justify-center">
-            -50%
+          <span>Płatność Roczna</span>
+          <span className="bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded uppercase">
+            -50% Taniej
           </span>
         </button>
       </div>
 
       {/* Plans Grid */}
-      <div className="mt-[64px] grid grid-cols-1 lg:grid-cols-3 gap-[24px] w-full text-left items-end">
+      <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6 w-full text-left items-stretch">
         {plans.map((plan) => {
-          const isCreator = plan.isPopular;
-
-          const cardInnerContent = (
-            <div className="flex flex-col">
-              <div className="bg-[#17171B] border border-white/[0.05] rounded-[20px] p-[32px] flex flex-col">
-                <div>
-                  <h3 className="text-[24px] font-semibold text-white tracking-tight">
-                    {plan.name}
-                  </h3>
-                  <p className="mt-[8px] text-[16px] text-[#707070] leading-snug">
-                    {plan.description}
-                  </p>
-                </div>
-
-                <div className="mt-[32px] flex items-center justify-between gap-[16px]">
-                  <button
-                    onClick={() => handlePlanClick(plan.id)}
-                    className={`px-[24px] py-[12px] text-[16px] rounded-[10px] transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                      isCreator
-                        ? "bg-[#FF5A28] text-white font-medium hover:bg-[#ff6c3e]"
-                        : "bg-[#0E0E11] text-[#A1A1AA] border border-white/[0.08] hover:text-white hover:border-white/[0.15]"
-                    }`}
-                  >
-                    {plan.buttonText}
-                  </button>
-
-                  <div className="text-right flex flex-col items-end justify-center">
-                    <span className="text-[20px] font-semibold text-white leading-none">
-                      {billingCycle === "miesiac"
-                        ? plan.priceMonthly
-                        : plan.priceYearly}
-                    </span>
-                    <span className="mt-[2px] text-[14px] text-[#707070] leading-none">
-                      {plan.priceSubtitle}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="py-[32px] px-[32px] flex flex-col gap-[14px]">
-                {plan.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-[12px]">
-                    <CheckIcon />
-                    <span className="text-[16px] text-[#707070]">
-                      {feature}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-
-          if (isCreator) {
-            return (
-              <div
-                key={plan.id}
-                className="bg-[#FF5A28] rounded-[24px] p-[4px] pt-0 flex flex-col"
-              >
-                <div className="py-[24px] text-center text-[16px] font-medium text-white">
-                  Najbardziej wybierany
-                </div>
-                <div className="bg-[#0E0E11] border border-white/[0.08] rounded-[20px] p-[4px]">
-                  {cardInnerContent}
-                </div>
-              </div>
-            );
-          }
+          const isPopular = plan.isPopular;
 
           return (
             <div
               key={plan.id}
-              className="bg-[#0E0E11] border border-white/[0.08] rounded-[24px] p-[4px] flex flex-col"
+              className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all relative overflow-hidden ${
+                isPopular
+                  ? "bg-[#111216] border-2 border-[#FF5B28] shadow-2xl shadow-[#FF5B28]/10"
+                  : "bg-[#111216]/80 border border-white/10 hover:border-white/20"
+              }`}
             >
-              {cardInnerContent}
+              {isPopular && (
+                <div className="absolute top-4 right-4">
+                  <span className="px-3 py-1 bg-[#FF5B28] text-white font-black text-[10px] uppercase rounded-full tracking-wider shadow-md">
+                    NAJPOPULARNIEJSZY
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded-full text-[10px] font-extrabold uppercase">
+                    {plan.commissionBadge}
+                  </span>
+                </div>
+
+                <h3 className="text-2xl font-black text-white tracking-tight">
+                  {plan.name}
+                </h3>
+                <p className="mt-2 text-xs text-zinc-400 leading-relaxed min-h-[36px]">
+                  {plan.description}
+                </p>
+
+                <div className="mt-6 pt-6 border-t border-white/5 flex items-baseline justify-between">
+                  <div>
+                    <span className="text-3xl font-black text-white font-mono leading-none">
+                      {billingCycle === "miesiac"
+                        ? plan.priceMonthly
+                        : plan.priceYearly}
+                    </span>
+                    <span className="ml-1.5 text-xs text-zinc-400">
+                      {plan.priceSubtitle}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3 pt-6 border-t border-white/5">
+                  {plan.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
+                      <CheckIcon />
+                      <span className="leading-snug">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-white/5">
+                <button
+                  onClick={() => handlePlanClick(plan.id)}
+                  className={`w-full py-3.5 px-6 rounded-xl font-extrabold text-xs transition-all shadow-lg cursor-pointer ${
+                    isPopular
+                      ? "bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] hover:from-[#e04f20] hover:to-[#e07520] text-white shadow-[#FF5B28]/20"
+                      : "bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                  }`}
+                >
+                  {plan.buttonText}
+                </button>
+              </div>
             </div>
           );
         })}

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase, upsertStoreInSupabase } from "@/lib/supabase";
 import { getAuthCookie, setAuthCookie, deleteAuthCookie } from "@/lib/cookies";
+import { hasFeatureAccess, PlanFeatureConfig, getStoreLifecycleDates } from "@/lib/plans";
 
 export type Role = "user" | "superadmin" | "client" | "admin";
 export type PlanType = "trial_14d" | "starter" | "brand" | "pro" | "Start" | "Creator" | "Brand" | "Brak";
@@ -113,6 +114,8 @@ export interface StoreConfig {
   planStatus: "active" | "trialing" | "past_due" | "canceled" | "suspended";
   status?: "active" | "suspended" | "canceled";
   planExpiresAt?: string;
+  trialEndsAt?: string;
+  gracePeriodEndsAt?: string;
   dropConfig: DropConfig;
   categories: Category[];
   products: Product[];
@@ -231,6 +234,7 @@ interface AuthContextType {
   pending2FAUser: User | null;
   message: { type: "success" | "error"; text: string } | null;
   setMessage: (msg: { type: "success" | "error"; text: string } | null) => void;
+  hasAccess: (featureKey: keyof PlanFeatureConfig) => boolean;
   // Multi-store per user actions
   setActiveStoreId: (storeId: string) => void;
   createAdditionalStore: (name: string, plan: PlanType, billingCycle: "miesiac" | "rok") => Promise<void>;
@@ -537,13 +541,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       c++;
     }
 
+    const lifecycle = getStoreLifecycleDates();
     const createdStore: StoreConfig = {
       ...CLEAN_EMPTY_STORE_TEMPLATE,
       id: newStoreId,
       name: `Sklep ${user?.name || "Nowy"}`,
       subdomain: sub,
       planType: user?.plan || "Start",
-      planStatus: "active",
+      planStatus: "trialing",
+      trialEndsAt: lifecycle.trialEndsAt,
+      gracePeriodEndsAt: lifecycle.gracePeriodEndsAt,
     };
     return createdStore;
   };
@@ -1464,6 +1471,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const hasAccess = (featureKey: keyof PlanFeatureConfig): boolean => {
+    const currentPlan = activeStore?.planType || user?.plan || "Start";
+    return hasFeatureAccess(currentPlan, featureKey);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -1471,6 +1483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         allUsers,
         activeStore,
         userStores,
+        hasAccess,
         onlineUsersCount,
         topStoresLeaderboard,
         blogPosts,

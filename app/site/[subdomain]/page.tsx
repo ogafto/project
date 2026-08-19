@@ -126,7 +126,40 @@ export default function TenantStorePage({ params }: PageProps) {
       targetStore.planStatus !== "suspended"
     : false;
 
-  if (!isDBLoading && (!targetStore || !isOwnerActive || !isStoreActive)) {
+  if (targetStore && !isStoreActive) {
+    return (
+      <div className="min-h-screen bg-[#090A0C] text-white flex flex-col items-center justify-center px-4 relative overflow-hidden font-sans">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="relative z-10 max-w-md w-full text-center space-y-6 bg-white/[0.03] border border-white/10 p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-2xl font-extrabold mb-2">
+            ⏸️
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Ten sklep jest chwilowo niedostępny
+          </h1>
+          <p className="text-zinc-400 text-sm leading-relaxed">
+            Okres rozliczeniowy lub darmowy trial tego sklepu dobiegł końca. Subdomena oraz zasoby sklepu pozostają zarezerwowane dla właściciela w okresie karencji.
+          </p>
+          <div className="pt-2 flex flex-col gap-3">
+            <Link
+              href="/logowanie"
+              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] text-white font-bold text-sm hover:opacity-90 transition shadow-lg shadow-[#FF5B28]/20 flex items-center justify-center gap-2"
+            >
+              Właścicielu? Zaloguj się i opłać pakiet
+            </Link>
+            <Link
+              href="/"
+              className="w-full py-3 px-6 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-white/10 transition flex items-center justify-center"
+            >
+              Strona główna platformy
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isDBLoading && (!targetStore || !isOwnerActive)) {
     return <NotFoundPage />;
   }
 

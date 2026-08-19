@@ -1,6 +1,6 @@
 -- =========================================================
 -- ISKRAL.PL - SUPABASE POSTGRESQL MULTI-STORE SCHEMA DDL
--- Production Multi-Store Architecture & Fast Subdomain Routing
+-- Production SaaS Architecture: Subscriptions, Trial & Grace Period
 -- =========================================================
 
 -- Enable UUID extension
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     tenant_id TEXT,
     user_email TEXT,
-    plan_name TEXT NOT NULL DEFAULT 'free',
+    plan_name TEXT NOT NULL DEFAULT 'Start',
     plan_id TEXT,
     status TEXT NOT NULL DEFAULT 'active',
     billing_cycle TEXT DEFAULT 'miesiac',
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3. STORES TABLE
+-- 3. STORES TABLE (With Trial 14d + Grace Period 30d Protection)
 CREATE TABLE IF NOT EXISTS public.stores (
     id TEXT PRIMARY KEY,
     owner_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -51,9 +51,11 @@ CREATE TABLE IF NOT EXISTS public.stores (
     stripe_status TEXT DEFAULT 'disconnected',
     balance_cents INT DEFAULT 0,
     plan_type TEXT DEFAULT 'Start',
-    plan_status TEXT DEFAULT 'active',
-    status TEXT DEFAULT 'active',
+    plan_status TEXT DEFAULT 'trialing' CHECK (plan_status IN ('trialing', 'active', 'past_due', 'suspended', 'canceled')),
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'canceled')),
     is_active BOOLEAN DEFAULT TRUE,
+    trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
+    grace_period_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '44 days'),
     social_links JSONB DEFAULT '{}'::jsonb,
     theme_config JSONB DEFAULT '{"template": "Dark Vibe", "accentColor": "#FF5B28"}'::jsonb,
     drop_config JSONB DEFAULT '{"enabled": false, "template": "Cyberpunk Launch", "targetDate": ""}'::jsonb,
@@ -110,12 +112,11 @@ CREATE TABLE IF NOT EXISTS public.waitlist_leads (
 );
 
 -- HIGH PERFORMANCE INDEXES
-CREATE INDEX IF NOT EXISTS idx_stores_subdomain ON public.stores (LOWER(subdomain));
-CREATE INDEX IF NOT EXISTS idx_stores_custom_domain ON public.stores (LOWER(custom_domain));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_stores_lower_subdomain ON public.stores (LOWER(subdomain));
+CREATE INDEX IF NOT EXISTS idx_stores_lower_custom_domain ON public.stores (LOWER(custom_domain));
 CREATE INDEX IF NOT EXISTS idx_stores_owner_id ON public.stores (owner_id);
 CREATE INDEX IF NOT EXISTS idx_products_store_id ON public.products (store_id);
 CREATE INDEX IF NOT EXISTS idx_orders_store_id ON public.orders (store_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions (user_id);
 
 -- ENABLE ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -124,26 +125,22 @@ ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- PUBLIC READ POLICIES FOR STOREFRONT SUBDOMAIN FAST LOADING
+-- PUBLIC READ POLICIES FOR STOREFRONT RENDERING
 CREATE POLICY "Allow public select profiles" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Allow public select subscriptions" ON public.subscriptions FOR SELECT USING (true);
 CREATE POLICY "Allow public select stores" ON public.stores FOR SELECT USING (true);
 CREATE POLICY "Allow public select products" ON public.products FOR SELECT USING (true);
 CREATE POLICY "Allow public select orders" ON public.orders FOR SELECT USING (true);
 
--- PUBLIC INSERT / UPDATE POLICIES FOR CLIENT MUTATIONS
+-- PUBLIC MUTATION POLICIES
 CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update profiles" ON public.profiles FOR UPDATE USING (true);
-
 CREATE POLICY "Allow public insert subscriptions" ON public.subscriptions FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update subscriptions" ON public.subscriptions FOR UPDATE USING (true);
-
 CREATE POLICY "Allow public insert stores" ON public.stores FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update stores" ON public.stores FOR UPDATE USING (true);
-
 CREATE POLICY "Allow public insert products" ON public.products FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update products" ON public.products FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete products" ON public.products FOR DELETE USING (true);
-
 CREATE POLICY "Allow public insert orders" ON public.orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (true);

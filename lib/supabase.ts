@@ -50,14 +50,12 @@ export const supabaseAdmin = supabaseAdminClient;
  */
 export async function fetchStoreFromSupabase(subdomain: string): Promise<any | null> {
   if (!supabase) {
-    console.warn("[Supabase] Client is not configured. Falling back to local state.");
     return null;
   }
   try {
     const cleanSub = (subdomain || "").trim().toLowerCase();
     if (!cleanSub) return null;
 
-    // Use .limit(1) to avoid PGRST116 error when 0 rows are found
     const { data, error } = await (supabase as any)
       .from("stores")
       .select("*")
@@ -77,6 +75,56 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
   } catch (err) {
     console.error("[Supabase] Unexpected error fetching store:", err);
     return null;
+  }
+}
+
+/**
+ * Check if a subdomain is available (or reserved by grace period)
+ */
+export async function checkSubdomainAvailability(
+  subdomain: string,
+  excludeStoreId?: string
+): Promise<{ available: boolean; reason?: string }> {
+  const cleanSub = (subdomain || "").trim().toLowerCase();
+  const reserved = ["www", "app", "admin", "mail", "api", "shop", "store", "iskral", "motywo"];
+
+  if (!cleanSub || cleanSub.length < 3) {
+    return { available: false, reason: "Subdomena musi mieć co najmniej 3 znaki." };
+  }
+
+  if (reserved.includes(cleanSub)) {
+    return { available: false, reason: "Ta nazwa jest zastrzeżona przez system." };
+  }
+
+  if (!supabase) return { available: true };
+
+  try {
+    const { data, error } = await (supabase as any)
+      .from("stores")
+      .select("id, subdomain, grace_period_ends_at")
+      .eq("subdomain", cleanSub)
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return { available: true };
+    }
+
+    const existingStore = data[0];
+    if (excludeStoreId && existingStore.id === excludeStoreId) {
+      return { available: true };
+    }
+
+    // Check if grace period is active
+    if (existingStore.grace_period_ends_at) {
+      const graceEnd = new Date(existingStore.grace_period_ends_at).getTime();
+      if (graceEnd > Date.now()) {
+        return { available: false, reason: "Nazwa zarezerwowana w okresie karencji poprzedniego właściciela." };
+      }
+    }
+
+    return { available: false, reason: "Ta subdomena jest już zajęta." };
+  } catch {
+    return { available: true };
   }
 }
 
@@ -122,9 +170,11 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
       stripe_status: storeData.stripeStatus || "disconnected",
       balance_cents: storeData.balanceCents || 0,
       plan_type: storeData.planType || "Start",
-      plan_status: storeData.planStatus || "active",
+      plan_status: storeData.planStatus || "trialing",
       status: storeData.status || "active",
       is_active: storeData.is_active !== false,
+      trial_ends_at: storeData.trialEndsAt || new Date(Date.now() + 14 * 864e5).toISOString(),
+      grace_period_ends_at: storeData.gracePeriodEndsAt || new Date(Date.now() + 44 * 864e5).toISOString(),
       social_links: storeData.socials || {},
       theme_config: { template: storeData.template, accentColor: storeData.accentColor },
       drop_config: storeData.dropConfig || {},

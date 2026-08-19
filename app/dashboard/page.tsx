@@ -10,6 +10,8 @@ import Cennik from "../components/cennik";
 import StoreBuilderWizard from "../components/StoreBuilderWizard";
 import { useAuth, Product, Category, PlanType, StoreConfig, TeamMember, Campaign } from "../context/AuthContext";
 import { getStoreUrl } from "@/lib/cookies";
+import { PLANS, getPlanConfig, hasFeatureAccess, formatCommissionRate, getStoreLifecycleDates, PlanFeatureConfig } from "@/lib/plans";
+import { checkSubdomainAvailability } from "@/lib/supabase";
 import { 
   Crown, 
   Store, 
@@ -39,6 +41,8 @@ import {
   BarChart3,
   CheckCircle2,
   Lock,
+  Zap,
+  ShieldAlert,
   Unlock,
   Building2,
   DollarSign,
@@ -67,12 +71,57 @@ import {
   Upload
 } from "lucide-react";
 
+interface FeatureGateLockProps {
+  title: string;
+  description: string;
+  requiredPlan: "Creator" | "Brand";
+  onUpgrade: () => void;
+}
+
+function FeatureGateLock({ title, description, requiredPlan, onUpgrade }: FeatureGateLockProps) {
+  return (
+    <div className="w-full p-8 sm:p-12 bg-[#111216]/90 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl flex flex-col items-center text-center relative overflow-hidden my-4 animate-in fade-in duration-300">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#FF5B28]/10 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col items-center max-w-lg space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 text-[#FF5B28] flex items-center justify-center text-2xl font-extrabold shadow-lg shadow-[#FF5B28]/10">
+          <Lock className="w-8 h-8 text-[#FF5B28]" />
+        </div>
+
+        <div className="space-y-1">
+          <span className="px-3 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Wymagany Pakiet {requiredPlan}
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight pt-2">
+            {title}
+          </h2>
+        </div>
+
+        <p className="text-sm text-zinc-400 leading-relaxed">
+          {description}
+        </p>
+
+        <div className="pt-4 flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
+          <button
+            onClick={onUpgrade}
+            className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] hover:from-[#e04f20] hover:to-[#e07520] text-white font-extrabold text-xs rounded-full shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Ulepsz Pakiet na {requiredPlan}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const {
     user,
     allUsers,
     activeStore,
     userStores,
+    hasAccess,
     setActiveStoreId,
     createAdditionalStore,
     isImpersonating,
@@ -154,6 +203,32 @@ export default function DashboardPage() {
   const [facebookInput, setFacebookInput] = useState("");
   const [behanceInput, setBehanceInput] = useState("");
   const [telegramInput, setTelegramInput] = useState("");
+
+  // Live Subdomain Availability Validation State
+  const [subdomainValidation, setSubdomainValidation] = useState<{
+    checking: boolean;
+    available: boolean;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const currentSubdomain = activeStore?.subdomain || userStores[0]?.subdomain;
+    const storeId = activeStore?.id || userStores[0]?.id;
+    if (!subdomainInput || subdomainInput.trim().toLowerCase() === currentSubdomain?.toLowerCase()) {
+      setSubdomainValidation(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSubdomainValidation({ checking: true, available: false, message: "Sprawdzanie dostępności..." });
+      const res = await checkSubdomainAvailability(subdomainInput, storeId);
+      setSubdomainValidation({
+        checking: false,
+        available: res.available,
+        message: res.available ? "🟢 Subdomena jest dostępna!" : `🔴 ${res.reason || "Niedostępna"}`,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [subdomainInput, activeStore, userStores]);
 
   // SEO Form State
   const [metaTitleInput, setMetaTitleInput] = useState("");
@@ -1738,6 +1813,15 @@ export default function DashboardPage() {
                           .iskral.pl
                         </span>
                       </div>
+                      {subdomainValidation && (
+                        <div className={`mt-1.5 text-[11px] font-extrabold flex items-center gap-1.5 ${subdomainValidation.available ? "text-emerald-400" : "text-red-400"}`}>
+                          {subdomainValidation.checking ? (
+                            <span className="text-zinc-400 animate-pulse">⏳ {subdomainValidation.message}</span>
+                          ) : (
+                            <span>{subdomainValidation.message}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2024,6 +2108,14 @@ export default function DashboardPage() {
 
               {/* SUBTAB 5: DROPY */}
               {builderSubTab === "drop" && (
+                !hasAccess("canUseDrops") ? (
+                  <FeatureGateLock
+                    title="Moduł Dropu i Premier Produktowych"
+                    description="Twórz limitowane edycje produktów, uruchamiaj odliczanie w czasie rzeczywistym i buduj ekskluzywność marek streetwear/digital."
+                    requiredPlan="Creator"
+                    onUpgrade={() => setActiveTab("marketplace")}
+                  />
+                ) : (
                 <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
                   <div>
                     <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2094,10 +2186,19 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+                )
               )}
 
               {/* SUBTAB 6: ZESPÓŁ (TEAM COLLABORATION) */}
               {builderSubTab === "team" && (
+                !hasAccess("canUseTeam") ? (
+                  <FeatureGateLock
+                    title="Współpraca Zespołowa (Team Collaboration)"
+                    description="Zapraszaj członków zespołu, przydzielaj indywidualne role i bezpiecznie zarządzaj uprawnieniami w Twoim sklepie."
+                    requiredPlan="Creator"
+                    onUpgrade={() => setActiveTab("marketplace")}
+                  />
+                ) : (
                 <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
                   <div>
                     <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2161,10 +2262,19 @@ export default function DashboardPage() {
                     )}
                   </div>
                 </div>
+                )
               )}
 
               {/* SUBTAB 7: NEWSLETTER & KAMPANIE */}
               {builderSubTab === "campaigns" && (
+                !hasAccess("canUseNewsletter") ? (
+                  <FeatureGateLock
+                    title="Wbudowany E-mail Newsletter"
+                    description="Zbieraj bazy subskrybentów i wysyłaj automatyczne kampanie e-mail do swoich klientów."
+                    requiredPlan="Creator"
+                    onUpgrade={() => setActiveTab("marketplace")}
+                  />
+                ) : (
                 <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
                   <div>
                     <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2205,10 +2315,19 @@ export default function DashboardPage() {
                     </button>
                   </form>
                 </div>
+                )
               )}
 
               {/* SUBTAB 8: WŁASNA DOMENA */}
               {builderSubTab === "domain" && (
+                !hasAccess("canUseCustomDomain") ? (
+                  <FeatureGateLock
+                    title="Podpinanie Własnej Domeny Zewnętrznej"
+                    description="Podepnij swój własny adres strony (np. twojadomena.pl) z darmowym certyfikatem SSL, darmowym CDN i automatyczną weryfikacją DNS."
+                    requiredPlan="Brand"
+                    onUpgrade={() => setActiveTab("marketplace")}
+                  />
+                ) : (
                 <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
                   <div>
                     <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
@@ -2251,6 +2370,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+                )
               )}
 
               {/* SUBTAB 9: SEO SKLEPU */}
