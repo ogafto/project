@@ -6,6 +6,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
+import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 
 interface PageProps {
   params: Promise<{ subdomain: string }>;
@@ -16,8 +17,74 @@ export default function TenantStorePage({ params }: PageProps) {
   const subdomain = resolvedParams.subdomain;
 
   const { allUsers, createStripeCheckout, recordOrder } = useAuth();
+  const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
+  const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
 
-  // Find store by subdomain or custom domain across all users and stores
+  useEffect(() => {
+    async function loadFromDB() {
+      if (!subdomain) {
+        setIsDBLoading(false);
+        return;
+      }
+      const dbData = await fetchStoreFromSupabase(subdomain);
+      if (dbData) {
+        const dbProducts = await fetchProductsFromSupabase(dbData.id);
+        const mappedProducts = dbProducts.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || "",
+          price: p.price || `${(p.price_cents / 100).toFixed(2)} PLN`,
+          priceCents: p.price_cents,
+          comparePrice: p.compare_price,
+          comparePriceCents: p.compare_price_cents,
+          type: p.type || "Fizyczny",
+          status: p.status || "Aktywny",
+          isDropOnly: p.is_drop_only || false,
+          dropTargetDate: p.drop_target_date,
+          salesCount: p.sales || 0,
+          sales: p.sales || 0,
+          stock: p.stock || 50,
+          imageUrl: p.image_url || "",
+          images: p.images || [],
+          isDigital: p.is_digital || false,
+          digitalFileName: p.digital_file_name,
+          digitalFileUrl: p.digital_file_url,
+        }));
+
+        setAsyncStore({
+          id: dbData.id,
+          name: dbData.name,
+          subdomain: dbData.subdomain,
+          customDomain: dbData.custom_domain || "",
+          domainVerified: Boolean(dbData.domain_verified),
+          logoUrl: dbData.logo_url || "",
+          description: dbData.description || "",
+          announcement: dbData.announcement || "",
+          niche: dbData.niche || "",
+          template: dbData.template || "Dark Vibe",
+          accentColor: dbData.accent_color || "#FF5B28",
+          stripeStatus: dbData.stripe_status || "disconnected",
+          balanceCents: dbData.balance_cents || 0,
+          planType: dbData.plan_type || "Start",
+          planStatus: dbData.plan_status || "active",
+          status: dbData.status || "active",
+          socials: dbData.social_links || {},
+          dropConfig: dbData.drop_config || { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
+          categories: [],
+          products: mappedProducts,
+          orders: [],
+          payoutHistory: [],
+          customers: [],
+          campaigns: [],
+          team: [],
+        });
+      }
+      setIsDBLoading(false);
+    }
+    loadFromDB();
+  }, [subdomain]);
+
+  // Find store by subdomain or custom domain across all users and stores, or use Supabase store
   let targetStore: StoreConfig | undefined;
   let ownerUser: User | undefined;
 
@@ -39,13 +106,17 @@ export default function TenantStorePage({ params }: PageProps) {
     }
   }
 
+  if (!targetStore && asyncStore) {
+    targetStore = asyncStore;
+  }
+
   // Verification:
   // 1. Store must exist in database/users records
   // 2. Owner user must have an active account status
   // 3. Store must have an active status / plan status
   const isOwnerActive = ownerUser
     ? ownerUser.accountStatus !== "Blocked" && ownerUser.accountStatus !== "Suspended"
-    : false;
+    : true;
 
   const isStoreActive = targetStore
     ? targetStore.status !== "suspended" &&
@@ -54,7 +125,22 @@ export default function TenantStorePage({ params }: PageProps) {
       targetStore.planStatus !== "suspended"
     : false;
 
-  if (!targetStore || !isOwnerActive || !isStoreActive) {
+  if (!isDBLoading && (!targetStore || !isOwnerActive || !isStoreActive)) {
+    notFound();
+  }
+
+  if (isDBLoading && !targetStore) {
+    return (
+      <div className="min-h-screen bg-[#090A0C] text-white flex items-center justify-center p-6 font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#FF5B28] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-mono text-zinc-400">Ładowanie sklepu...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!targetStore) {
     notFound();
   }
 

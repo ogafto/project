@@ -1,169 +1,149 @@
 -- =========================================================
--- MOTYWO.PL - SUPABASE POSTGRESQL MULTI-STORE SCHEMA DDL
--- Production Multi-Store Architecture & Admin Panel Integration
+-- ISKRAL.PL - SUPABASE POSTGRESQL MULTI-STORE SCHEMA DDL
+-- Production Multi-Store Architecture & Fast Subdomain Routing
 -- =========================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. PROFILES TABLE (System Users & Roles)
+-- 1. PROFILES / USERS TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
-    full_name TEXT,
     name TEXT,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'superadmin', 'admin')),
+    role TEXT NOT NULL DEFAULT 'user',
+    account_status TEXT NOT NULL DEFAULT 'Active',
+    plan TEXT DEFAULT 'Start',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 2. TENANTS TABLE (Individual Stores Owned by Users)
-CREATE TABLE IF NOT EXISTS public.tenants (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-- 2. SUBSCRIPTIONS / PLANS TABLE
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    tenant_id TEXT,
+    user_email TEXT,
+    plan_name TEXT NOT NULL DEFAULT 'free',
+    plan_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    billing_cycle TEXT DEFAULT 'miesiac',
+    amount_paid_cents INT DEFAULT 0,
+    current_period_end TIMESTAMPTZ,
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. STORES TABLE
+CREATE TABLE IF NOT EXISTS public.stores (
+    id TEXT PRIMARY KEY,
+    owner_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     subdomain TEXT UNIQUE NOT NULL,
-    custom_domain TEXT UNIQUE,
-    domain_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    plan_type TEXT NOT NULL DEFAULT 'trial_14d' CHECK (plan_type IN ('trial_14d', 'starter', 'brand', 'pro', 'Brak')),
-    plan_status TEXT NOT NULL DEFAULT 'active' CHECK (plan_status IN ('active', 'trialing', 'past_due', 'canceled')),
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'canceled')),
-    plan_expires_at TIMESTAMPTZ,
-    stripe_subscription_id TEXT,
-    balance_cents BIGINT NOT NULL DEFAULT 0,
-    drop_mode_active BOOLEAN NOT NULL DEFAULT FALSE,
-    drop_target_date TIMESTAMPTZ,
-    announcement TEXT,
-    accent_color TEXT DEFAULT '#FF5B28',
-    template TEXT DEFAULT 'Dark Vibe',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 3. PLATFORM SUBSCRIPTIONS HISTORY TABLE (SaaS Analytics for Admin)
-CREATE TABLE IF NOT EXISTS public.platform_subscriptions_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    plan_name TEXT NOT NULL,
-    billing_cycle TEXT NOT NULL DEFAULT 'miesiac',
-    amount_paid_cents INTEGER NOT NULL,
-    stripe_subscription_id TEXT,
-    period_start TIMESTAMPTZ DEFAULT NOW(),
-    period_end TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days'),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 4. WAITLIST LEADS TABLE (Landing Page Pre-Launch & Lead Capture)
-CREATE TABLE IF NOT EXISTS public.waitlist_leads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    notified_at TIMESTAMPTZ
-);
-
--- 5. CATEGORIES TABLE
-CREATE TABLE IF NOT EXISTS public.categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 6. PRODUCTS TABLE (Physical & Digital + Product-Level Drop Timer)
-CREATE TABLE IF NOT EXISTS public.products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
-    name TEXT NOT NULL,
-    price_cents INTEGER NOT NULL,
-    compare_price_cents INTEGER,
-    type TEXT NOT NULL DEFAULT 'Fizyczny' CHECK (type IN ('Fizyczny', 'Cyfrowy')),
-    status TEXT NOT NULL DEFAULT 'Aktywny' CHECK (status IN ('Aktywny', 'Zawieszony', 'Brak w magazynie')),
-    is_drop_only BOOLEAN NOT NULL DEFAULT FALSE,
-    drop_target_date TIMESTAMPTZ,
-    sales_count INTEGER NOT NULL DEFAULT 0,
-    stock INTEGER NOT NULL DEFAULT 50,
+    custom_domain TEXT,
+    domain_verified BOOLEAN DEFAULT FALSE,
+    logo_url TEXT,
     description TEXT,
+    announcement TEXT,
+    niche TEXT,
+    template TEXT DEFAULT 'Dark Vibe',
+    accent_color TEXT DEFAULT '#FF5B28',
+    stripe_status TEXT DEFAULT 'disconnected',
+    balance_cents INT DEFAULT 0,
+    plan_type TEXT DEFAULT 'Start',
+    plan_status TEXT DEFAULT 'active',
+    status TEXT DEFAULT 'active',
+    is_active BOOLEAN DEFAULT TRUE,
+    social_links JSONB DEFAULT '{}'::jsonb,
+    theme_config JSONB DEFAULT '{"template": "Dark Vibe", "accentColor": "#FF5B28"}'::jsonb,
+    drop_config JSONB DEFAULT '{"enabled": false, "template": "Cyberpunk Launch", "targetDate": ""}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4. PRODUCTS TABLE
+CREATE TABLE IF NOT EXISTS public.products (
+    id TEXT PRIMARY KEY,
+    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
+    category_id TEXT,
+    name TEXT NOT NULL,
+    description TEXT,
+    price TEXT,
+    price_cents INT NOT NULL DEFAULT 0,
+    compare_price TEXT,
+    compare_price_cents INT,
+    type TEXT DEFAULT 'Fizyczny',
+    status TEXT DEFAULT 'Aktywny',
+    is_active BOOLEAN DEFAULT TRUE,
+    is_drop_only BOOLEAN DEFAULT FALSE,
+    drop_target_date TIMESTAMPTZ,
+    sales INT DEFAULT 0,
+    stock INT DEFAULT 50,
     image_url TEXT,
-    is_digital BOOLEAN NOT NULL DEFAULT FALSE,
+    images JSONB DEFAULT '[]'::jsonb,
+    is_digital BOOLEAN DEFAULT FALSE,
     digital_file_name TEXT,
+    digital_file_size TEXT,
+    digital_file_version TEXT,
     digital_file_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. ORDERS TABLE (Customer Purchases in Tenant Stores)
+-- 5. ORDERS TABLE
 CREATE TABLE IF NOT EXISTS public.orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY,
+    store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
     stripe_session_id TEXT,
-    amount_total_cents INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'paid' CHECK (status IN ('paid', 'pending', 'cancelled')),
     customer_email TEXT NOT NULL,
+    total_amount NUMERIC(10, 2),
+    amount_total_cents INT NOT NULL DEFAULT 0,
+    status TEXT DEFAULT 'paid',
+    product_title TEXT,
+    items JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 8. PAYOUTS TABLE (IBAN Withdrawal Requests)
-CREATE TABLE IF NOT EXISTS public.payouts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-    amount_cents INTEGER NOT NULL,
-    iban_masked TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'pending', 'Zrealizowana', 'W trakcie')),
+-- 6. WAITLIST LEADS TABLE
+CREATE TABLE IF NOT EXISTS public.waitlist_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- INDEXES FOR MULTI-TENANT QUERY SPEED
-CREATE INDEX IF NOT EXISTS idx_tenants_owner_id ON public.tenants(owner_id);
-CREATE INDEX IF NOT EXISTS idx_tenants_subdomain ON public.tenants(subdomain);
-CREATE INDEX IF NOT EXISTS idx_tenants_custom_domain ON public.tenants(custom_domain);
-CREATE INDEX IF NOT EXISTS idx_tenants_status ON public.tenants(status);
-CREATE INDEX IF NOT EXISTS idx_products_tenant_id ON public.products(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_orders_tenant_id ON public.orders(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.platform_subscriptions_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_waitlist_email ON public.waitlist_leads(email);
+-- HIGH PERFORMANCE INDEXES
+CREATE INDEX IF NOT EXISTS idx_stores_subdomain ON public.stores (LOWER(subdomain));
+CREATE INDEX IF NOT EXISTS idx_stores_custom_domain ON public.stores (LOWER(custom_domain));
+CREATE INDEX IF NOT EXISTS idx_stores_owner_id ON public.stores (owner_id);
+CREATE INDEX IF NOT EXISTS idx_products_store_id ON public.products (store_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_id ON public.orders (store_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions (user_id);
 
--- RLS (ROW LEVEL SECURITY) POLICIES
+-- ENABLE ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.waitlist_leads ENABLE ROW LEVEL SECURITY;
 
--- Policies
-CREATE POLICY "Public profiles read access" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+-- PUBLIC READ POLICIES FOR STOREFRONT SUBDOMAIN FAST LOADING
+CREATE POLICY "Allow public select profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Allow public select subscriptions" ON public.subscriptions FOR SELECT USING (true);
+CREATE POLICY "Allow public select stores" ON public.stores FOR SELECT USING (true);
+CREATE POLICY "Allow public select products" ON public.products FOR SELECT USING (true);
+CREATE POLICY "Allow public select orders" ON public.orders FOR SELECT USING (true);
 
-CREATE POLICY "Public tenants read access" ON public.tenants FOR SELECT USING (true);
-CREATE POLICY "Owners can manage tenants" ON public.tenants FOR ALL USING (
-    auth.uid() = owner_id OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('superadmin', 'admin')
-    )
-);
+-- PUBLIC INSERT / UPDATE POLICIES FOR CLIENT MUTATIONS
+CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update profiles" ON public.profiles FOR UPDATE USING (true);
 
-CREATE POLICY "Waitlist public insert" ON public.waitlist_leads FOR INSERT WITH CHECK (true);
-CREATE POLICY "Waitlist admin full access" ON public.waitlist_leads FOR ALL USING (true);
+CREATE POLICY "Allow public insert subscriptions" ON public.subscriptions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update subscriptions" ON public.subscriptions FOR UPDATE USING (true);
 
--- Trigger for Automatic Profile Creation on auth.users Sign Up
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id, email, full_name, name, role)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-        CASE WHEN NEW.email ILIKE '%admin%' OR NEW.email = 'projekt@motywo.pl' THEN 'superadmin' ELSE 'user' END
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        full_name = EXCLUDED.full_name,
-        email = EXCLUDED.email;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE POLICY "Allow public insert stores" ON public.stores FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update stores" ON public.stores FOR UPDATE USING (true);
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+CREATE POLICY "Allow public insert products" ON public.products FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update products" ON public.products FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete products" ON public.products FOR DELETE USING (true);
 
+CREATE POLICY "Allow public insert orders" ON public.orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (true);

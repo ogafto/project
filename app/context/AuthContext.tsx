@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, upsertStoreInSupabase } from "@/lib/supabase";
 import { getAuthCookie, setAuthCookie, deleteAuthCookie } from "@/lib/cookies";
 
 export type Role = "user" | "superadmin" | "client" | "admin";
@@ -406,6 +406,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<User[]>(() => {
     if (typeof window !== "undefined") {
+      const cookieAllUsers = getAuthCookie("iskra_all_users");
+      if (cookieAllUsers) {
+        try {
+          const parsed: User[] = JSON.parse(cookieAllUsers);
+          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@motywo.pl")) {
+            parsed.unshift(ADMIN_USER);
+          }
+          return parsed;
+        } catch {}
+      }
       const saved = localStorage.getItem("motywo_users_v11");
       if (saved) {
         try {
@@ -470,6 +480,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      setAuthCookie("iskra_all_users", JSON.stringify(allUsers));
       localStorage.setItem("motywo_users_v11", JSON.stringify(allUsers));
     }
   }, [allUsers]);
@@ -540,6 +551,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Helper: Persist store mutation to user state & allUsers
   const applyStoreMutation = (updatedStore: StoreConfig, successMessage: string) => {
     if (!user) return;
+
+    // Asynchronously sync store mutation to Supabase PostgreSQL database
+    upsertStoreInSupabase(updatedStore).catch(() => {});
 
     const currentStores = user.stores && user.stores.length > 0 ? user.stores : [updatedStore];
     const exists = currentStores.some((s) => s.id === updatedStore.id);
