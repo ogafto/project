@@ -14,7 +14,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "motywo.pl";
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "iskral.pl";
 
   // Normalize hostname (strip port numbers if running locally)
   const currentHost = hostname
@@ -27,16 +27,25 @@ export function middleware(req: NextRequest) {
   const isRootDomain =
     currentHost === rootDomain ||
     currentHost === `www.${rootDomain}` ||
+    currentHost === "iskral.pl" ||
+    currentHost === "www.iskral.pl" ||
+    currentHost === "motywo.pl" ||
+    currentHost === "www.motywo.pl" ||
     isLocalhost ||
     isVercel;
 
-  // 1. Root Domain / Vercel / Localhost
+  // 1. Root Domain / Vercel / Localhost -> Always serves Landing Page / Dashboard
   if (isRootDomain) {
     return NextResponse.next();
   }
 
-  // 2. App Subdomain (app.motywo.pl)
-  if (currentHost === `app.${rootDomain}` || currentHost === "app") {
+  // 2. App Subdomain (app.iskral.pl / app.motywo.pl)
+  if (
+    currentHost === `app.${rootDomain}` ||
+    currentHost === "app.iskral.pl" ||
+    currentHost === "app.motywo.pl" ||
+    currentHost === "app"
+  ) {
     if (url.pathname === "/") {
       url.pathname = "/dashboard";
       return NextResponse.rewrite(url);
@@ -44,8 +53,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Admin Subdomain (admin.motywo.pl)
-  if (currentHost === `admin.${rootDomain}` || currentHost === "admin") {
+  // 3. Admin Subdomain (admin.iskral.pl / admin.motywo.pl)
+  if (
+    currentHost === `admin.${rootDomain}` ||
+    currentHost === "admin.iskral.pl" ||
+    currentHost === "admin.motywo.pl" ||
+    currentHost === "admin"
+  ) {
     if (url.pathname === "/") {
       url.pathname = "/admin";
       return NextResponse.rewrite(url);
@@ -53,13 +67,19 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. Store Subdomain (*.motywo.pl) or Custom Domain (twojamarka.pl)
+  // 4. Store Subdomain (*.iskral.pl / *.motywo.pl) or Custom Domain (twojamarka.pl)
   let subdomain: string | null = null;
 
   if (currentHost.endsWith(`.${rootDomain}`)) {
     subdomain = currentHost.replace(`.${rootDomain}`, "");
+  } else if (currentHost.endsWith(".iskral.pl")) {
+    subdomain = currentHost.replace(".iskral.pl", "");
+  } else if (currentHost.endsWith(".motywo.pl")) {
+    subdomain = currentHost.replace(".motywo.pl", "");
   } else if (
     !currentHost.includes(rootDomain) &&
+    !currentHost.includes("iskral.pl") &&
+    !currentHost.includes("motywo.pl") &&
     !isLocalhost &&
     !isVercel
   ) {

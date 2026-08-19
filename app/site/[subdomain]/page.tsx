@@ -3,8 +3,9 @@
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { notFound } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
-import { useAuth, Product, Category, StoreConfig } from "@/app/context/AuthContext";
+import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
 
 interface PageProps {
   params: Promise<{ subdomain: string }>;
@@ -18,43 +19,46 @@ export default function TenantStorePage({ params }: PageProps) {
 
   // Find store by subdomain or custom domain across all users and stores
   let targetStore: StoreConfig | undefined;
-  for (const u of allUsers) {
-    const uStores = u.stores || (u.store ? [u.store] : []);
-    const found = uStores.find(
-      (s) =>
-        s.subdomain?.toLowerCase() === subdomain?.toLowerCase() ||
-        s.customDomain?.toLowerCase() === subdomain?.toLowerCase() ||
-        s.id === subdomain
-    );
-    if (found) {
-      targetStore = found;
-      break;
+  let ownerUser: User | undefined;
+
+  if (subdomain) {
+    const cleanSubdomain = subdomain.toLowerCase();
+    for (const u of allUsers) {
+      const uStores = u.stores || (u.store ? [u.store] : []);
+      const found = uStores.find(
+        (s) =>
+          s.subdomain?.toLowerCase() === cleanSubdomain ||
+          s.customDomain?.toLowerCase() === cleanSubdomain ||
+          s.id === cleanSubdomain
+      );
+      if (found) {
+        targetStore = found;
+        ownerUser = u;
+        break;
+      }
     }
   }
 
-  const store: StoreConfig = targetStore || {
-    id: "demo",
-    name: `Sklep ${subdomain}`,
-    subdomain: subdomain || "demo",
-    customDomain: "",
-    domainVerified: false,
-    template: "Dark Vibe",
-    accentColor: "#FF5B28",
-    stripeStatus: "connected",
-    balanceCents: 0,
-    planType: "Creator",
-    planStatus: "active",
-    announcement: "🔥 Najnowsza kolekcja produktów dostępna teraz!",
-    socials: { instagram: "", tiktok: "", youtube: "", x: "" },
-    dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
-    categories: [],
-    products: [],
-    orders: [],
-    payoutHistory: [],
-    customers: [],
-    campaigns: [],
-    team: [],
-  };
+  // Verification:
+  // 1. Store must exist in database/users records
+  // 2. Owner user must have an active account status
+  // 3. Store must have an active status / plan status
+  const isOwnerActive = ownerUser
+    ? ownerUser.accountStatus !== "Blocked" && ownerUser.accountStatus !== "Suspended"
+    : false;
+
+  const isStoreActive = targetStore
+    ? targetStore.status !== "suspended" &&
+      targetStore.status !== "canceled" &&
+      targetStore.planStatus !== "canceled" &&
+      targetStore.planStatus !== "suspended"
+    : false;
+
+  if (!targetStore || !isOwnerActive || !isStoreActive) {
+    notFound();
+  }
+
+  const store: StoreConfig = targetStore;
 
   const isDropActive = Boolean(
     store.dropConfig?.enabled &&
