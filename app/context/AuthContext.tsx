@@ -1441,6 +1441,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
 
+    // KLUCZOWE: Zapisz sklep do Supabase bazy danych
+    // To zapewnia że subdomena będzie dostępna publicznie przez (subdomena).iskral.pl
+    upsertStoreInSupabase(updatedStore).then((saved) => {
+      if (saved) {
+        console.log(`[Store] Sklep '${updatedStore.subdomain}' zapisany do Supabase`);
+      } else {
+        console.warn(`[Store] Nie udało się zapisać sklepu '${updatedStore.subdomain}' do Supabase`);
+      }
+    }).catch(console.error);
+
     const priceCents = isTrial ? 0 : params.plan === "Creator" || params.plan === "starter" ? (params.billingCycle === "rok" ? 29900 : 4990) : (params.billingCycle === "rok" ? 59900 : 9990);
     if (priceCents > 0) {
       recordSaaSSubscription(updatedStore.id, user.id, user.email, params.plan, priceCents);

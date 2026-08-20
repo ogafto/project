@@ -31,66 +31,107 @@ export async function POST(req: NextRequest) {
     let isValid = false;
     let reason = "Nieprawidłowy lub wygasły kod weryfikacyjny.";
 
-    // 1. Sprawdzenie pamięci serwera (Primary Cache)
-    const stored = global._otpStore?.get(cleanEmail);
-    if (stored) {
-      if (stored.expiresAt < nowMs) {
-        reason = "Kod weryfikacyjny wygasł (ważny 10 minut). Poproś o nowy kod.";
-      } else if (stored.code === cleanCode) {
+    // 1. CHECK RAM store (same serverless instance - works if send and verify hit same pod)
+    const ramStored = global._otpStore?.get(cleanEmail);
+    if (ramStored) {
+      console.log(`[OTP Verify] Found in RAM for ${cleanEmail}: stored=${ramStored.code}, provided=${cleanCode}, expired=${ramStored.expiresAt < nowMs}`);
+      if (ramStored.expiresAt < nowMs) {
+        reason = "Kod weryfikacyjny wygasł (ważny 10 minut). Kliknij 'Wyślij nowy kod OTP'.";
+      } else if (ramStored.code === cleanCode) {
         isValid = true;
+        console.log(`[OTP Verify] RAM match SUCCESS for ${cleanEmail}`);
+      } else {
+        console.log(`[OTP Verify] RAM code mismatch for ${cleanEmail}`);
       }
+    } else {
+      console.log(`[OTP Verify] No RAM entry for ${cleanEmail} - checking Supabase...`);
     }
 
-    // 2. Sprawdzenie w bazie danych Supabase (tabela otp_codes)
+    // 2. CHECK Supabase otp_codes table (works across serverless instances)
     if (!isValid && isSupabaseConfigured) {
       const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
+        // Try otp_codes table
         try {
-          const { data: otpRow } = await dbClient
+          const { data: otpRow, error: otpErr } = await dbClient
             .from("otp_codes")
             .select("*")
             .eq("email", cleanEmail)
-            .eq("code", cleanCode)
-            .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (otpRow) {
+          if (otpErr) {
+            console.warn(`[OTP Verify] otp_codes query error: ${otpErr.message}`);
+          } else if (otpRow) {
+            console.log(`[OTP Verify] Found in otp_codes for ${cleanEmail}: stored=${otpRow.code}, provided=${cleanCode}`);
             const expMs = new Date(otpRow.expires_at).getTime();
-            if (expMs >= nowMs) {
+            if (expMs < nowMs) {
+              reason = "Kod weryfikacyjny wygasł. Kliknij 'Wyślij nowy kod OTP'.";
+            } else if (otpRow.code === cleanCode) {
               isValid = true;
-            } else {
-              reason = "Kod weryfikacyjny wygasł. Poproś o nowy kod.";
+              console.log(`[OTP Verify] otp_codes match SUCCESS for ${cleanEmail}`);
             }
+          } else {
+            console.log(`[OTP Verify] No otp_codes entry for ${cleanEmail}`);
           }
-        } catch (dbErr) {
-          console.warn("[Supabase OTP verify check fallback]:", dbErr);
+        } catch (e: any) {
+          console.warn(`[OTP Verify] otp_codes check exception: ${e.message}`);
+        }
+
+        // Fallback: try profiles.otp_code column
+        if (!isValid) {
+          try {
+            const { data: profRow, error: profErr } = await dbClient
+              .from("profiles")
+              .select("otp_code,otp_expires_at")
+              .eq("email", cleanEmail)
+              .limit(1)
+              .maybeSingle();
+
+            if (!profErr && profRow?.otp_code) {
+              console.log(`[OTP Verify] Found in profiles for ${cleanEmail}: stored=${profRow.otp_code}, provided=${cleanCode}`);
+              const expMs = profRow.otp_expires_at ? new Date(profRow.otp_expires_at).getTime() : 0;
+              if (expMs < nowMs) {
+                reason = "Kod weryfikacyjny wygasł. Kliknij 'Wyślij nowy kod OTP'.";
+              } else if (profRow.otp_code === cleanCode) {
+                isValid = true;
+                console.log(`[OTP Verify] profiles.otp_code match SUCCESS for ${cleanEmail}`);
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[OTP Verify] profiles check exception: ${e.message}`);
+          }
         }
       }
     }
 
     if (!isValid) {
-      console.warn(`[API /verify-otp Failed] Nieudana próba weryfikacji dla: ${cleanEmail}`);
+      console.warn(`[OTP Verify FAILED] email=${cleanEmail} code=${cleanCode} reason=${reason}`);
       return NextResponse.json({ success: false, error: reason }, { status: 400 });
     }
 
-    // Oznaczenie kodu jako zużytego w pamięci
+    // Mark OTP as used
     global._otpStore?.delete(cleanEmail);
 
-    // Oznaczenie is_email_verified = true w Supabase profiles
+    // Update Supabase - mark email as verified and clear OTP
     if (isSupabaseConfigured) {
       const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
         try {
-          await dbClient.from("profiles").update({ is_email_verified: true }).eq("email", cleanEmail);
-          await dbClient.from("otp_codes").delete().eq("email", cleanEmail);
+          // Delete from otp_codes
+          await dbClient.from("otp_codes").delete().eq("email", cleanEmail).catch(() => {});
+          // Update profiles if it exists
+          await dbClient.from("profiles")
+            .update({ is_email_verified: true, otp_code: null, otp_expires_at: null })
+            .eq("email", cleanEmail)
+            .catch(() => {});
         } catch (e) {
-          console.warn("[Supabase verify-otp profiles update warning]:", e);
+          console.warn("[OTP Verify] Cleanup error (non-critical):", e);
         }
       }
     }
 
-    console.log(`[API /verify-otp Success] Pomyślnie zweryfikowano e-mail dla: ${cleanEmail}`);
+    console.log(`[OTP Verify SUCCESS] Email verified: ${cleanEmail}`);
 
     return NextResponse.json({
       success: true,
@@ -98,7 +139,7 @@ export async function POST(req: NextRequest) {
       email: cleanEmail,
     });
   } catch (error: any) {
-    console.error("[API /verify-otp Exception]:", error);
+    console.error("[OTP Verify Exception]:", error);
     return NextResponse.json(
       { success: false, error: "Błąd podczas weryfikacji kodu OTP." },
       { status: 500 }

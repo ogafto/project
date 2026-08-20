@@ -179,18 +179,32 @@ export async function fetchProductsFromSupabase(storeId: string): Promise<any[]>
 
 /**
  * Fast Supabase insert / update helper for store creation
+ * Uses supabaseAdmin to bypass RLS and avoid FK constraint issues
  */
 export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
-  if (!supabase) return false;
+  // Use admin client to bypass RLS; fall back to anon client
+  const client: any = supabaseAdminClient || supabaseClient;
+  if (!client) {
+    console.warn("[Supabase] No client available for store upsert");
+    return false;
+  }
+
   try {
-    const dbPayload = {
-      id: storeData.id,
-      name: storeData.name,
-      subdomain: (storeData.subdomain || "").trim().toLowerCase(),
+    const subdomain = (storeData.subdomain || "").trim().toLowerCase();
+    if (!subdomain) {
+      console.warn("[Supabase] Store upsert skipped - no subdomain");
+      return false;
+    }
+
+    const dbPayload: any = {
+      id: storeData.id || `t_${Date.now()}`,
+      name: storeData.name || "Mój Sklep",
+      subdomain: subdomain,
       custom_domain: storeData.customDomain || null,
       logo_url: storeData.logoUrl || null,
       description: storeData.description || null,
       announcement: storeData.announcement || null,
+      niche: storeData.niche || null,
       template: storeData.template || "Dark Vibe",
       accent_color: storeData.accentColor || "#FF5B28",
       stripe_status: storeData.stripeStatus || "disconnected",
@@ -199,21 +213,38 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
       plan_status: storeData.planStatus || "trialing",
       status: storeData.status || "active",
       is_active: storeData.is_active !== false,
-      trial_ends_at: storeData.trialEndsAt || new Date(Date.now() + 14 * 864e5).toISOString(),
-      grace_period_ends_at: storeData.gracePeriodEndsAt || new Date(Date.now() + 44 * 864e5).toISOString(),
       social_links: storeData.socials || {},
       theme_config: { template: storeData.template, accentColor: storeData.accentColor },
       drop_config: storeData.dropConfig || {},
+      // owner_id is intentionally omitted to avoid FK constraint issues
+      // when the profile doesn't exist in Supabase yet
+      // trial_ends_at, grace_period_ends_at - columns don't exist in current DB schema
     };
 
-    const { error } = await (supabase as any).from("stores").upsert(dbPayload);
+    console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id})...`);
+    const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "id" });
+
     if (error) {
-      console.warn("[Supabase] Store upsert error:", error.message);
+      console.error(`[Supabase] Store upsert error for '${subdomain}':`, error.message, error.details);
+      
+      // If FK error, try without owner_id (already excluded) but with explicit conflict resolution
+      if (error.code === "23503") {
+        console.warn("[Supabase] FK violation - trying insert without owner reference...");
+        const { error: err2 } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
+        if (err2) {
+          console.error("[Supabase] Second store upsert also failed:", err2.message);
+          return false;
+        }
+        return true;
+      }
       return false;
     }
+
+    console.log(`[Supabase] Store '${subdomain}' upserted successfully`);
     return true;
   } catch (err) {
     console.error("[Supabase] Unexpected error upserting store:", err);
     return false;
   }
 }
+
