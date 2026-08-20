@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     let isValid = false;
     let reason = "Nieprawidłowy lub wygasły kod weryfikacyjny.";
 
-    // 1. Check memory store
+    // 1. Sprawdzenie pamięci serwera (Primary Cache)
     const stored = global._otpStore?.get(cleanEmail);
     if (stored) {
       if (stored.expiresAt < nowMs) {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Check Supabase DB if not verified yet
+    // 2. Sprawdzenie w bazie danych Supabase (tabela otp_codes)
     if (!isValid && isSupabaseConfigured) {
       const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
             .eq("code", cleanCode)
             .order("created_at", { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           if (otpRow) {
             const expMs = new Date(otpRow.expires_at).getTime();
@@ -64,35 +64,41 @@ export async function POST(req: NextRequest) {
             }
           }
         } catch (dbErr) {
-          console.warn("Supabase OTP verify check fallback:", dbErr);
+          console.warn("[Supabase OTP verify check fallback]:", dbErr);
         }
       }
     }
 
     if (!isValid) {
+      console.warn(`[API /verify-otp Failed] Nieudana próba weryfikacji dla: ${cleanEmail}`);
       return NextResponse.json({ success: false, error: reason }, { status: 400 });
     }
 
-    // Mark code as used
+    // Oznaczenie kodu jako zużytego w pamięci
     global._otpStore?.delete(cleanEmail);
 
-    // Update is_email_verified in Supabase profiles if configured
+    // Oznaczenie is_email_verified = true w Supabase profiles
     if (isSupabaseConfigured) {
       const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
         try {
           await dbClient.from("profiles").update({ is_email_verified: true }).eq("email", cleanEmail);
-        } catch (e) {}
+          await dbClient.from("otp_codes").delete().eq("email", cleanEmail);
+        } catch (e) {
+          console.warn("[Supabase verify-otp profiles update warning]:", e);
+        }
       }
     }
 
+    console.log(`[API /verify-otp Success] Pomyślnie zweryfikowano e-mail dla: ${cleanEmail}`);
+
     return NextResponse.json({
       success: true,
-      message: "Kod weryfikacyjny pomyślnie potwierdzony. Sesja użytkownika została zautoryzowana.",
+      message: "Kod weryfikacyjny pomyślnie potwierdzony. Adres e-mail został zweryfikowany.",
       email: cleanEmail,
     });
   } catch (error: any) {
-    console.error("Verify OTP Error:", error);
+    console.error("[API /verify-otp Exception]:", error);
     return NextResponse.json(
       { success: false, error: "Błąd podczas weryfikacji kodu OTP." },
       { status: 500 }

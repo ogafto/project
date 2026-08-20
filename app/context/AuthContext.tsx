@@ -1120,7 +1120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMessage({ type: "success", text: "Zmieniono status blokady konta." });
   };
 
-  const suspendUserStore = (targetId: string) => {
+  const suspendUserStore = async (targetId: string) => {
+    let newlySuspendedStore: { storeId: string; ownerEmail?: string; storeName?: string; subdomain?: string } | null = null;
+
     setAllUsers((prev) =>
       prev.map((u) => {
         const uStores = u.stores || (u.store ? [u.store] : []);
@@ -1131,6 +1133,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const updatedStores = uStores.map((s) => {
             if (matchesUser || s.id === targetId || s.subdomain === targetId) {
               const currentStatus = s.status === "suspended" || s.planStatus === "suspended" ? "active" : "suspended";
+              if (currentStatus === "suspended") {
+                newlySuspendedStore = {
+                  storeId: s.id,
+                  ownerEmail: u.email,
+                  storeName: s.name,
+                  subdomain: s.subdomain,
+                };
+              }
               return {
                 ...s,
                 status: currentStatus as "active" | "suspended" | "canceled",
@@ -1178,6 +1188,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return prevUser;
       });
+    }
+
+    // Jeśli sklep przeszedł w status zawieszony, wysyłamy notyfikację e-mail przez API
+    if (newlySuspendedStore) {
+      try {
+        await fetch("/api/stores/suspend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newlySuspendedStore),
+        });
+      } catch (err) {
+        console.error("[AuthContext suspendUserStore API email error]:", err);
+      }
     }
 
     setMessage({ type: "success", text: "Zmieniono status zawieszenia sklepu (Aktywny / Zawieszony)." });

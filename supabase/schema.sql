@@ -14,6 +14,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     role TEXT NOT NULL DEFAULT 'user',
     account_status TEXT NOT NULL DEFAULT 'Active',
     plan TEXT DEFAULT 'Start',
+    is_email_verified BOOLEAN DEFAULT FALSE,
+    otp_code TEXT,
+    otp_expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 1B. OTP CODES TABLE
+CREATE TABLE IF NOT EXISTS public.otp_codes (
+    email TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
