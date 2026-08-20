@@ -10,13 +10,14 @@ import { useAuth } from "../context/AuthContext";
 
 export default function RejestracjaPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, message } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +42,19 @@ export default function RejestracjaPage() {
     }
 
     setError("");
-    const ok = await register(formattedName, formattedEmail);
-    if (ok) {
-      router.push("/potwierdzenie-email");
+    setLoading(true);
+
+    try {
+      const ok = await register(formattedName, formattedEmail);
+      if (ok) {
+        router.push("/potwierdzenie-email");
+      } else {
+        setError(message?.text || "Nie udało się założyć konta. Spróbuj ponownie.");
+      }
+    } catch (err: any) {
+      setError("Błąd rejestracji: " + (err.message || err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,9 +151,10 @@ export default function RejestracjaPage() {
 
               <button
                 type="submit"
-                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer"
+                disabled={loading}
+                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] disabled:opacity-50 text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer flex items-center justify-center gap-2"
               >
-                Utwórz darmowe konto
+                {loading ? "Tworzenie konta..." : "Utwórz darmowe konto"}
               </button>
             </form>
 

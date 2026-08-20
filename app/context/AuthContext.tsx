@@ -233,8 +233,8 @@ interface AuthContextType {
   pendingOTPCode: string | null;
   requires2FA: boolean;
   pending2FAUser: User | null;
-  message: { type: "success" | "error"; text: string } | null;
-  setMessage: (msg: { type: "success" | "error"; text: string } | null) => void;
+  message: { type: "success" | "error" | "warning"; text: string } | null;
+  setMessage: (msg: { type: "success" | "error" | "warning"; text: string } | null) => void;
   hasAccess: (featureKey: keyof PlanFeatureConfig) => boolean;
   // Multi-store per user actions
   setActiveStoreId: (storeId: string) => void;
@@ -483,7 +483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingUserToVerify, setPendingUserToVerify] = useState<User | null>(null);
   const [requires2FA, setRequires2FA] = useState<boolean>(false);
   const [pending2FAUser, setPending2FAUser] = useState<User | null>(null);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -805,27 +805,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        console.error("Resend OTP send error:", data.error);
-        setMessage({
-          type: "error",
-          text: data.error || "Nie udało się wysłać kodu weryfikacyjnego na podany adres e-mail.",
-        });
-        return false;
+      if (data?.debugCode) {
+        setPendingOTPCode(data.debugCode);
       }
 
-      setMessage({
-        type: "success",
-        text: "Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.",
-      });
+      if (!res.ok || !data.success) {
+        console.error("Resend OTP send error:", data.error);
+        // Fallback: pozwól użytkownikowi przejść dalej z kodem wygenerowanym lokalnie
+        setMessage({
+          type: "warning",
+          text: data.error || "Wystąpił problem z doręczeniem wiadomości e-mail. Użyj kodu weryfikacyjnego.",
+        });
+        return true;
+      }
+
+      if (data.isEmailSent === false) {
+        setMessage({
+          type: "warning",
+          text: data.message || "Kod weryfikacyjny wygenerowany.",
+        });
+      } else {
+        setMessage({
+          type: "success",
+          text: "Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.",
+        });
+      }
       return true;
     } catch (err: any) {
       console.error("Failed to send OTP email:", err);
       setMessage({
-        type: "error",
-        text: `Błąd połączenia podczas wysyłania e-maila: ${err.message || err}`,
+        type: "warning",
+        text: `Błąd sieci podczas wysyłania e-maila: ${err.message || err}. Przechodzę do weryfikacji.`,
       });
-      return false;
+      return true;
     }
   };
 
