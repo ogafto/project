@@ -1035,16 +1035,12 @@ export default function DashboardPage() {
                         {/* Badges Header */}
                         <div className="flex items-center justify-between gap-2 mb-4">
                           <div className="flex items-center gap-1.5">
-                            <select
-                              value={st.planType || user.plan || "Start"}
-                              onChange={(e) => buyPlan(e.target.value as PlanType, "miesiac")}
-                              className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase cursor-pointer outline-none hover:bg-[#FF5B28]/25 transition-all shadow-sm"
-                              title="Kliknij, aby zmienić lub aktywować pakiet dla tego sklepu"
+                            <span
+                              className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase"
+                              title={`Aktywny pakiet: ${st.planType || user.plan || "Start"}`}
                             >
-                              <option value="Start" className="bg-[#111216] text-white">PAKIET: START</option>
-                              <option value="Creator" className="bg-[#111216] text-white">PAKIET: CREATOR</option>
-                              <option value="Brand" className="bg-[#111216] text-white">PAKIET: BRAND</option>
-                            </select>
+                              PAKIET: {(st.planType || user.plan || "Start").toUpperCase()}
+                            </span>
                           </div>
                           <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />

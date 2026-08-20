@@ -56,22 +56,48 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
     const cleanSub = (subdomain || "").trim().toLowerCase();
     if (!cleanSub) return null;
 
-    const { data, error } = await (supabase as any)
+    // Zapytanie 1: szukamy po subdomenie (najczęstszy przypadek)
+    const { data: bySubdomain, error: err1 } = await (supabase as any)
       .from("stores")
       .select("*")
-      .or(`subdomain.eq.${cleanSub},custom_domain.eq.${cleanSub},id.eq.${cleanSub}`)
+      .eq("subdomain", cleanSub)
       .limit(1);
 
-    if (error) {
-      console.warn(`[Supabase] Store query warning for '${cleanSub}':`, error.message);
-      return null;
+    if (!err1 && bySubdomain && bySubdomain.length > 0) {
+      console.log(`[Supabase] Store found by subdomain: '${cleanSub}'`);
+      return bySubdomain[0];
     }
 
-    if (!data || data.length === 0) {
-      return null;
+    if (err1) {
+      console.warn(`[Supabase] Store subdomain query warning for '${cleanSub}':`, err1.message);
     }
 
-    return data[0];
+    // Zapytanie 2: szukamy po własnej domenie
+    const { data: byDomain, error: err2 } = await (supabase as any)
+      .from("stores")
+      .select("*")
+      .eq("custom_domain", cleanSub)
+      .limit(1);
+
+    if (!err2 && byDomain && byDomain.length > 0) {
+      console.log(`[Supabase] Store found by custom_domain: '${cleanSub}'`);
+      return byDomain[0];
+    }
+
+    // Zapytanie 3: szukamy po ID (fallback)
+    const { data: byId, error: err3 } = await (supabase as any)
+      .from("stores")
+      .select("*")
+      .eq("id", cleanSub)
+      .limit(1);
+
+    if (!err3 && byId && byId.length > 0) {
+      console.log(`[Supabase] Store found by id: '${cleanSub}'`);
+      return byId[0];
+    }
+
+    console.warn(`[Supabase] No store found for '${cleanSub}'`);
+    return null;
   } catch (err) {
     console.error("[Supabase] Unexpected error fetching store:", err);
     return null;

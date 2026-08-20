@@ -69,15 +69,13 @@ export async function POST(req: NextRequest) {
     if (!emailResult.success) {
       console.error(`[API /send-otp Resend Notice] Nie udało się doręczyć maila do ${cleanEmail} via Resend: ${emailResult.error}`);
       
-      // Kod został poprawnie utworzony i zapisany w DB / RAM.
-      // Zwracamy success=true z informacją ostrzegawczą oraz podglądem debugCode,
-      // aby proces rejestracji nigdy się nie blokował w przypadku np. restrykcji darmowej domeny Resend lub niedoręczalnego maila.
+      // Kod został poprawnie zapisany w DB / RAM, ale email nie dotarł.
+      // Zwracamy success=true z informacją ostrzegawczą (nigdy nie ujawniamy kodu w odpowiedzi!).
       return NextResponse.json({
         success: true,
         isEmailSent: false,
         warning: `Resend API Notice: ${emailResult.error}`,
-        debugCode: generatedCode,
-        message: `Kod weryfikacyjny wygenerowany (${generatedCode}). Wysłanie e-mail zablokowane przez Resend: ${emailResult.error}`,
+        message: `Wysłanie e-mail zablokowane przez Resend: ${emailResult.error}`,
         expiresAt: expiresAtIso,
       });
     }
@@ -87,7 +85,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       isEmailSent: true,
-      debugCode: generatedCode,
       message: `Kod weryfikacyjny został pomyślnie wysłany na adres: ${cleanEmail}`,
       expiresAt: expiresAtIso,
     });

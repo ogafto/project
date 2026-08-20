@@ -834,27 +834,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const sendOTP = async (email: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
-    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-    setPendingOTPCode(generatedCode);
+    // Kod OTP jest generowany i przechowywany TYLKO po stronie serwera (API)
+    // NIE generujemy go tutaj po stronie klienta — to jest bezpieczniejsze
     setPendingEmail(cleanEmail);
+    setPendingOTPCode(null); // zawsze czyścimy stary kod
 
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, code: generatedCode }),
+        body: JSON.stringify({ email: cleanEmail }),
       });
       const data = await res.json();
 
-      if (data?.debugCode) {
-        setPendingOTPCode(data.debugCode);
-      }
+      // NIGDY nie przechowujemy debugCode w stanie — kod jest tylko na emailu
+      // data.debugCode jest ignorowane celowo dla bezpieczeństwa
 
       if (!res.ok || !data.success) {
         console.error("Resend OTP send error:", data.error);
         setMessage({
           type: "warning",
-          text: data.error || "Wystąpił problem z doręczeniem wiadomości e-mail. Użyj kodu weryfikacyjnego.",
+          text: data.error || "Wystąpił problem z doręczeniem wiadomości e-mail. Sprawdź swoją skrzynkę.",
         });
         return true;
       }
@@ -862,12 +862,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.isEmailSent === false) {
         setMessage({
           type: "warning",
-          text: data.message || "Kod weryfikacyjny wygenerowany.",
+          text: `Nie udało się wysłać e-maila (${data.warning || "nieznany błąd"}). Skontaktuj się z supportem.`,
         });
       } else {
         setMessage({
           type: "success",
-          text: "Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.",
+          text: `Kod weryfikacyjny został wysłany na adres: ${cleanEmail}. Sprawdź skrzynkę i folder SPAM.`,
         });
       }
       return true;
@@ -875,7 +875,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to send OTP email:", err);
       setMessage({
         type: "warning",
-        text: `Błąd sieci podczas wysyłania e-maila: ${err.message || err}. Przechodzę do weryfikacji.`,
+        text: `Błąd sieci podczas wysyłania e-maila: ${err.message || err}.`,
       });
       return true;
     }
