@@ -30,6 +30,14 @@ export default function LogowaniePage() {
 
     setError("");
     const res = login(formattedEmail, password);
+    if (res.requiresOTP) {
+      setSuccess("Adres e-mail wymaga weryfikacji. Przekierowywanie do weryfikacji OTP...");
+      setTimeout(() => {
+        router.push("/potwierdzenie-email");
+      }, 800);
+      return;
+    }
+
     if (!res.success) {
       setError(res.message || "Błąd logowania. Sprawdź wprowadzone dane.");
     } else if (res.requires2FA) {

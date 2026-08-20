@@ -247,7 +247,7 @@ interface AuthContextType {
   exitImpersonation: () => void;
   toggleImpersonationEdit: () => void;
   sendOTP: (email: string) => Promise<boolean>;
-  login: (email: string, password?: string) => { success: boolean; requires2FA?: boolean; message?: string };
+  login: (email: string, password?: string) => { success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string };
   verify2FA: (code: string) => boolean;
   register: (name: string, email: string) => Promise<boolean>;
   verifyEmail: (code: string) => Promise<boolean> | boolean;
@@ -478,9 +478,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     "🟢 System testowych płatności Stripe aktywny",
   ]);
 
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
-  const [pendingOTPCode, setPendingOTPCode] = useState<string | null>(null);
-  const [pendingUserToVerify, setPendingUserToVerify] = useState<User | null>(null);
+  const [pendingEmail, setPendingEmailState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return sessionStorage.getItem("iskra_pending_email") || null;
+    return null;
+  });
+  const [pendingOTPCode, setPendingOTPCodeState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return sessionStorage.getItem("iskra_pending_otp") || null;
+    return null;
+  });
+  const [pendingUserToVerify, setPendingUserToVerifyState] = useState<User | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("iskra_pending_user");
+      try { return stored ? JSON.parse(stored) : null; } catch (e) { return null; }
+    }
+    return null;
+  });
+
+  const setPendingEmail = (email: string | null) => {
+    setPendingEmailState(email);
+    if (typeof window !== "undefined") {
+      if (email) sessionStorage.setItem("iskra_pending_email", email);
+      else sessionStorage.removeItem("iskra_pending_email");
+    }
+  };
+
+  const setPendingOTPCode = (code: string | null) => {
+    setPendingOTPCodeState(code);
+    if (typeof window !== "undefined") {
+      if (code) sessionStorage.setItem("iskra_pending_otp", code);
+      else sessionStorage.removeItem("iskra_pending_otp");
+    }
+  };
+
+  const setPendingUserToVerify = (u: User | null) => {
+    setPendingUserToVerifyState(u);
+    if (typeof window !== "undefined") {
+      if (u) sessionStorage.setItem("iskra_pending_user", JSON.stringify(u));
+      else sessionStorage.removeItem("iskra_pending_user");
+    }
+  };
+
   const [requires2FA, setRequires2FA] = useState<boolean>(false);
   const [pending2FAUser, setPending2FAUser] = useState<User | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
@@ -747,9 +784,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (existing.isEmailVerified === false) {
+      setPendingUserToVerify(existing);
+      setPendingEmail(existing.email);
+      sendOTP(existing.email);
       return {
         success: false,
-        message: "Adres e-mail nie został jeszcze zweryfikowany. Sprawdź skrzynkę odbiorczą i kliknij link aktywacyjny.",
+        requiresOTP: true,
+        message: "Twój adres e-mail wymaga weryfikacji. Kod 6-cyfrowy został przesłany na skrzynkę.",
       };
     }
 
@@ -811,7 +852,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok || !data.success) {
         console.error("Resend OTP send error:", data.error);
-        // Fallback: pozwól użytkownikowi przejść dalej z kodem wygenerowanym lokalnie
         setMessage({
           type: "warning",
           text: data.error || "Wystąpił problem z doręczeniem wiadomości e-mail. Użyj kodu weryfikacyjnego.",
@@ -845,6 +885,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanEmail = email.toLowerCase().trim();
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existing) {
+      if (!existing.isEmailVerified) {
+        setPendingUserToVerify(existing);
+        setPendingEmail(existing.email);
+        const sent = await sendOTP(cleanEmail);
+        return sent;
+      }
       setMessage({ type: "error", text: "Konto o tym adresie e-mail już istnieje!" });
       return false;
     }
@@ -869,6 +915,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setPendingUserToVerify(newUser);
+    setAllUsers((prev) => [...prev, newUser]);
     const sent = await sendOTP(cleanEmail);
     return sent;
   };
@@ -877,7 +924,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanCode = code.trim();
     if (cleanCode.length !== 6) return false;
 
-    const targetEmail = pendingEmail || user?.email || pendingUserToVerify?.email;
+    const targetEmail = pendingEmail || (typeof window !== "undefined" ? sessionStorage.getItem("iskra_pending_email") : null) || user?.email || pendingUserToVerify?.email;
 
     if (targetEmail) {
       try {
@@ -906,7 +953,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    const targetUser = pendingUserToVerify || user || (pendingEmail ? allUsers.find(u => u.email === pendingEmail) : null);
+    let targetUser = pendingUserToVerify || user || (targetEmail ? allUsers.find(u => u.email === targetEmail) : null);
+    if (!targetUser && targetEmail) {
+      targetUser = {
+        id: `usr_${Date.now()}`,
+        name: targetEmail.split("@")[0],
+        email: targetEmail,
+        role: "user",
+        plan: "Start",
+        hasStore: false,
+        accountStatus: "Active",
+        is2FAEnabled: false,
+        isEmailVerified: true,
+        createdAt: new Date().toISOString().split("T")[0],
+      };
+    }
     if (!targetUser) return false;
 
     const verifiedUser: User = {
