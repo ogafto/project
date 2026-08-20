@@ -18,7 +18,7 @@ export default function RejestracjaPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const formattedEmail = email.trim().toLowerCase();
     const formattedName = name.trim();
@@ -41,8 +41,10 @@ export default function RejestracjaPage() {
     }
 
     setError("");
-    register(formattedName, formattedEmail);
-    router.push("/potwierdzenie-email");
+    const ok = await register(formattedName, formattedEmail);
+    if (ok) {
+      router.push("/potwierdzenie-email");
+    }
   };
 
   return (

@@ -301,14 +301,23 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("checkout") === "success") {
+        const rawPlan = searchParams.get("plan");
+        const billingParam = (searchParams.get("billing") || "miesiac") as "miesiac" | "rok";
+        const planToActivate: PlanType =
+          rawPlan && (rawPlan === "Creator" || rawPlan === "Brand" || rawPlan === "Start")
+            ? (rawPlan as PlanType)
+            : "Creator";
+
+        buyPlan(planToActivate, billingParam);
+
         setMessage({
           type: "success",
-          text: "🎉 Płatność Stripe zrealizowana pomyślnie! Twoja subskrypcja SaaS została aktywowana.",
+          text: `🎉 Płatność Stripe zrealizowana pomyślnie! Pakiet ${planToActivate} został aktywowany dla Twojego sklepu.`,
         });
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
-  }, [setMessage]);
+  }, [setMessage, buyPlan]);
 
   useEffect(() => {
     if (user) {
@@ -964,9 +973,17 @@ export default function DashboardPage() {
                 : "bg-red-500/15 text-red-300 border-red-500/40 shadow-red-500/10"
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Sparkles className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{message.text}</span>
+              {message.text.includes("Płatność Stripe") && (
+                <button
+                  onClick={() => buyPlan("Creator", "miesiac")}
+                  className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-full shadow-md cursor-pointer transition-all ml-2"
+                >
+                  ⚡ Przypisz Pakiet Creator do sklepu
+                </button>
+              )}
             </div>
             <button onClick={() => setMessage(null)} className="p-1 hover:bg-white/10 rounded-lg text-xs font-bold transition-all">
               <X className="w-4 h-4" />
@@ -1017,9 +1034,18 @@ export default function DashboardPage() {
                       <div>
                         {/* Badges Header */}
                         <div className="flex items-center justify-between gap-2 mb-4">
-                          <span className="px-2.5 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded-full text-[10px] font-extrabold uppercase">
-                            Pakiet: {(st.planType || user.plan).toUpperCase()}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={st.planType || user.plan || "Start"}
+                              onChange={(e) => buyPlan(e.target.value as PlanType, "miesiac")}
+                              className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase cursor-pointer outline-none hover:bg-[#FF5B28]/25 transition-all shadow-sm"
+                              title="Kliknij, aby zmienić lub aktywować pakiet dla tego sklepu"
+                            >
+                              <option value="Start" className="bg-[#111216] text-white">PAKIET: START</option>
+                              <option value="Creator" className="bg-[#111216] text-white">PAKIET: CREATOR</option>
+                              <option value="Brand" className="bg-[#111216] text-white">PAKIET: BRAND</option>
+                            </select>
+                          </div>
                           <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                             🟢 SKLEP AKTYWNY

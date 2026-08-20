@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       line_items: lineItems,
       mode: "payment",
       customer_email: customerEmail || undefined,
-      success_url: `${origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/dashboard?checkout=success&plan=${encodeURIComponent(planType || "Creator")}&billing=${encodeURIComponent(billingCycle || "miesiac")}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard?checkout=cancelled`,
       metadata: {
         tenant_id: tenantId || "demo-tenant",

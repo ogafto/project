@@ -230,6 +230,7 @@ interface AuthContextType {
   recentNotifications: string[];
   subscriptionHistory: SaaSSubscriptionRecord[];
   pendingEmail: string | null;
+  pendingOTPCode: string | null;
   requires2FA: boolean;
   pending2FAUser: User | null;
   message: { type: "success" | "error"; text: string } | null;
@@ -248,7 +249,7 @@ interface AuthContextType {
   sendOTP: (email: string) => Promise<boolean>;
   login: (email: string, password?: string) => { success: boolean; requires2FA?: boolean; message?: string };
   verify2FA: (code: string) => boolean;
-  register: (name: string, email: string) => void;
+  register: (name: string, email: string) => Promise<boolean>;
   verifyEmail: (code: string) => Promise<boolean> | boolean;
   sendPasswordReset: (email: string) => boolean;
   resetPassword: (code: string, newPassword: string) => boolean;
@@ -828,12 +829,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = (name: string, email: string) => {
+  const register = async (name: string, email: string): Promise<boolean> => {
     const cleanEmail = email.toLowerCase().trim();
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existing) {
       setMessage({ type: "error", text: "Konto o tym adresie e-mail już istnieje!" });
-      return;
+      return false;
     }
 
     const isSuperadmin = cleanEmail === "projekt@motywo.pl" || cleanEmail.includes("admin");
@@ -856,7 +857,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setPendingUserToVerify(newUser);
-    sendOTP(cleanEmail);
+    const sent = await sendOTP(cleanEmail);
+    return sent;
   };
 
   const verifyEmail = async (code: string): Promise<boolean> => {
@@ -1579,6 +1581,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         recentNotifications,
         subscriptionHistory,
         pendingEmail,
+        pendingOTPCode,
         requires2FA,
         pending2FAUser,
         message,

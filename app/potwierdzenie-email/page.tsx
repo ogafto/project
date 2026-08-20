@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function PotwierdzenieEmailPage() {
   const router = useRouter();
-  const { pendingEmail, verifyEmail, sendOTP } = useAuth();
+  const { pendingEmail, pendingOTPCode, message, verifyEmail, sendOTP } = useAuth();
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -118,6 +118,12 @@ export default function PotwierdzenieEmailPage() {
             {successMsg && (
               <div className="mt-6 w-full p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-[12px] text-emerald-400 text-sm text-center font-medium">
                 {successMsg}
+              </div>
+            )}
+
+            {pendingOTPCode && (
+              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-[12px] text-xs text-amber-300 text-center font-medium w-full">
+                💡 Kod OTP (Podgląd lokalny): <strong className="text-white font-mono text-sm tracking-wider ml-1">{pendingOTPCode}</strong>
               </div>
             )}
 
