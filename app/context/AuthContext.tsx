@@ -797,18 +797,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPendingEmail(cleanEmail);
 
     try {
-      await fetch("/api/auth/send-otp", {
+      const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: cleanEmail, code: generatedCode }),
       });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        console.error("Resend OTP send error:", data.error);
+        setMessage({
+          type: "error",
+          text: data.error || "Nie udało się wysłać kodu weryfikacyjnego na podany adres e-mail.",
+        });
+        return false;
+      }
+
       setMessage({
         type: "success",
         text: "Kod weryfikacyjny został wysłany na Twój adres e-mail. Wprowadź go poniżej, aby potwierdzić konto i przejść do panelu.",
       });
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to send OTP email:", err);
+      setMessage({
+        type: "error",
+        text: `Błąd połączenia podczas wysyłania e-maila: ${err.message || err}`,
+      });
       return false;
     }
   };

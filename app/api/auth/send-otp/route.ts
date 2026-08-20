@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
           });
 
           if (insertErr) {
-            // Fallback: update profile/user table or log
             await dbClient.from("profiles").update({
               otp_code: generatedCode,
               otp_expires_at: expiresAtIso,
@@ -59,8 +58,16 @@ export async function POST(req: NextRequest) {
 
     // 3. Send email via Resend API
     const resendApiKey = process.env.RESEND_API_KEY;
-    const resend = new Resend(resendApiKey || "re_fallback_key");
+    
+    if (!resendApiKey) {
+      console.error("[Resend API Error]: RESEND_API_KEY is not defined in environment variables!");
+      return NextResponse.json(
+        { success: false, error: "Brak skonfigurowanego klucza RESEND_API_KEY w pliku .env.local." },
+        { status: 500 }
+      );
+    }
 
+    const resend = new Resend(resendApiKey);
     const senderEmail = process.env.RESEND_FROM_EMAIL || "Iskral Auth <onboarding@resend.dev>";
     const emailSubject = `Twój kod weryfikacyjny: ${generatedCode}`;
 
@@ -103,11 +110,11 @@ export async function POST(req: NextRequest) {
                     </td>
                   </tr>
 
-                  <!-- OTP Code Boks -->
+                  <!-- OTP Code Box -->
                   <tr>
                     <td align="center" style="padding-bottom: 28px;">
-                      <div style="background-color: #090A0C; border: 1px border-style: solid; border-color: rgba(255, 91, 40, 0.4); border-radius: 16px; padding: 20px 30px; display: inline-block;">
-                        <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #FF5B28; display: block; text-shadow: 0 0 12px rgba(255, 91, 40, 0.3);">
+                      <div style="background-color: #090A0C; border: 1px solid rgba(255, 91, 40, 0.4); border-radius: 16px; padding: 20px 30px; display: inline-block;">
+                        <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #FF5B28; display: block;">
                           ${generatedCode}
                         </span>
                       </div>
@@ -125,7 +132,7 @@ export async function POST(req: NextRequest) {
 
                   <!-- Footer -->
                   <tr>
-                    <td align="center" style="border-top: 1px solid rgba(255, 255, 255, 0.06); pt-24; font-size: 11px; color: #505055; padding-top: 20px;">
+                    <td align="center" style="border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11px; color: #505055; padding-top: 20px;">
                       © 2026 Platforma Iskral SaaS (iskral.pl). Wszelkie prawa zastrzeżone.
                     </td>
                   </tr>
@@ -137,22 +144,40 @@ export async function POST(req: NextRequest) {
       </html>
     `;
 
-    if (resendApiKey) {
-      try {
-        const data = await resend.emails.send({
-          from: senderEmail,
-          to: [cleanEmail],
-          subject: emailSubject,
-          html: darkHtmlContent,
-        });
+    const resResult = await resend.emails.send({
+      from: senderEmail,
+      to: [cleanEmail],
+      subject: emailSubject,
+      html: darkHtmlContent,
+    });
 
-        console.log(`[Resend SDK Sent] Email: ${cleanEmail}, Code: ${generatedCode}, Resend ID:`, data);
-      } catch (sendErr: any) {
-        console.error("[Resend SDK Send Error]:", sendErr);
+    if (resResult.error) {
+      console.error("[Resend API Error Response]:", resResult.error);
+      const isSandboxRestriction = resResult.error.message?.includes("You can only send testing emails to your own email address");
+
+      if (isSandboxRestriction) {
+        return NextResponse.json(
+          {
+            success: false,
+            isSandboxRestriction: true,
+            error: "Tryb darmowy Resend (onboarding@resend.dev): Maile testowe mogą być obecnie wysyłane wyłącznie na adres konta Resend: 16tobiasz16@gmail.com. Aby wysyłać na ten adres, podepnij domenę w panelu resend.com/domains.",
+            debugCode: generatedCode,
+          },
+          { status: 403 }
+        );
       }
-    } else {
-      console.log(`[AUTH OTP DISPATCH - NO RESEND KEY] Code [${generatedCode}] generated for: ${cleanEmail}`);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Błąd wysyłania e-mail przez Resend: ${resResult.error.message}`,
+          details: resResult.error,
+        },
+        { status: 400 }
+      );
     }
+
+    console.log(`[Resend SDK Sent Success] Email: ${cleanEmail}, Code: ${generatedCode}, Resend Data:`, resResult.data);
 
     return NextResponse.json({
       success: true,
@@ -160,9 +185,9 @@ export async function POST(req: NextRequest) {
       expiresAt: expiresAtIso,
     });
   } catch (error: any) {
-    console.error("Send OTP Error:", error);
+    console.error("Send OTP Exception Error:", error);
     return NextResponse.json(
-      { success: false, error: "Błąd podczas wysyłania kodu OTP." },
+      { success: false, error: `Błąd podczas wysyłania kodu OTP: ${error.message || error}` },
       { status: 500 }
     );
   }
