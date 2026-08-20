@@ -66,11 +66,11 @@ export default function NoweHasloPage() {
 
         <div className="mt-16 sm:mt-24 w-full flex justify-center items-center">
           <div className="w-full max-w-[480px] bg-[#17171B]/90 backdrop-blur-xl border border-white/[0.08] rounded-[24px] p-8 sm:p-10 shadow-2xl shadow-black/80 flex flex-col items-center">
-            
+
             <Badge tag="Resetowanie" text="Nowe bezpieczne hasło" />
 
             <h1 className="mt-4 text-[30px] sm:text-[34px] font-semibold text-white tracking-tight text-center leading-tight">
-              Podaj nowe hasło
+              Podaj mocne nowe hasło
             </h1>
 
             <p className="mt-2 text-[14px] sm:text-[15px] font-medium text-[#707070] text-center leading-relaxed">
