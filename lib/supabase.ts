@@ -8,9 +8,11 @@ const getSupabaseCredentials = () => {
   const anonKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     "sb_publishable_uxqLh2yOoU_6ezWUwt9dKQ_36D-3sX3";
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "sb_secret_ONl2-4WQ5ePnVhdRkGLlDA_-b7v7XK2";
+  // Use anonKey as fallback if custom service key is absent or invalid
+  const rawServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = (rawServiceKey && !rawServiceKey.startsWith("sb_secret_ONl2"))
+    ? rawServiceKey
+    : anonKey;
 
   return { url, anonKey, serviceKey };
 };
@@ -43,7 +45,7 @@ try {
 }
 
 export const supabase = supabaseClient;
-export const supabaseAdmin = supabaseAdminClient;
+export const supabaseAdmin = supabaseAdminClient || supabaseClient;
 
 /**
  * Safe & fast query to fetch store by subdomain, custom domain, or ID
@@ -222,21 +224,10 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
     };
 
     console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id})...`);
-    const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "id" });
+    const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
 
     if (error) {
       console.error(`[Supabase] Store upsert error for '${subdomain}':`, error.message, error.details);
-      
-      // If FK error, try without owner_id (already excluded) but with explicit conflict resolution
-      if (error.code === "23503") {
-        console.warn("[Supabase] FK violation - trying insert without owner reference...");
-        const { error: err2 } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
-        if (err2) {
-          console.error("[Supabase] Second store upsert also failed:", err2.message);
-          return false;
-        }
-        return true;
-      }
       return false;
     }
 

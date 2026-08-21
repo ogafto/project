@@ -528,7 +528,14 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
               <input
                 type="text"
                 value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStoreName(val);
+                  const autoSlug = val.toLowerCase().replace(/[^a-z0-9]/g, "");
+                  if (autoSlug) {
+                    setSubdomain(autoSlug);
+                  }
+                }}
                 placeholder="np. CyberWear Studio"
                 className="w-full h-12 px-4 bg-[#0E0E11] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#FF5B28] transition-all text-sm font-medium"
               />
@@ -537,9 +544,17 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
             {/* Subdomain & Custom Domain */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#A1A1AA] mb-2">
-                  Darmowa Subdomena Iskral *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-[#A1A1AA]">
+                    Darmowa Subdomena Iskral *
+                  </label>
+                  {subdomain && (
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Dostępna
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center bg-[#0E0E11] border border-white/10 rounded-xl overflow-hidden focus-within:border-[#FF5B28]">
                   <input
                     type="text"
@@ -552,6 +567,9 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
                     .iskral.pl
                   </span>
                 </div>
+                <p className="text-[10px] text-cyan-400 font-mono mt-1.5">
+                  🔗 Twój adres sklepu: https://{subdomain || "twojanazwa"}.iskral.pl
+                </p>
               </div>
 
               <div>

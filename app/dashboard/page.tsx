@@ -1009,7 +1009,7 @@ export default function DashboardPage() {
                 </div>
 
                 <button
-                  onClick={() => setActiveTab("marketplace")}
+                  onClick={() => setIsWizardActive(true)}
                   className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -1017,119 +1017,162 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* KAFELKI SKLEPÓW */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-                {userStores.map((st) => {
-                  const expStr = formatExpirationDate(st.planExpiresAt || user.planExpiresAt);
-                  const stOrdersCount = (st.orders || []).filter((o) => o.status === "paid").length;
-                  const stRevenueCents = (st.orders || [])
-                    .filter((o) => o.status === "paid")
-                    .reduce((sum, o) => sum + o.amountTotalCents, 0);
+              {/* KAFELKI SKLEPÓW LUB KARTA ONBOARDINGOWA */}
+              {userStores.length === 0 ? (
+                <div className="p-8 sm:p-12 bg-gradient-to-b from-[#17171B] to-[#111216] border border-[#FF5B28]/30 rounded-3xl shadow-2xl flex flex-col items-center text-center max-w-2xl mx-auto my-6 animate-in fade-in duration-300">
+                  <div className="w-16 h-16 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] text-3xl mb-4 animate-bounce">
+                    🚀
+                  </div>
+                  <span className="px-3 py-1 bg-[#FF5B28]/15 text-[#FF5B28] rounded-full text-[11px] font-extrabold border border-[#FF5B28]/30 uppercase tracking-wider mb-2">
+                    Rozpocznij Sprzedaż
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Skonfiguruj Swój Pierwszy Sklep
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md">
+                    Wybierz pakiet (darmowy 14-dniowy Start lub Creator/Brand), wpisz swoją subdomenę i uruchom sklep online w 2 minuty.
+                  </p>
 
-                  return (
-                    <div
-                      key={st.id}
-                      className="p-6 bg-[#111216] border border-white/5 hover:border-[#FF5B28]/40 rounded-2xl shadow-xl flex flex-col justify-between transition-all group"
-                    >
-                      <div>
-                        {/* Badges Header */}
-                        <div className="flex items-center justify-between gap-2 mb-4">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase"
-                              title={`Aktywny pakiet: ${st.planType || user.plan || "Start"}`}
-                            >
-                              PAKIET: {(st.planType || user.plan || "Start").toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            🟢 SKLEP AKTYWNY
-                          </span>
-                        </div>
-
-                        {/* Store Info */}
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] font-black text-xl shrink-0">
-                            {st.logoUrl ? (
-                              <img src={st.logoUrl} alt={st.name} className="w-8 h-8 object-contain rounded-lg" />
-                            ) : (
-                              st.name.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-extrabold text-white">{st.name}</h3>
-                            <a
-                              href={getStoreUrl(st.subdomain, st.customDomain)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-cyan-400 hover:underline font-mono flex items-center gap-1"
-                            >
-                              <span>{st.subdomain}.iskral.pl</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        </div>
-
-                        {/* Plan Expiration Box with Live Countdown */}
-                        <div className="p-3 bg-[#090A0C] border border-white/5 rounded-xl text-xs space-y-2 mb-4">
-                          <div className="flex items-center justify-between text-zinc-400">
-                            <span className="flex items-center gap-1 text-[11px]">
-                              <Calendar className="w-3.5 h-3.5 text-[#FF5B28]" />
-                              <span>Ważność Pakietu:</span>
-                            </span>
-                            <strong className="text-white font-mono text-[11px]">{expStr}</strong>
-                          </div>
-
-                          <div className="flex items-center justify-between text-zinc-400 pt-1 border-t border-white/5">
-                            <span className="flex items-center gap-1 text-[11px]">
-                              <Clock className="w-3.5 h-3.5 text-amber-400" />
-                              <span>Pozostały Czas:</span>
-                            </span>
-                            <span className="px-2 py-0.5 bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-md text-[10px] font-mono font-extrabold">
-                              {getExpirationCountdown(st.planExpiresAt || user.planExpiresAt)}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between text-zinc-400 text-[11px] pt-1 border-t border-white/5">
-                            <span>Przychód Sklepu:</span>
-                            <strong className="text-emerald-400 font-mono">{(stRevenueCents / 100).toFixed(2)} PLN</strong>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Direct Buttons on Tile: PRODUKTY and ZAMÓWIENIA */}
-                      <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleOpenStoreSubTab(st.id, "products")}
-                            className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Package className="w-3.5 h-3.5 text-[#FF5B28]" />
-                            <span>📦 Produkty ({(st.products || []).length})</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleOpenStoreSubTab(st.id, "orders")}
-                            className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
-                            <span>🛍️ Zamówienia ({stOrdersCount})</span>
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => handleOpenStoreSubTab(st.id, "overview")}
-                          className="w-full py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <Wand2 className="w-3.5 h-3.5" />
-                          <span>⚙️ Otwórz Kreator & Zarządzanie</span>
-                        </button>
-                      </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full my-6 text-left">
+                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                      <span className="text-base">⚡</span>
+                      <h4 className="text-xs font-bold text-white mt-1">1. Wybierz Pakiet</h4>
+                      <p className="text-[10px] text-zinc-400">14 dni bez opłat lub Pro</p>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                      <span className="text-base">🌐</span>
+                      <h4 className="text-xs font-bold text-white mt-1">2. Twoja Subdomena</h4>
+                      <p className="text-[10px] text-zinc-400">twojanazwa.iskral.pl</p>
+                    </div>
+                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                      <span className="text-base">🎨</span>
+                      <h4 className="text-xs font-bold text-white mt-1">3. Wybierz Szablon</h4>
+                      <p className="text-[10px] text-zinc-400">Dark Vibe, Luxury, Hype</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsWizardActive(true)}
+                    className="px-8 py-4 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-2xl shadow-xl shadow-[#FF5B28]/30 transition-all flex items-center gap-2 cursor-pointer transform hover:scale-105"
+                  >
+                    <Wand2 className="w-5 h-5" />
+                    <span>Uruchom Kreator Sklepu Teraz →</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+                  {userStores.map((st) => {
+                    const expStr = formatExpirationDate(st.planExpiresAt || user.planExpiresAt);
+                    const stOrdersCount = (st.orders || []).filter((o) => o.status === "paid").length;
+                    const stRevenueCents = (st.orders || [])
+                      .filter((o) => o.status === "paid")
+                      .reduce((sum, o) => sum + o.amountTotalCents, 0);
+
+                    return (
+                      <div
+                        key={st.id}
+                        className="p-6 bg-[#111216] border border-white/5 hover:border-[#FF5B28]/40 rounded-2xl shadow-xl flex flex-col justify-between transition-all group"
+                      >
+                        <div>
+                          {/* Badges Header */}
+                          <div className="flex items-center justify-between gap-2 mb-4">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase"
+                                title={`Aktywny pakiet: ${st.planType || user.plan || "Start"}`}
+                              >
+                                PAKIET: {(st.planType || user.plan || "Start").toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              🟢 SKLEP AKTYWNY
+                            </span>
+                          </div>
+
+                          {/* Store Info */}
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] font-black text-xl shrink-0">
+                              {st.logoUrl ? (
+                                <img src={st.logoUrl} alt={st.name} className="w-8 h-8 object-contain rounded-lg" />
+                              ) : (
+                                st.name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-extrabold text-white">{st.name}</h3>
+                              <a
+                                href={getStoreUrl(st.subdomain, st.customDomain)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-cyan-400 hover:underline font-mono flex items-center gap-1"
+                              >
+                                <span>{st.subdomain}.iskral.pl</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+
+                          {/* Plan Expiration Box with Live Countdown */}
+                          <div className="p-3 bg-[#090A0C] border border-white/5 rounded-xl text-xs space-y-2 mb-4">
+                            <div className="flex items-center justify-between text-zinc-400">
+                              <span className="flex items-center gap-1 text-[11px]">
+                                <Calendar className="w-3.5 h-3.5 text-[#FF5B28]" />
+                                <span>Ważność Pakietu:</span>
+                              </span>
+                              <strong className="text-white font-mono text-[11px]">{expStr}</strong>
+                            </div>
+
+                            <div className="flex items-center justify-between text-zinc-400 pt-1 border-t border-white/5">
+                              <span className="flex items-center gap-1 text-[11px]">
+                                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Pozostały Czas:</span>
+                              </span>
+                              <span className="px-2 py-0.5 bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-md text-[10px] font-mono font-extrabold">
+                                {getExpirationCountdown(st.planExpiresAt || user.planExpiresAt)}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-zinc-400 text-[11px] pt-1 border-t border-white/5">
+                              <span>Przychód Sklepu:</span>
+                              <strong className="text-emerald-400 font-mono">{(stRevenueCents / 100).toFixed(2)} PLN</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Direct Buttons on Tile: PRODUKTY and ZAMÓWIENIA */}
+                        <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleOpenStoreSubTab(st.id, "products")}
+                              className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Package className="w-3.5 h-3.5 text-[#FF5B28]" />
+                              <span>📦 Produkty ({(st.products || []).length})</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenStoreSubTab(st.id, "orders")}
+                              className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                              <span>🛍️ Zamówienia ({stOrdersCount})</span>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => handleOpenStoreSubTab(st.id, "overview")}
+                            className="w-full py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            <span>⚙️ Otwórz Kreator & Zarządzanie</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
