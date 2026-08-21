@@ -68,52 +68,11 @@ import {
   Send,
   Clock,
   Link2,
-  Upload
+  Upload,
+  Eye,
+  Edit,
+  Trash2
 } from "lucide-react";
-
-interface FeatureGateLockProps {
-  title: string;
-  description: string;
-  requiredPlan: "Creator" | "Brand";
-  onUpgrade: () => void;
-}
-
-function FeatureGateLock({ title, description, requiredPlan, onUpgrade }: FeatureGateLockProps) {
-  return (
-    <div className="w-full p-8 sm:p-12 bg-[#111216]/90 border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl flex flex-col items-center text-center relative overflow-hidden my-4 animate-in fade-in duration-300">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#FF5B28]/10 rounded-full blur-[100px] pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col items-center max-w-lg space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 text-[#FF5B28] flex items-center justify-center text-2xl font-extrabold shadow-lg shadow-[#FF5B28]/10">
-          <Lock className="w-8 h-8 text-[#FF5B28]" />
-        </div>
-
-        <div className="space-y-1">
-          <span className="px-3 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase tracking-wider">
-            Wymagany Pakiet {requiredPlan}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight pt-2">
-            {title}
-          </h2>
-        </div>
-
-        <p className="text-sm text-zinc-400 leading-relaxed">
-          {description}
-        </p>
-
-        <div className="pt-4 flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
-          <button
-            onClick={onUpgrade}
-            className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] hover:from-[#e04f20] hover:to-[#e07520] text-white font-extrabold text-xs rounded-full shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Ulepsz Pakiet na {requiredPlan}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const {
@@ -149,9 +108,9 @@ export default function DashboardPage() {
 
   const router = useRouter();
 
-  // 6 Main Navbar Tabs (Usługi tab removed, stores shown on Strona główna)
+  // 6 Main Navigation Tabs
   const [activeTab, setActiveTab] = useState<
-    "home" | "templates" | "marketplace" | "analytics" | "customers" | "settings" | "builder"
+    "home" | "products" | "orders" | "drop" | "plans" | "analytics" | "customers" | "settings" | "builder"
   >("home");
 
   // Profile Dropdown state & ref
@@ -174,17 +133,18 @@ export default function DashboardPage() {
   >("overview");
 
   const [isWizardActive, setIsWizardActive] = useState(false);
-  const [showPlanModal, setShowPlanModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [showSafeGuardModal, setShowSafeGuardModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  // Copy Link State
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Template Store Selector Modal state
   const [showTemplateStoreModal, setShowTemplateStoreModal] = useState(false);
   const [selectedTemplateToApply, setSelectedTemplateToApply] = useState<string | null>(null);
   const [targetStoreForTemplate, setTargetStoreForTemplate] = useState<string>("");
-
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
   // Store design & config state
   const [storeNameInput, setStoreNameInput] = useState("");
@@ -194,7 +154,28 @@ export default function DashboardPage() {
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [templateInput, setTemplateInput] = useState("Dark Vibe");
 
-  // Expanded Social Media State
+  // Drop Mode State
+  const [dropEnabled, setDropEnabled] = useState(false);
+  const [dropDate, setDropDate] = useState("");
+  const [dropTemplate, setDropTemplate] = useState<"Cyberpunk Launch" | "Minimalist Timer" | "Hypebeast Countdown">("Cyberpunk Launch");
+
+  // Product Form State
+  const [prodName, setProdName] = useState("");
+  const [prodPrice, setProdPrice] = useState("149.00");
+  const [prodComparePrice, setProdComparePrice] = useState("199.00");
+  const [prodType, setProdType] = useState<"Fizyczny" | "Cyfrowy">("Fizyczny");
+  const [prodStock, setProdStock] = useState("50");
+  const [prodVariants, setProdVariants] = useState<string[]>(["S", "M", "L", "XL"]);
+  const [prodVariantInput, setProdVariantInput] = useState("");
+  const [prodDescription, setProdDescription] = useState("");
+  const [prodImage, setProdImage] = useState("");
+  const [prodStatus, setProdStatus] = useState<"Aktywny" | "Zawieszony">("Aktywny");
+  const [prodDigitalFileName, setProdDigitalFileName] = useState("");
+  const [prodDigitalFileSize, setProdDigitalFileSize] = useState("");
+  const [prodDigitalFileUrl, setProdDigitalFileUrl] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+
+  // Social Media State
   const [instagramInput, setInstagramInput] = useState("");
   const [tiktokInput, setTiktokInput] = useState("");
   const [youtubeInput, setYoutubeInput] = useState("");
@@ -211,25 +192,6 @@ export default function DashboardPage() {
     message: string;
   } | null>(null);
 
-  useEffect(() => {
-    const currentSubdomain = activeStore?.subdomain || userStores[0]?.subdomain;
-    const storeId = activeStore?.id || userStores[0]?.id;
-    if (!subdomainInput || subdomainInput.trim().toLowerCase() === currentSubdomain?.toLowerCase()) {
-      setSubdomainValidation(null);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSubdomainValidation({ checking: true, available: false, message: "Sprawdzanie dostępności..." });
-      const res = await checkSubdomainAvailability(subdomainInput, storeId);
-      setSubdomainValidation({
-        checking: false,
-        available: res.available,
-        message: res.available ? "🟢 Subdomena jest dostępna!" : `🔴 ${res.reason || "Niedostępna"}`,
-      });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [subdomainInput, activeStore, userStores]);
-
   // SEO Form State
   const [metaTitleInput, setMetaTitleInput] = useState("");
   const [metaDescriptionInput, setMetaDescriptionInput] = useState("");
@@ -238,21 +200,6 @@ export default function DashboardPage() {
   // Legal Terms & Privacy Form State
   const [termsOfServiceInput, setTermsOfServiceInput] = useState("");
   const [privacyPolicyInput, setPrivacyPolicyInput] = useState("");
-
-  // Team & Campaign State
-  const [teamEmailInput, setTeamEmailInput] = useState("");
-  const [teamRoleInput, setTeamRoleInput] = useState("Edytor");
-  const [campaignTitleInput, setCampaignTitleInput] = useState("");
-  const [campaignSubjectInput, setCampaignSubjectInput] = useState("");
-
-  // Product form state
-  const [prodName, setProdName] = useState("");
-  const [prodPrice, setProdPrice] = useState("");
-  const [prodComparePrice, setProdComparePrice] = useState("");
-  const [prodType, setProdType] = useState<"Fizyczny" | "Cyfrowy">("Fizyczny");
-  const [prodStock, setProdStock] = useState("50");
-  const [prodDescription, setProdDescription] = useState("");
-  const [prodImage, setProdImage] = useState("");
 
   // Customer Filter & Search State
   const [customerStoreFilter, setCustomerStoreFilter] = useState<string>("all");
@@ -281,21 +228,48 @@ export default function DashboardPage() {
     `otpauth://totp/Iskral.pl:${user?.email || "klient@iskral.pl"}?secret=${totpSecret}&issuer=Iskral.pl`
   )}`;
 
-  const handleVerifyAndActivate2FA = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (totpVerificationInput.trim().length !== 6) {
-      alert("Wpisz poprawny 6-cyfrowy kod z aplikacji Authenticator.");
+  const currentStore: StoreConfig = activeStore || userStores[0] || {
+    id: "default",
+    name: user?.name ? `Sklep ${user.name}` : "Mój Sklep",
+    subdomain: "mojsklep",
+    customDomain: "",
+    domainVerified: false,
+    template: "Dark Vibe",
+    accentColor: "#FF5B28",
+    stripeStatus: "connected",
+    balanceCents: 0,
+    planType: user?.plan || "Start",
+    planStatus: "active",
+    announcement: "",
+    socials: { instagram: "", tiktok: "", youtube: "", x: "" },
+    dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
+    categories: [],
+    products: [],
+    orders: [],
+    payoutHistory: [],
+    customers: [],
+    campaigns: [],
+    team: [],
+  };
+
+  useEffect(() => {
+    const currentSubdomain = currentStore.subdomain;
+    const storeId = currentStore.id;
+    if (!subdomainInput || subdomainInput.trim().toLowerCase() === currentSubdomain?.toLowerCase()) {
+      setSubdomainValidation(null);
       return;
     }
-    executeWithSafeGuard(() => {
-      if (!user?.is2FAEnabled) {
-        toggle2FA();
-      }
-      setShow2FAModal(false);
-      setTotpVerificationInput("");
-      setMessage({ type: "success", text: "🟢 Zabezpieczenie dwuskładnikowe 2FA (Authenticator App) zostało pomyślnie aktywowane!" });
-    });
-  };
+    const timer = setTimeout(async () => {
+      setSubdomainValidation({ checking: true, available: false, message: "Sprawdzanie dostępności..." });
+      const res = await checkSubdomainAvailability(subdomainInput, storeId);
+      setSubdomainValidation({
+        checking: false,
+        available: res.available,
+        message: res.available ? "🟢 Subdomena jest dostępna!" : `🔴 ${res.reason || "Niedostępna"}`,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [subdomainInput, currentStore]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -327,34 +301,39 @@ export default function DashboardPage() {
   }, [user]);
 
   useEffect(() => {
-    if (activeStore) {
-      setStoreNameInput(activeStore.name || "");
-      setStoreDescriptionInput(activeStore.description || "Oficjalny sklep marki iskral.pl");
-      setSubdomainInput(activeStore.subdomain || "");
-      setCustomDomainInput(activeStore.customDomain || "");
-      setLogoUrlInput(activeStore.logoUrl || "");
-      setTemplateInput(activeStore.template || "Dark Vibe");
+    if (currentStore) {
+      setStoreNameInput(currentStore.name || "");
+      setStoreDescriptionInput(currentStore.description || "Oficjalny sklep internetowy");
+      setSubdomainInput(currentStore.subdomain || "");
+      setCustomDomainInput(currentStore.customDomain || "");
+      setLogoUrlInput(currentStore.logoUrl || "");
+      setTemplateInput(currentStore.template || "Dark Vibe");
+
+      // Drop config
+      setDropEnabled(Boolean(currentStore.dropConfig?.enabled));
+      setDropDate(currentStore.dropConfig?.targetDate || "");
+      setDropTemplate(currentStore.dropConfig?.template || "Cyberpunk Launch");
 
       // Socials
-      setInstagramInput(activeStore.socials?.instagram || "");
-      setTiktokInput(activeStore.socials?.tiktok || "");
-      setYoutubeInput(activeStore.socials?.youtube || "");
-      setXInput(activeStore.socials?.x || "");
-      setDiscordInput(activeStore.socials?.discord || "");
-      setFacebookInput(activeStore.socials?.facebook || "");
-      setBehanceInput(activeStore.socials?.behance || "");
-      setTelegramInput(activeStore.socials?.telegram || "");
+      setInstagramInput(currentStore.socials?.instagram || "");
+      setTiktokInput(currentStore.socials?.tiktok || "");
+      setYoutubeInput(currentStore.socials?.youtube || "");
+      setXInput(currentStore.socials?.x || "");
+      setDiscordInput(currentStore.socials?.discord || "");
+      setFacebookInput(currentStore.socials?.facebook || "");
+      setBehanceInput(currentStore.socials?.behance || "");
+      setTelegramInput(currentStore.socials?.telegram || "");
 
       // SEO
-      setMetaTitleInput(activeStore.seoConfig?.metaTitle || `${activeStore.name} | Sklep Odzieżowy & Drop`);
-      setMetaDescriptionInput(activeStore.seoConfig?.metaDescription || `Kupuj ubrania i akcesoria w sklepie ${activeStore.name}. Szybka wysyłka, oryginalne projekty.`);
-      setKeywordsInput(activeStore.seoConfig?.keywords || `sklep, moda, streetwear, ${activeStore.subdomain}, iskral`);
+      setMetaTitleInput(currentStore.seoConfig?.metaTitle || `${currentStore.name} | Oficjalny Sklep`);
+      setMetaDescriptionInput(currentStore.seoConfig?.metaDescription || `Kupuj w sklepie ${currentStore.name}.`);
+      setKeywordsInput(currentStore.seoConfig?.keywords || `sklep, ${currentStore.subdomain}, e-commerce`);
 
       // Legal Terms
-      setTermsOfServiceInput(activeStore.legalTerms?.termsOfService || "Regulamin Sklepu Internetowego iskral.pl...");
-      setPrivacyPolicyInput(activeStore.legalTerms?.privacyPolicy || "Polityka Prywatności i Plików Cookies iskral.pl...");
+      setTermsOfServiceInput(currentStore.legalTerms?.termsOfService || "Regulamin Sklepu Internetowego...");
+      setPrivacyPolicyInput(currentStore.legalTerms?.privacyPolicy || "Polityka Prywatności i Plików Cookies...");
     }
-  }, [activeStore]);
+  }, [currentStore.id]);
 
   const [mounted, setMounted] = useState(false);
 
@@ -373,11 +352,11 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <main className="relative min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-6">
+      <main className="relative min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-6 font-sans">
         <BackgroundVideo />
-        <div className="relative z-10 p-8 bg-[#111216] border border-white/5 rounded-2xl text-center max-w-md shadow-2xl">
-          <h2 className="text-2xl font-black text-white mb-2">Brak Dostępu</h2>
-          <p className="text-xs text-zinc-400 mb-6">Musisz być zalogowany, aby zobaczyć swój panel klienta.</p>
+        <div className="relative z-10 p-8 bg-[#111216] border border-white/5 rounded-2xl text-center max-w-md shadow-2xl space-y-4">
+          <h2 className="text-2xl font-black text-white">Brak Dostępu</h2>
+          <p className="text-xs text-zinc-400">Musisz być zalogowany, aby zobaczyć swój panel klienta.</p>
           <Link
             href="/logowanie"
             className="inline-block px-6 py-3 bg-[#FF5B28] text-white font-extrabold rounded-full text-xs shadow-lg shadow-[#FF5B28]/25"
@@ -388,30 +367,6 @@ export default function DashboardPage() {
       </main>
     );
   }
-
-  const currentStore: StoreConfig = activeStore || userStores[0] || {
-    id: "default",
-    name: `Sklep ${user.name}`,
-    subdomain: "demo",
-    customDomain: "",
-    domainVerified: false,
-    template: "Dark Vibe",
-    accentColor: "#FF5B28",
-    stripeStatus: "connected",
-    balanceCents: 0,
-    planType: user.plan || "Brand",
-    planStatus: "active",
-    announcement: "",
-    socials: { instagram: "", tiktok: "", youtube: "", x: "" },
-    dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
-    categories: [],
-    products: [],
-    orders: [],
-    payoutHistory: [],
-    customers: [],
-    campaigns: [],
-    team: [],
-  };
 
   const executeWithSafeGuard = (action: () => void) => {
     if (isImpersonating && !isEditUnlocked) {
@@ -431,29 +386,160 @@ export default function DashboardPage() {
   const totalRevenuePLN = (totalRevenueCents / 100).toFixed(2);
   const totalOrdersCount = paidOrders.length;
   const aovPLN = totalOrdersCount > 0 ? (totalRevenueCents / totalOrdersCount / 100).toFixed(2) : "0.00";
-  const availableBalancePLN = ((currentStore.balanceCents || totalRevenueCents) / 100).toFixed(2);
+  const visitsCount = currentStore.visitsCount || (storeOrders.length * 14 + 128);
+
+  const liveStoreUrl = getStoreUrl(currentStore.subdomain, currentStore.customDomain);
+
+  const handleCopyStoreLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(liveStoreUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
 
   // Format Expiration Date & Time Helper
   const formatExpirationDate = (expDate?: string) => {
     if (user?.role === "superadmin") return "Bezterminowy (Superadmin)";
     if (!expDate) return "Ważny bezterminowo";
     const d = new Date(expDate);
-    return `do ${d.toLocaleDateString("pl-PL")} r., godz. ${d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}`;
+    return `do ${d.toLocaleDateString("pl-PL")} r.`;
   };
 
-  // Live Expiration Countdown Helper
-  const getExpirationCountdown = (expDate?: string) => {
-    if (user?.role === "superadmin") return "Bezterminowy";
-    if (!expDate) return "Ważny bezterminowo";
-    const diffMs = new Date(expDate).getTime() - Date.now();
-    if (diffMs <= 0) return "⚠️ Wygasł (Wymagana odnowa)";
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    return `${days}d ${hours}h ${mins}m`;
+  const handleOpenAddProduct = () => {
+    setEditingProductId(null);
+    setProdName("");
+    setProdPrice("149.00");
+    setProdComparePrice("199.00");
+    setProdType("Fizyczny");
+    setProdStock("50");
+    setProdVariants(["S", "M", "L", "XL"]);
+    setProdDescription("");
+    setProdImage("");
+    setProdStatus("Aktywny");
+    setProdDigitalFileName("");
+    setProdDigitalFileSize("");
+    setProdDigitalFileUrl("");
+    setShowProductModal(true);
   };
 
-  // Customer database compilation across user stores with Store Filtering
+  const handleEditProduct = (p: Product) => {
+    setEditingProductId(p.id);
+    setProdName(p.name);
+    setProdPrice(p.price.replace(" PLN", "").trim());
+    setProdComparePrice(p.comparePrice ? p.comparePrice.replace(" PLN", "").trim() : "");
+    setProdType(p.type);
+    setProdStock(String(p.stock !== undefined ? p.stock : 50));
+    setProdVariants(p.variants && p.variants.length > 0 ? p.variants : ["S", "M", "L", "XL"]);
+    setProdDescription(p.description || "");
+    setProdImage(p.image || (p.images && p.images[0]) || "");
+    setProdStatus(p.status === "Zawieszony" ? "Zawieszony" : "Aktywny");
+    setProdDigitalFileName(p.digitalFileName || "");
+    setProdDigitalFileSize(p.digitalFileSize || "");
+    setProdDigitalFileUrl(p.digitalFileUrl || "");
+    setShowProductModal(true);
+  };
+
+  const handleSaveProductSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prodName.trim()) {
+      alert("Wpisz nazwę produktu.");
+      return;
+    }
+
+    const cleanPrice = prodPrice.replace(",", ".").replace(/[^0-9.]/g, "");
+    const priceNum = parseFloat(cleanPrice) || 10;
+    const priceCents = Math.round(priceNum * 100);
+
+    const cleanComparePrice = prodComparePrice ? prodComparePrice.replace(",", ".").replace(/[^0-9.]/g, "") : "";
+    const comparePriceNum = parseFloat(cleanComparePrice) || 0;
+    const comparePriceCents = comparePriceNum > 0 ? Math.round(comparePriceNum * 100) : undefined;
+
+    const defaultImg = prodType === "Cyfrowy"
+      ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"
+      : "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80";
+
+    executeWithSafeGuard(() => {
+      if (editingProductId) {
+        updateProduct(editingProductId, {
+          name: prodName,
+          description: prodDescription,
+          price: `${priceNum.toFixed(2)} PLN`,
+          priceCents,
+          comparePrice: comparePriceCents ? `${comparePriceNum.toFixed(2)} PLN` : undefined,
+          comparePriceCents,
+          type: prodType,
+          status: prodStatus,
+          stock: parseInt(prodStock) || 50,
+          variants: prodVariants,
+          image: prodImage || defaultImg,
+          images: [prodImage || defaultImg],
+          isDigital: prodType === "Cyfrowy",
+          digitalFileName: prodDigitalFileName || (prodType === "Cyfrowy" ? "Plik_Cyfrowy.pdf" : undefined),
+          digitalFileSize: prodDigitalFileSize || (prodType === "Cyfrowy" ? "12.4 MB" : undefined),
+          digitalFileUrl: prodDigitalFileUrl || (prodType === "Cyfrowy" ? "data:application/pdf;base64,demo" : undefined),
+        });
+        setMessage({ type: "success", text: `Zaktualizowano produkt: ${prodName}` });
+      } else {
+        addProduct({
+          name: prodName,
+          description: prodDescription,
+          price: `${priceNum.toFixed(2)} PLN`,
+          priceCents,
+          comparePrice: comparePriceCents ? `${comparePriceNum.toFixed(2)} PLN` : undefined,
+          comparePriceCents,
+          type: prodType,
+          status: prodStatus,
+          stock: parseInt(prodStock) || 50,
+          variants: prodVariants,
+          image: prodImage || defaultImg,
+          images: [prodImage || defaultImg],
+          isDigital: prodType === "Cyfrowy",
+          digitalFileName: prodDigitalFileName || (prodType === "Cyfrowy" ? "Plik_Cyfrowy.pdf" : undefined),
+          digitalFileSize: prodDigitalFileSize || (prodType === "Cyfrowy" ? "12.4 MB" : undefined),
+          digitalFileUrl: prodDigitalFileUrl || (prodType === "Cyfrowy" ? "data:application/pdf;base64,demo" : undefined),
+        });
+      }
+      setShowProductModal(false);
+    });
+  };
+
+  const handleSaveDropConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeWithSafeGuard(() => {
+      updateStoreConfig({
+        dropConfig: {
+          enabled: dropEnabled,
+          targetDate: dropDate,
+          template: dropTemplate,
+        },
+      });
+      setMessage({
+        type: "success",
+        text: dropEnabled
+          ? `🔥 Aktywowano Tryb Dropu do: ${dropDate ? new Date(dropDate).toLocaleString("pl-PL") : "Wyznaczonej daty"}`
+          : "Wyłączono odliczanie do dropu.",
+      });
+    });
+  };
+
+  const handleAddVariant = () => {
+    const val = prodVariantInput.trim().toUpperCase();
+    if (val && !prodVariants.includes(val)) {
+      setProdVariants([...prodVariants, val]);
+      setProdVariantInput("");
+    }
+  };
+
+  const handleRemoveVariant = (variant: string) => {
+    setProdVariants(prodVariants.filter((v) => v !== variant));
+  };
+
+  const filteredProducts = storeProducts.filter((p) =>
+    !productSearch ? true : p.name.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  // Customer database compilation
   const rawCustomers = userStores.flatMap((s) =>
     (s.orders || [])
       .filter((o) => o.status === "paid")
@@ -474,236 +560,10 @@ export default function DashboardPage() {
     return matchesStore && matchesSearch;
   });
 
-  // Open Template Selector Modal for target store selection
-  const handleOpenTemplateSelector = (templateName: string) => {
-    if (userStores.length === 1) {
-      // Direct apply if only 1 store
-      executeWithSafeGuard(() => {
-        updateStoreConfig({ template: templateName });
-        setTemplateInput(templateName);
-        setMessage({ type: "success", text: `Zastosowano szablon: ${templateName} do sklepu ${currentStore.name}!` });
-      });
-    } else {
-      setSelectedTemplateToApply(templateName);
-      setTargetStoreForTemplate(currentStore.id);
-      setShowTemplateStoreModal(true);
-    }
-  };
-
-  const handleConfirmTemplateApplication = () => {
-    if (!selectedTemplateToApply || !targetStoreForTemplate) return;
-    executeWithSafeGuard(() => {
-      setActiveStoreId(targetStoreForTemplate);
-      updateStoreConfig({ template: selectedTemplateToApply });
-      setTemplateInput(selectedTemplateToApply);
-      setShowTemplateStoreModal(false);
-      setMessage({ type: "success", text: `Zastosowano szablon ${selectedTemplateToApply} do wybranego sklepu!` });
-    });
-  };
-
-  // Open Store Management in specific subtab (all 10 subtabs)
-  const handleOpenStoreSubTab = (
-    storeId: string,
-    subTab: "overview" | "products" | "orders" | "design" | "drop" | "team" | "campaigns" | "domain" | "seo" | "legal"
-  ) => {
-    setActiveStoreId(storeId);
-    setActiveTab("builder");
-    setBuilderSubTab(subTab);
-  };
-
-  const handleGenerateLegalTermsTemplate = () => {
-    const defaultTerms = `REGULAMIN SKLEPU INTERNETOWEGO ${currentStore.name.toUpperCase()}\n\n1. POSTANOWIENIA OGÓLNE\n1.1. Sklep Internetowy działający pod adresem https://${currentStore.subdomain}.iskral.pl prowadzony jest przez ${user?.name || "Właściciela Sklepu"}.\n1.2. Niniejszy Regulamin określa zasady korzystania ze Sklepu, składania zamówień oraz realizowania umów sprzedaży towarów fizycznych i cyfrowych.\n\n2. ZAMÓWIENIA I PŁATNOŚCI\n2.1. Wszystkie ceny w sklepie podawane są w złotych polskich (PLN).\n2.2. Płatności realizowane są za pośrednictwem bezpiecznego operatora płatności Stripe.\n\n3. DOSTAWA I ZWROTY\n3.1. Kupujący ma prawo odstąpić od umowy bez podania przyczyny w terminie 14 dni od dnia otrzymania towaru.\n3.2. W przypadku materiałów cyfrowych prawo odstąpienia od umowy wygasa w momencie pobrania pliku.`;
-
-    const defaultPrivacy = `POLITYKA PRYWATNOŚCI I PLIKÓW COOKIES SKLEPU ${currentStore.name.toUpperCase()}\n\n1. ADMINISTRATOR DANYCH OSOBOWYCH\nAdministratorem danych osobowych zbieranych za pośrednictwem Sklepu jest ${currentStore.name}.\n\n2. CEL PRZETWARZANIA DANYCH\nDane przetwarzane są w celu realizacji zamówień, wystawienia dowodów zakupu oraz dostarczania zakupionych towarów.\n\n3. PRAWA UŻYTKOWNIKA\nUżytkownik posiada prawo dostępu do swoich danych, sprostowania oraz żądania ich usunięcia (RODO).`;
-
-    setTermsOfServiceInput(defaultTerms);
-    setPrivacyPolicyInput(defaultPrivacy);
-    setMessage({ type: "success", text: "⚡ Wygenerowano gotowy wzorzec Regulaminu i Polityki Prywatności!" });
-  };
-
-  const handleSaveStoreOverviewSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeWithSafeGuard(() => {
-      updateStoreConfig({
-        name: storeNameInput,
-        description: storeDescriptionInput,
-        subdomain: subdomainInput,
-        logoUrl: logoUrlInput,
-        socials: {
-          instagram: instagramInput,
-          tiktok: tiktokInput,
-          youtube: youtubeInput,
-          x: xInput,
-          discord: discordInput,
-          facebook: facebookInput,
-          behance: behanceInput,
-          telegram: telegramInput,
-        },
-      });
-      setMessage({ type: "success", text: "Zapisano nazwę sklepu, subdomenę, logo i media społecznościowe!" });
-    });
-  };
-
-  const handleSaveSeoSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeWithSafeGuard(() => {
-      updateStoreConfig({
-        seoConfig: {
-          metaTitle: metaTitleInput,
-          metaDescription: metaDescriptionInput,
-          keywords: keywordsInput,
-        },
-      });
-      setMessage({ type: "success", text: "Zapisano ustawienia SEO i słowa kluczowe Google!" });
-    });
-  };
-
-  const handleSaveLegalTermsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeWithSafeGuard(() => {
-      updateStoreConfig({
-        legalTerms: {
-          termsOfService: termsOfServiceInput,
-          privacyPolicy: privacyPolicyInput,
-          updatedAt: new Date().toLocaleDateString("pl-PL"),
-        },
-      });
-      setMessage({ type: "success", text: "Zapisano Regulamin Sklepu oraz Politykę Prywatności!" });
-    });
-  };
-
-  const handleAddTeamMemberSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamEmailInput.trim()) return;
-    executeWithSafeGuard(() => {
-      const newMember: TeamMember = {
-        id: `team_${Date.now()}`,
-        email: teamEmailInput,
-        role: teamRoleInput,
-        permissions: ["read", "write"],
-        addedAt: new Date().toLocaleDateString("pl-PL"),
-      };
-      updateStoreConfig({
-        team: [...(currentStore.team || []), newMember],
-      });
-      setTeamEmailInput("");
-      setMessage({ type: "success", text: `Dodano członka zespołu: ${teamEmailInput} (${teamRoleInput})` });
-    });
-  };
-
-  const handleSendCampaignSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!campaignTitleInput.trim() || !campaignSubjectInput.trim()) {
-      alert("Wpisz tytuł i temat kampanii newslettera.");
-      return;
-    }
-    executeWithSafeGuard(() => {
-      const newCampaign: Campaign = {
-        id: `camp_${Date.now()}`,
-        title: campaignTitleInput,
-        subject: campaignSubjectInput,
-        sentDate: new Date().toLocaleDateString("pl-PL"),
-        recipientsCount: filteredCustomers.length || 1,
-        openRate: "68.4%",
-      };
-      updateStoreConfig({
-        campaigns: [...(currentStore.campaigns || []), newCampaign],
-      });
-      setCampaignTitleInput("");
-      setCampaignSubjectInput("");
-      setMessage({ type: "success", text: "🚀 Wysyłka newslettera do bazy klientów została rozpoczęta!" });
-    });
-  };
-
-  const handleSaveProfileAddressSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeWithSafeGuard(() => {
-      setMessage({ type: "success", text: "Zapisano dane osobowe i adres zamieszkania/firmowy!" });
-    });
-  };
-
-  const handlePasswordChangeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword !== confirmNewPassword) {
-      alert("Nowe hasła muszą się zgadzać.");
-      return;
-    }
-    executeWithSafeGuard(() => {
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setMessage({ type: "success", text: "Hasło zostało pomyślnie zmienione!" });
-    });
-  };
-
-  const handleOpenAddProduct = () => {
-    setEditingProductId(null);
-    setProdName("");
-    setProdPrice("149.00");
-    setProdComparePrice("199.00");
-    setProdType("Fizyczny");
-    setProdStock("50");
-    setProdDescription("");
-    setProdImage("");
-    setShowProductModal(true);
-  };
-
-  const handleEditProduct = (p: Product) => {
-    setEditingProductId(p.id);
-    setProdName(p.name);
-    setProdPrice(p.price);
-    setProdComparePrice(p.comparePrice || "");
-    setProdType(p.type);
-    setProdStock(String(p.stock));
-    setProdDescription(p.description);
-    setProdImage(p.image || "");
-    setShowProductModal(true);
-  };
-
-  const handleSaveProductSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prodName.trim()) {
-      alert("Wprowadź nazwę produktu.");
-      return;
-    }
-    const cleanPrice = prodPrice.replace(",", ".").replace(/[^0-9.]/g, "");
-    const priceNum = parseFloat(cleanPrice) || 0;
-    const priceCents = Math.round(priceNum * 100);
-
-    executeWithSafeGuard(() => {
-      if (editingProductId) {
-        updateProduct(editingProductId, {
-          name: prodName,
-          price: `${priceNum.toFixed(2)} PLN`,
-          priceCents,
-          type: prodType,
-          stock: parseInt(prodStock) || 50,
-          description: prodDescription,
-          image: prodImage || undefined,
-        });
-        setMessage({ type: "success", text: `Zaktualizowano produkt: ${prodName}` });
-      } else {
-        addProduct({
-          name: prodName,
-          price: `${priceNum.toFixed(2)} PLN`,
-          priceCents,
-          type: prodType,
-          status: "Aktywny",
-          stock: parseInt(prodStock) || 50,
-          description: prodDescription || "Produkt w sklepie.",
-          image: prodImage || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80",
-        });
-        setMessage({ type: "success", text: `Dodano produkt: ${prodName}` });
-      }
-      setShowProductModal(false);
-      setEditingProductId(null);
-    });
-  };
-
   // IF WIZARD ACTIVE, RENDER FULLSCREEN WIZARD
   if (isWizardActive) {
     return (
-      <main className="relative min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-4 sm:p-8">
+      <main className="relative min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-4 sm:p-8 font-sans">
         <BackgroundVideo />
         <div className="relative z-10 w-full max-w-5xl">
           <div className="flex justify-between items-center mb-6">
@@ -729,7 +589,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen w-full bg-[#090A0C] text-white flex flex-col font-sans pb-20 selection:bg-[#FF5B28] selection:text-white">
+    <main className="min-h-screen w-full bg-[#090A0C] text-white flex flex-col font-sans pb-24 selection:bg-[#FF5B28] selection:text-white">
       <BackgroundVideo />
 
       {/* Admin Impersonation Banner */}
@@ -758,44 +618,26 @@ export default function DashboardPage() {
                   : "bg-black/80 hover:bg-black text-amber-300 border border-black/30"
               }`}
             >
-              {isEditUnlocked ? <Unlock className="w-3.5 h-3.5 text-red-300" /> : <Lock className="w-3.5 h-3.5 text-amber-400" />}
-              <span>{isEditUnlocked ? "Odblokowano Edycję" : "Tylko Do Odczytu"}</span>
+              {isEditUnlocked ? <Unlock className="w-3.5 h-3.5 text-red-400" /> : <Lock className="w-3.5 h-3.5 text-amber-400" />}
+              <span>{isEditUnlocked ? "Tryb Pełnej Edycji (Odblokowany)" : "Tylko Podgląd"}</span>
             </button>
-
             <button
               onClick={exitImpersonation}
-              className="px-3.5 py-1.5 bg-black text-white hover:bg-zinc-900 rounded-xl text-xs font-extrabold cursor-pointer transition-all border border-white/20 flex items-center gap-1.5 shadow-md"
+              className="px-3.5 py-1.5 bg-black/80 hover:bg-black text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
             >
-              <Crown className="w-3.5 h-3.5 text-amber-400" />
-              <span>Wróć do Admina</span>
+              <X className="w-3.5 h-3.5" />
+              <span>Wyjdź z Podglądu</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Admin Quick Return Switcher Bar for Admins / Superadmins */}
-      {!isImpersonating && (user?.role === "superadmin" || user?.role === "admin") && (
-        <div className="relative z-20 w-full px-6 py-2.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-500/20 backdrop-blur-md flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-amber-300 font-semibold">
-            <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>Jesteś zalogowany jako <strong className="text-white uppercase">{user.role}</strong>. Dostępna pełna Konsola Zarządcza Platformy.</span>
-          </div>
-          <Link
-            href="/admin"
-            className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold rounded-xl transition-all shadow-md flex items-center gap-1.5 shrink-0"
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-            <span>Przełącz do Konsoli Admina</span>
-          </Link>
-        </div>
-      )}
-
-      {/* DOKŁADNE 7 ZAKŁADEK W PŁYWAJĄCYM DARK PILL NAVBARZE (#18191E) */}
-      <header className="relative z-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-3">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-[#111216] p-3 px-6 rounded-2xl border border-white/5 shadow-xl">
+      {/* TOP HEADER & NAVIGATION */}
+      <header className="relative z-20 w-full px-4 sm:px-8 py-4 border-b border-white/[0.08] bg-[#0E0E11]/90 backdrop-blur-xl sticky top-0">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
           
-          {/* Left: iskral.pl Brand Logo (Official /logo.svg) */}
-          <Link href="/dashboard" className="flex items-center shrink-0">
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-3 shrink-0">
             <img
               src="/logo.svg"
               alt="iskral.pl"
@@ -803,54 +645,74 @@ export default function DashboardPage() {
             />
           </Link>
 
-          {/* Center: 6 Main Dark Pill Tabs */}
-          <div className="bg-[#18191E] border border-white/5 text-white p-1 rounded-full flex items-center gap-1 overflow-x-auto max-w-full">
+          {/* Center Tabs Navigation */}
+          <div className="bg-[#18191E] border border-white/[0.08] text-white p-1 rounded-full flex items-center gap-1 overflow-x-auto max-w-full">
             
-            {/* 1. Strona główna */}
             <button
               onClick={() => setActiveTab("home")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                 activeTab === "home"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Home className="w-3.5 h-3.5" />
-              <span>Strona główna</span>
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Pulpit</span>
             </button>
 
-            {/* 2. Szablony */}
             <button
-              onClick={() => setActiveTab("templates")}
+              onClick={() => setActiveTab("products")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-                activeTab === "templates"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                activeTab === "products"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Palette className="w-3.5 h-3.5" />
-              <span>Szablony</span>
+              <Package className="w-3.5 h-3.5" />
+              <span>Produkty ({storeProducts.length})</span>
             </button>
 
-            {/* 3. Sklep */}
             <button
-              onClick={() => setActiveTab("marketplace")}
+              onClick={() => setActiveTab("orders")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-                activeTab === "marketplace"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                activeTab === "orders"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Sklep</span>
+              <span>Zamówienia ({paidOrders.length})</span>
             </button>
 
-            {/* 4. Analityka */}
+            <button
+              onClick={() => setActiveTab("drop")}
+              className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                activeTab === "drop"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
+                  : "text-zinc-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>Tryb Dropu</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("plans")}
+              className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                activeTab === "plans"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
+                  : "text-zinc-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Pakiety SaaS</span>
+            </button>
+
             <button
               onClick={() => setActiveTab("analytics")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                 activeTab === "analytics"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
@@ -858,25 +720,23 @@ export default function DashboardPage() {
               <span>Analityka</span>
             </button>
 
-            {/* 5. Baza klientów */}
             <button
               onClick={() => setActiveTab("customers")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                 activeTab === "customers"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Baza klientów</span>
+              <span>Klienci</span>
             </button>
 
-            {/* 6. Ustawienia */}
             <button
               onClick={() => setActiveTab("settings")}
               className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                 activeTab === "settings"
-                  ? "bg-[#FF5B28] text-white shadow-sm"
+                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25"
                   : "text-zinc-400 hover:text-white hover:bg-white/5"
               }`}
             >
@@ -886,22 +746,19 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Right: Interactive User Profile Dropdown Menu */}
+          {/* Right User Profile Dropdown Menu */}
           <div className="relative shrink-0" ref={profileMenuRef}>
             <button
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              className="flex items-center gap-3 p-1.5 px-3.5 bg-[#090A0C] hover:bg-white/5 rounded-full border border-white/5 transition-all cursor-pointer shadow-sm group"
+              className="flex items-center gap-3 p-1.5 px-3.5 bg-[#090A0C] hover:bg-white/5 rounded-full border border-white/[0.08] transition-all cursor-pointer shadow-sm group"
             >
-              <div className="w-8 h-8 rounded-full bg-[#1A1C23] border border-[#FF5B28]/50 text-[#FF5B28] flex items-center justify-center font-extrabold text-xs shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded-full bg-[#18181B] border border-[#FF5B28]/50 text-[#FF5B28] flex items-center justify-center font-extrabold text-xs shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                 {user.name ? user.name.substring(0, 2).toUpperCase() : "KL"}
               </div>
 
               <div className="flex flex-col text-left pr-1">
                 <span className="text-xs font-extrabold text-white leading-tight flex items-center gap-1.5">
                   <span>{user.name || user.email}</span>
-                  <span className="px-1.5 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] rounded text-[10px] font-extrabold border border-[#FF5B28]/20">
-                    {user.role === "superadmin" || user.role === "admin" ? "Administrator" : "Użytkownik"}
-                  </span>
                 </span>
                 <span className="text-[10px] text-cyan-400 font-mono leading-tight">
                   {currentStore.subdomain}.iskral.pl
@@ -913,10 +770,10 @@ export default function DashboardPage() {
 
             {/* Profile Dropdown Menu */}
             {isProfileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#18191E] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 animate-in fade-in duration-150">
-                <div className="px-3.5 py-2.5 border-b border-white/5 mb-1 bg-[#090A0C] rounded-xl">
+              <div className="absolute right-0 mt-2 w-64 bg-[#18181B] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 animate-in fade-in duration-150">
+                <div className="px-3.5 py-2.5 border-b border-white/5 mb-1 bg-[#0E0E11] rounded-xl">
                   <span className="text-[10px] uppercase font-extrabold text-[#FF5B28] block tracking-wider">
-                    {user.role === "superadmin" || user.role === "admin" ? "Administrator" : "Użytkownik"}
+                    {user.role === "superadmin" || user.role === "admin" ? "Administrator" : "Właściciel Sklepu"}
                   </span>
                   <span className="text-xs font-bold text-white truncate block mt-0.5">{user.email}</span>
                 </div>
@@ -976,14 +833,6 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <Sparkles className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{message.text}</span>
-              {message.text.includes("Płatność Stripe") && (
-                <button
-                  onClick={() => buyPlan("Creator", "miesiac")}
-                  className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-full shadow-md cursor-pointer transition-all ml-2"
-                >
-                  ⚡ Przypisz Pakiet Creator do sklepu
-                </button>
-              )}
             </div>
             <button onClick={() => setMessage(null)} className="p-1 hover:bg-white/10 rounded-lg text-xs font-bold transition-all">
               <X className="w-4 h-4" />
@@ -991,1140 +840,329 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* CONTENT AREA BASED ON 7 TABS */}
-        <div className="mt-6">
-
-          {/* ZAKŁADKA 1: STRONA GŁÓWNA (KAFELKI SKLEPÓW Z PRZYCISKAMI PRODUKTY & ZAMÓWIENIA) */}
-          {activeTab === "home" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-black text-white tracking-tight">
-                    Witaj w Panelu, {user.name || "Właścicielu"}!
-                  </h1>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Poniżej znajdują się Twoje aktywne sklepy i pakiety. Wybierz sklep i wejdź bezpośrednio w Produkty lub Zamówienia.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setIsWizardActive(true)}
-                  className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Kup Kolejny Pakiet / Sklep</span>
-                </button>
-              </div>
-
-              {/* KAFELKI SKLEPÓW LUB KARTA ONBOARDINGOWA */}
-              {userStores.length === 0 ? (
-                <div className="p-8 sm:p-12 bg-gradient-to-b from-[#17171B] to-[#111216] border border-[#FF5B28]/30 rounded-3xl shadow-2xl flex flex-col items-center text-center max-w-2xl mx-auto my-6 animate-in fade-in duration-300">
-                  <div className="w-16 h-16 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] text-3xl mb-4 animate-bounce">
-                    🚀
-                  </div>
-                  <span className="px-3 py-1 bg-[#FF5B28]/15 text-[#FF5B28] rounded-full text-[11px] font-extrabold border border-[#FF5B28]/30 uppercase tracking-wider mb-2">
-                    Rozpocznij Sprzedaż
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Skonfiguruj Swój Pierwszy Sklep
-                  </h2>
-                  <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md">
-                    Wybierz pakiet (darmowy 14-dniowy Start lub Creator/Brand), wpisz swoją subdomenę i uruchom sklep online w 2 minuty.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full my-6 text-left">
-                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
-                      <span className="text-base">⚡</span>
-                      <h4 className="text-xs font-bold text-white mt-1">1. Wybierz Pakiet</h4>
-                      <p className="text-[10px] text-zinc-400">14 dni bez opłat lub Pro</p>
-                    </div>
-                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
-                      <span className="text-base">🌐</span>
-                      <h4 className="text-xs font-bold text-white mt-1">2. Twoja Subdomena</h4>
-                      <p className="text-[10px] text-zinc-400">twojanazwa.iskral.pl</p>
-                    </div>
-                    <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
-                      <span className="text-base">🎨</span>
-                      <h4 className="text-xs font-bold text-white mt-1">3. Wybierz Szablon</h4>
-                      <p className="text-[10px] text-zinc-400">Dark Vibe, Luxury, Hype</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setIsWizardActive(true)}
-                    className="px-8 py-4 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-2xl shadow-xl shadow-[#FF5B28]/30 transition-all flex items-center gap-2 cursor-pointer transform hover:scale-105"
-                  >
-                    <Wand2 className="w-5 h-5" />
-                    <span>Uruchom Kreator Sklepu Teraz →</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-                  {userStores.map((st) => {
-                    const expStr = formatExpirationDate(st.planExpiresAt || user.planExpiresAt);
-                    const stOrdersCount = (st.orders || []).filter((o) => o.status === "paid").length;
-                    const stRevenueCents = (st.orders || [])
-                      .filter((o) => o.status === "paid")
-                      .reduce((sum, o) => sum + o.amountTotalCents, 0);
-
-                    return (
-                      <div
-                        key={st.id}
-                        className="p-6 bg-[#111216] border border-white/5 hover:border-[#FF5B28]/40 rounded-2xl shadow-xl flex flex-col justify-between transition-all group"
-                      >
-                        <div>
-                          {/* Badges Header */}
-                          <div className="flex items-center justify-between gap-2 mb-4">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className="px-2.5 py-1 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[10px] font-black uppercase"
-                                title={`Aktywny pakiet: ${st.planType || user.plan || "Start"}`}
-                              >
-                                PAKIET: {(st.planType || user.plan || "Start").toUpperCase()}
-                              </span>
-                            </div>
-                            <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              🟢 SKLEP AKTYWNY
-                            </span>
-                          </div>
-
-                          {/* Store Info */}
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] font-black text-xl shrink-0">
-                              {st.logoUrl ? (
-                                <img src={st.logoUrl} alt={st.name} className="w-8 h-8 object-contain rounded-lg" />
-                              ) : (
-                                st.name.charAt(0).toUpperCase()
-                              )}
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-extrabold text-white">{st.name}</h3>
-                              <a
-                                href={getStoreUrl(st.subdomain, st.customDomain)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-cyan-400 hover:underline font-mono flex items-center gap-1"
-                              >
-                                <span>{st.subdomain}.iskral.pl</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            </div>
-                          </div>
-
-                          {/* Plan Expiration Box with Live Countdown */}
-                          <div className="p-3 bg-[#090A0C] border border-white/5 rounded-xl text-xs space-y-2 mb-4">
-                            <div className="flex items-center justify-between text-zinc-400">
-                              <span className="flex items-center gap-1 text-[11px]">
-                                <Calendar className="w-3.5 h-3.5 text-[#FF5B28]" />
-                                <span>Ważność Pakietu:</span>
-                              </span>
-                              <strong className="text-white font-mono text-[11px]">{expStr}</strong>
-                            </div>
-
-                            <div className="flex items-center justify-between text-zinc-400 pt-1 border-t border-white/5">
-                              <span className="flex items-center gap-1 text-[11px]">
-                                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Pozostały Czas:</span>
-                              </span>
-                              <span className="px-2 py-0.5 bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-md text-[10px] font-mono font-extrabold">
-                                {getExpirationCountdown(st.planExpiresAt || user.planExpiresAt)}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between text-zinc-400 text-[11px] pt-1 border-t border-white/5">
-                              <span>Przychód Sklepu:</span>
-                              <strong className="text-emerald-400 font-mono">{(stRevenueCents / 100).toFixed(2)} PLN</strong>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Direct Buttons on Tile: PRODUKTY and ZAMÓWIENIA */}
-                        <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => handleOpenStoreSubTab(st.id, "products")}
-                              className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <Package className="w-3.5 h-3.5 text-[#FF5B28]" />
-                              <span>📦 Produkty ({(st.products || []).length})</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleOpenStoreSubTab(st.id, "orders")}
-                              className="py-2.5 bg-white/5 hover:bg-white/10 text-white font-extrabold text-xs rounded-xl border border-white/5 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
-                              <span>🛍️ Zamówienia ({stOrdersCount})</span>
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => handleOpenStoreSubTab(st.id, "overview")}
-                            className="w-full py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <Wand2 className="w-3.5 h-3.5" />
-                            <span>⚙️ Otwórz Kreator & Zarządzanie</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+        {/* ONBOARDING CARD - ONLY SHOWN IF USER HAS ZERO STORES */}
+        {userStores.length === 0 ? (
+          <div className="p-8 sm:p-12 bg-gradient-to-b from-[#18181B] to-[#121216] border border-[#FF5B28]/30 rounded-3xl shadow-2xl flex flex-col items-center text-center max-w-2xl mx-auto my-12 animate-in fade-in duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-[#FF5B28] text-3xl mb-4 animate-bounce">
+              🚀
             </div>
-          )}
+            <span className="px-3 py-1 bg-[#FF5B28]/15 text-[#FF5B28] rounded-full text-[11px] font-extrabold border border-[#FF5B28]/30 uppercase tracking-wider mb-2">
+              Rozpocznij Sprzedaż
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Skonfiguruj Swój Pierwszy Sklep
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md">
+              Wybierz pakiet (14 dni darmowego trialu lub Pro), wpisz swoją subdomenę i uruchom sklep online w 2 minuty.
+            </p>
 
-          {/* ZAKŁADKA 2: SZABLONY (Z POPUPEM WYBORU SKLEPU) */}
-          {activeTab === "templates" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              <div>
-                <h1 className="text-2xl font-black text-white tracking-tight">Katalog Szablonów Stron</h1>
-                <p className="text-xs text-zinc-400 mt-1">Wybierz szablon dla swojego sklepu. Jeśli posiadasz kilka sklepów, system zapyta, do którego sklepu go przypisać.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full my-6 text-left">
+              <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                <span className="text-base">⚡</span>
+                <h4 className="text-xs font-bold text-white mt-1">1. Wybierz Pakiet</h4>
+                <p className="text-[10px] text-zinc-400">14 dni bez opłat lub Pro</p>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { name: "Dark Vibe", desc: "Prestiż, Streetwear & Neon Vibe", img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80" },
-                  { name: "Minimalist Luxury", desc: "Czysta Elegancja & Odzież Premium", img: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop&q=80" },
-                  { name: "Cyberpunk Launch", desc: "Drop Mode & Limitowane Edycje", img: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&auto=format&fit=crop&q=80" },
-                  { name: "Digital Creator", desc: "E-booki, Kursy i Pliki Cyfrowe", img: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80" },
-                ].map((tmpl) => (
-                  <div key={tmpl.name} className="p-5 bg-[#111216] border border-white/5 hover:border-[#FF5B28]/40 rounded-2xl shadow-xl flex flex-col justify-between transition-all group">
-                    <div>
-                      <div className="w-full h-44 rounded-xl bg-cover bg-center mb-4 border border-white/10" style={{ backgroundImage: `url(${tmpl.img})` }} />
-                      <h3 className="text-base font-extrabold text-white">{tmpl.name}</h3>
-                      <p className="text-xs text-zinc-400 mt-1">{tmpl.desc}</p>
-                    </div>
-
-                    <button
-                      onClick={() => handleOpenTemplateSelector(tmpl.name)}
-                      className={`mt-4 w-full py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
-                        currentStore.template === tmpl.name
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                          : "bg-[#FF5B28] hover:bg-[#e04f20] text-white border-[#FF5B28]"
-                      }`}
-                    >
-                      {currentStore.template === tmpl.name ? "✓ Zastosowano w Aktywnym Sklepie" : "🎨 Wybierz & Zastosuj Szablon"}
-                    </button>
-                  </div>
-                ))}
+              <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                <span className="text-base">🌐</span>
+                <h4 className="text-xs font-bold text-white mt-1">2. Twoja Subdomena</h4>
+                <p className="text-[10px] text-zinc-400">twojanazwa.iskral.pl</p>
+              </div>
+              <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-xl">
+                <span className="text-base">🎨</span>
+                <h4 className="text-xs font-bold text-white mt-1">3. Wybierz Szablon</h4>
+                <p className="text-[10px] text-zinc-400">Dark Vibe, Luxury, Hype</p>
               </div>
             </div>
-          )}
 
-          {/* ZAKŁADKA 3: SKLEP (ZAKUP PAKIETÓW DLA NOWYCH SKLEPÓW) */}
-          {activeTab === "marketplace" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              <div className="text-center max-w-xl mx-auto space-y-2">
-                <span className="px-3 py-1 bg-[#FF5B28]/10 text-[#FF5B28] rounded-full text-xs font-extrabold border border-[#FF5B28]/20 uppercase">
-                  Wybierz Pakiet Sklepowy
-                </span>
-                <h1 className="text-2xl font-black text-white tracking-tight">Kup Pakiet Dla Swojego Sklepu</h1>
-                <p className="text-xs text-zinc-400">Aktywuj subskrypcję SaaS. Pakiet zostaje natychmiastowo przypisany do Twojego konta klienta.</p>
-              </div>
+            <button
+              onClick={() => setIsWizardActive(true)}
+              className="px-8 py-4 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-2xl shadow-xl shadow-[#FF5B28]/30 transition-all flex items-center gap-2 cursor-pointer transform hover:scale-105"
+            >
+              <Wand2 className="w-5 h-5" />
+              <span>Uruchom Kreator Sklepu Teraz →</span>
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-col gap-8">
 
-              <Cennik />
-            </div>
-          )}
+            {/* STORE HEADER HERO BAR (LINEAR / VERCEL STYLE) */}
+            <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF5B28]/5 rounded-full blur-3xl pointer-events-none" />
 
-          {/* ZAKŁADKA 4: ANALITYKA (ZAWANSOWANA ANALITYKA SKLEPÓW) */}
-          {activeTab === "analytics" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              
-              {/* Filter & Header */}
-              <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded-full text-[10px] font-extrabold uppercase">
-                      Centrum Analityczne
-                    </span>
-                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-extrabold">
-                      ⚡ Dane na Żywo
-                    </span>
-                  </div>
-                  <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2 mt-2">
-                    <BarChart3 className="w-6 h-6 text-[#FF5B28]" />
-                    <span>Zaawansowana Analityka Sprzedaży</span>
-                  </h1>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Kompleksowy podgląd przychodów, wolumenu zamówień i konwersji ze wszystkich Twoich marek.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <select
-                    value={analyticsStoreIdFilter}
-                    onChange={(e) => setAnalyticsStoreIdFilter(e.target.value)}
-                    className="px-4 py-2.5 bg-[#090A0C] border border-white/10 hover:border-[#FF5B28]/40 rounded-full text-xs text-white font-extrabold outline-none cursor-pointer shadow-inner transition-all"
-                  >
-                    <option value="all">🌐 Wszystkie Sklepy Razem ({userStores.length})</option>
-                    {userStores.map((s) => (
-                      <option key={s.id} value={s.id}>🏬 {s.name} ({s.subdomain}.iskral.pl)</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Top Analytics Metric Cards */}
-              {(() => {
-                const targetStores = analyticsStoreIdFilter === "all"
-                  ? userStores
-                  : userStores.filter((s) => s.id === analyticsStoreIdFilter);
-
-                const allPaidOrders = targetStores.flatMap((s) => (s.orders || []).filter((o) => o.status === "paid"));
-                const totalRevCents = allPaidOrders.reduce((sum, o) => sum + o.amountTotalCents, 0);
-                const totalRevPLN = (totalRevCents / 100).toFixed(2);
-                const totalOrdersCount = allPaidOrders.length;
-                const avgOrderValuePLN = totalOrdersCount > 0 ? (totalRevCents / totalOrdersCount / 100).toFixed(2) : "0.00";
-                const totalBalanceCents = targetStores.reduce((sum, s) => sum + (s.balanceCents || 0), 0);
-                const totalBalancePLN = (totalBalanceCents > 0 ? totalBalanceCents / 100 : totalRevCents / 100).toFixed(2);
-
-                return (
-                  <div className="flex flex-col gap-6">
-                    {/* 4 Main Stat Tiles */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-2 relative overflow-hidden group hover:border-[#FF5B28]/40 transition-all">
-                        <div className="flex justify-between items-center text-zinc-400">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider">Łączny Obrót (PLN)</span>
-                          <div className="p-2 bg-[#FF5B28]/10 text-[#FF5B28] rounded-xl"><DollarSign className="w-4 h-4" /></div>
-                        </div>
-                        <div className="text-3xl font-black text-white">{totalRevPLN} PLN</div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-bold pt-1">
-                          <TrendingUp className="w-3.5 h-3.5" />
-                          <span>+24.8% vs poprzedni miesiąc</span>
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-2 relative overflow-hidden group hover:border-blue-500/40 transition-all">
-                        <div className="flex justify-between items-center text-zinc-400">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider">Opłacone Zamówienia</span>
-                          <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl"><ShoppingBag className="w-4 h-4" /></div>
-                        </div>
-                        <div className="text-3xl font-black text-blue-400">{totalOrdersCount} szt.</div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-blue-300 font-bold pt-1">
-                          <span>Wskaźnik Realizacji: 100%</span>
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-2 relative overflow-hidden group hover:border-purple-500/40 transition-all">
-                        <div className="flex justify-between items-center text-zinc-400">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider">Średnia Koszyka (AOV)</span>
-                          <div className="p-2 bg-purple-500/10 text-purple-400 rounded-xl"><TrendingUp className="w-4 h-4" /></div>
-                        </div>
-                        <div className="text-3xl font-black text-purple-400">{avgOrderValuePLN} PLN</div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-purple-300 font-bold pt-1">
-                          <span>Wysoka Wartość Koszyka</span>
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-2 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-                        <div className="flex justify-between items-center text-zinc-400">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider">Dostępne Saldo IBAN</span>
-                          <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl"><Wallet className="w-4 h-4" /></div>
-                        </div>
-                        <div className="text-3xl font-black text-emerald-400">{totalBalancePLN} PLN</div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-emerald-300 font-bold pt-1">
-                          <span>Wypłaty Stripe: Gotowe</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sales Breakdown Progress & Visual Performance */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      
-                      {/* Left 2 Cols: Store Sales Share Chart & Table */}
-                      <div className="lg:col-span-2 p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                            <Layers className="w-4 h-4 text-[#FF5B28]" />
-                            <span>Udział Sprzedaży Sklepów</span>
-                          </h3>
-                          <span className="text-xs text-zinc-400">Liczba sklepów: {targetStores.length}</span>
-                        </div>
-
-                        {/* Interactive Store Revenue Progress Bars */}
-                        <div className="space-y-4 pt-2">
-                          {targetStores.map((st) => {
-                            const stPaidOrders = (st.orders || []).filter((o) => o.status === "paid");
-                            const stRevCents = stPaidOrders.reduce((sum, o) => sum + o.amountTotalCents, 0);
-                            const stRevPLN = (stRevCents / 100).toFixed(2);
-                            const sharePercent = totalRevCents > 0 ? Math.round((stRevCents / totalRevCents) * 100) : 0;
-
-                            return (
-                              <div key={st.id} className="space-y-1.5 p-3 bg-[#090A0C] border border-white/5 rounded-xl">
-                                <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <strong className="text-white font-extrabold">{st.name}</strong>
-                                    <span className="text-[10px] text-cyan-400 font-mono">({st.subdomain}.iskral.pl)</span>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-zinc-400 text-[11px]">{stPaidOrders.length} zam.</span>
-                                    <strong className="text-emerald-400 font-mono text-xs">{stRevPLN} PLN</strong>
-                                    <span className="px-2 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] rounded text-[10px] font-black">
-                                      {sharePercent}%
-                                    </span>
-                                  </div>
-                                </div>
-                                {/* Bar */}
-                                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-[#FF5B28] to-orange-400 transition-all duration-500 rounded-full"
-                                    style={{ width: `${Math.max(sharePercent, 5)}%` }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Store Details Table */}
-                        <div className="overflow-x-auto pt-2">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="border-b border-white/5 text-zinc-400 uppercase text-[10px]">
-                                <th className="py-2 px-3 font-bold">Sklep / Domena</th>
-                                <th className="py-2 px-3 font-bold">Pakiet</th>
-                                <th className="py-2 px-3 font-bold text-center">Zamówienia</th>
-                                <th className="py-2 px-3 font-bold text-right">Obrót PLN</th>
-                                <th className="py-2 px-3 font-bold text-right">Akcja</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                              {targetStores.map((st) => {
-                                const stPaidOrders = (st.orders || []).filter((o) => o.status === "paid");
-                                const stRevCents = stPaidOrders.reduce((sum, o) => sum + o.amountTotalCents, 0);
-
-                                return (
-                                  <tr key={st.id} className="hover:bg-white/5 transition-colors">
-                                    <td className="py-2.5 px-3">
-                                      <div className="font-extrabold text-white">{st.name}</div>
-                                      <span className="text-[10px] text-cyan-400 font-mono">{st.subdomain}.iskral.pl</span>
-                                    </td>
-                                    <td className="py-2.5 px-3">
-                                      <span className="px-2 py-0.5 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded text-[10px] font-extrabold uppercase">
-                                        {st.planType || user.plan}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-400">
-                                      {stPaidOrders.length}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-right font-mono font-extrabold text-emerald-400">
-                                      {(stRevCents / 100).toFixed(2)} PLN
-                                    </td>
-                                    <td className="py-2.5 px-3 text-right">
-                                      <button
-                                        onClick={() => handleOpenStoreSubTab(st.id, "overview")}
-                                        className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-all"
-                                      >
-                                        Zarządzaj →
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Right 1 Col: Top Selling Products */}
-                      <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                              <Package className="w-4 h-4 text-emerald-400" />
-                              <span>Top Oferty Sklepów</span>
-                            </h3>
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase">Najlepsze</span>
-                          </div>
-
-                          <div className="space-y-3 pt-3">
-                            {targetStores.flatMap((s) => s.products || []).slice(0, 4).map((p, idx) => (
-                              <div key={p.id || idx} className="p-3 bg-[#090A0C] border border-white/5 rounded-xl flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-[#FF5B28]/10 text-[#FF5B28] flex items-center justify-center font-black text-xs shrink-0">
-                                    #{idx + 1}
-                                  </div>
-                                  <div>
-                                    <h5 className="font-extrabold text-white text-xs truncate max-w-[140px]">{p.name}</h5>
-                                    <span className="text-[10px] text-zinc-400">Typ: {p.type || "Fizyczny"}</span>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-xs font-black text-[#FF5B28] block">{p.price}</span>
-                                  <span className="text-[10px] text-emerald-400 font-mono">Magazyn: {p.stock || 50}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="p-3 bg-[#090A0C] border border-white/5 rounded-xl text-[11px] text-zinc-400 space-y-1 text-center mt-4">
-                          <span>💡 Wskazówka: Zwiększ konwersję dodając warianty limitowane w kreatorze dropów.</span>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                );
-              })()}
-
-            </div>
-          )}
-
-          {/* ZAKŁADKA 6: BAZA KLIENTÓW (Z FILTERKIEM SKLEPÓW) */}
-          {activeTab === "customers" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-4">
-                  <div>
-                    <h1 className="text-xl font-black text-white flex items-center gap-2">
-                      <Users className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Baza Klientów ({filteredCustomers.length})</span>
-                    </h1>
-                    <p className="text-xs text-zinc-400 mt-1">Lista kupujących z możliwością filtrowania po wybranym sklepie.</p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                    {/* Store Filter Selector */}
-                    <select
-                      value={customerStoreFilter}
-                      onChange={(e) => setCustomerStoreFilter(e.target.value)}
-                      className="px-4 py-2 bg-[#090A0C] border border-white/5 rounded-full text-xs text-white font-extrabold outline-none cursor-pointer"
-                    >
-                      <option value="all">🏬 Wszystkie Twoje Sklepy</option>
-                      {userStores.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.subdomain}.iskral.pl)
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Search Input */}
-                    <div className="relative flex-1 sm:w-64">
-                      <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3" />
-                      <input
-                        type="text"
-                        placeholder="Szukaj e-maila..."
-                        value={customerSearchQuery}
-                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-[#090A0C] border border-white/5 rounded-full text-xs text-white outline-none focus:border-[#FF5B28]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-white/5 bg-[#090A0C]">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#18191E] text-zinc-400 uppercase tracking-wider font-extrabold text-[10px] border-b border-white/5">
-                      <tr>
-                        <th className="p-4">KUPUJĄCY (E-MAIL)</th>
-                        <th className="p-4">PRZYPISANY SKLEP</th>
-                        <th className="p-4">KWOTA ZAMÓWIENIA</th>
-                        <th className="p-4 text-right">DATA ZAKUPU</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5 text-white">
-                      {filteredCustomers.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="p-12 text-center text-zinc-400">
-                            Brak kupujących w wybranym sklepie.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredCustomers.map((c) => (
-                          <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="p-4 font-mono font-bold text-white">{c.email}</td>
-                            <td className="p-4">
-                              <span className="font-extrabold text-white block">{c.storeName}</span>
-                              <span className="text-[10px] text-cyan-400 font-mono">{c.storeSubdomain}.iskral.pl</span>
-                            </td>
-                            <td className="p-4 text-emerald-400 font-extrabold text-sm">{c.amountPLN} PLN</td>
-                            <td className="p-4 text-right text-zinc-400 font-mono">{c.date}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ZAKŁADKA 7: USTAWIENIA (DANE OSOBOWE, ADRES ZAMIESZKANIA, HASŁO & WERYFIKACJA STRIPE) */}
-          {activeTab === "settings" && (
-            <div className="flex flex-col gap-6 w-full max-w-4xl animate-in fade-in duration-300">
-              
-              {/* Formularz Danych Osobistych i Adresu */}
-              <form onSubmit={handleSaveProfileAddressSubmit} className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                    <UserCheck className="w-5 h-5 text-[#FF5B28]" />
-                    <span>Dane Osobowe & Adres Zamieszkania / Firmy</span>
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-1">Uzupełnij oficjalne dane profilowe przypisane do Twojego konta klienta.</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Imię i Nazwisko</label>
-                    <input
-                      type="text"
-                      value={fullNameInput}
-                      onChange={(e) => setFullNameInput(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Adres E-mail</label>
-                    <input
-                      type="email"
-                      value={emailInput}
-                      disabled
-                      className="w-full px-4 py-2.5 bg-[#090A0C]/50 border border-white/5 rounded-xl text-xs text-zinc-400 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-2 border-t border-white/5">
-                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#FF5B28]" />
-                    <span>Adres Zamieszkania / Siedziba Firmy</span>
-                  </h4>
-
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Ulica i numer domostwa / lokalu</label>
-                    <input
-                      type="text"
-                      value={streetInput}
-                      onChange={(e) => setStreetInput(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Kod pocztowy</label>
-                      <input
-                        type="text"
-                        value={zipInput}
-                        onChange={(e) => setZipInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Miasto</label>
-                      <input
-                        type="text"
-                        value={cityInput}
-                        onChange={(e) => setCityInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Kraj</label>
-                      <input
-                        type="text"
-                        value={countryInput}
-                        onChange={(e) => setCountryInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button type="submit" className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm cursor-pointer">
-                  Zapisz Dane Profilowe
-                </button>
-              </form>
-
-              {/* Zmiana Hasła */}
-              <form onSubmit={handlePasswordChangeSubmit} className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4">
-                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-[#FF5B28]" />
-                  <span>Zmiana Hasła Dostępowe</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Obecne Hasło</label>
-                    <input
-                      type="password"
-                      value={oldPassword}
-                      onChange={(e) => setOldPassword(e.target.value)}
-                      className="w-full px-4 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Nowe Hasło</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-4 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Powtórz Nowe Hasło</label>
-                    <input
-                      type="password"
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="w-full px-4 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-                </div>
-
-                <button type="submit" className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs rounded-full cursor-pointer">
-                  Zmień Hasło
-                </button>
-              </form>
-
-              {/* Status Weryfikacji Stripe Identity */}
-              <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Weryfikacja Konta Pod Płatności Stripe</span>
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-1">Status gotowości wypłat środków bezpośrednio na konto bankowe.</p>
-                </div>
-
-                <span className="px-3 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-extrabold">
-                  🟢 Weryfikacja Stripe Gotowa
-                </span>
-              </div>
-
-              {/* Sekcja Bezpieczeństwa 2FA Authenticator */}
-              <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                      <Smartphone className="w-4 h-4 text-[#FF5B28]" />
-                      <span>Dwuskładnikowa Autoryzacja 2FA (Google Authenticator / Authy)</span>
-                    </h3>
-                    {user.is2FAEnabled ? (
-                      <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold">
-                        🟢 2FA AKTYWNE
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 bg-red-500/15 text-red-400 border border-red-500/30 rounded-full text-[10px] font-extrabold">
-                        🔴 2FA WYŁĄCZONE
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-zinc-400">Zabezpiecz konto jednorazowymi kodami z aplikacji Authenticator.</p>
-                </div>
-
-                {user.is2FAEnabled ? (
-                  <button
-                    type="button"
-                    onClick={() => executeWithSafeGuard(() => toggle2FA())}
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-extrabold text-xs rounded-full border border-red-500/30 cursor-pointer"
-                  >
-                    Wyłącz 2FA
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShow2FAModal(true)}
-                    className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm cursor-pointer flex items-center gap-2"
-                  >
-                    <QrCode className="w-4 h-4" />
-                    <span>Skonfiguruj Authenticator 2FA</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* DEDYKOWANY PEŁNY MODUŁ KREATORA SKLEPU (`activeTab === "builder"`) */}
-          {activeTab === "builder" && (
-            <div className="flex flex-col gap-6 w-full animate-in fade-in duration-300">
-              <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <button
-                  onClick={() => setActiveTab("home")}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-full text-xs font-extrabold transition-all cursor-pointer flex items-center gap-2 border border-white/5"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>← Powrót do Listy Sklepów</span>
-                </button>
-
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-400">Edytujesz sklep:</span>
-                    <strong className="text-white font-extrabold">{currentStore.name}</strong>
-                  </div>
-
-                  <a
-                    href={getStoreUrl(currentStore.subdomain, currentStore.customDomain)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-[11px] rounded-full shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>🌐 Odwiedź Sklep ({currentStore.subdomain})</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-
-              {/* Sub-tabs for Store Builder (10 Subtabs) */}
-              <div className="bg-[#111216] p-2 rounded-2xl border border-white/5 flex items-center gap-1.5 overflow-x-auto">
-                <button
-                  onClick={() => setBuilderSubTab("overview")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "overview" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  ⚙️ Ustawienia & Logo
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("products")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "products" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  📦 Produkty ({storeProducts.length})
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("orders")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "orders" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  🛍️ Zamówienia ({paidOrders.length})
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("design")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "design" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  🎨 Wygląd & Szablony
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("drop")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "drop" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  🚀 Tryb Dropu
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("team")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "team" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  👥 Zespół ({(currentStore.team || []).length})
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("campaigns")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "campaigns" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  📧 Newsletter
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("domain")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "domain" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  🌐 Domena Zewnętrzna
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("seo")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "seo" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  🔍 SEO Sklepu
-                </button>
-                <button
-                  onClick={() => setBuilderSubTab("legal")}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
-                    builderSubTab === "legal" ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  📜 Regulamin & RODO
-                </button>
-              </div>
-
-              {/* SUBTAB 1: USTAWIENIA SKLEPU, SUBDOMENA, LOGO & EXPANDED SOCIAL MEDIA */}
-              {builderSubTab === "overview" && (
-                <form onSubmit={handleSaveStoreOverviewSubmit} className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <SettingsIcon className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Ustawienia Sklepu & Branding Marki</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Skonfiguruj dane podstawowe, podepnij subdomenę oraz zdefiniuj linki do mediów społecznościowych.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Nazwa Sklepu</label>
-                      <input
-                        type="text"
-                        value={storeNameInput}
-                        onChange={(e) => setStoreNameInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-extrabold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Subdomena Sklepu (nazwa.iskral.pl)</label>
-                      <div className="flex items-center">
-                        <input
-                          type="text"
-                          value={subdomainInput}
-                          onChange={(e) => setSubdomainInput(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs text-cyan-400 font-mono font-bold"
-                        />
-                        <span className="px-3 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs text-zinc-400 font-mono">
-                          .iskral.pl
-                        </span>
-                      </div>
-                      {subdomainValidation && (
-                        <div className={`mt-1.5 text-[11px] font-extrabold flex items-center gap-1.5 ${subdomainValidation.available ? "text-emerald-400" : "text-red-400"}`}>
-                          {subdomainValidation.checking ? (
-                            <span className="text-zinc-400 animate-pulse">⏳ {subdomainValidation.message}</span>
-                          ) : (
-                            <span>{subdomainValidation.message}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Opis Sklepu / Bio Marki</label>
-                    <textarea
-                      rows={2}
-                      value={storeDescriptionInput}
-                      onChange={(e) => setStoreDescriptionInput(e.target.value)}
-                      placeholder="Oficjalny sklep streetwear i akcesoriów..."
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                    />
-                  </div>
-
-                  {/* Logo Dropzone / URL */}
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 mb-1">Logo Marki (URL lub Przeciągnij Plik)</label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-[#090A0C] border border-white/10 flex items-center justify-center text-zinc-500 overflow-hidden shrink-0">
-                        {logoUrlInput ? (
-                          <img src={logoUrlInput} alt="Logo" className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <Upload className="w-6 h-6 text-zinc-600" />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={logoUrlInput}
-                        onChange={(e) => setLogoUrlInput(e.target.value)}
-                        placeholder="https://domena.pl/logo.png"
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Expanded Social Media */}
-                  <div className="space-y-4 pt-4 border-t border-white/5">
-                    <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-                      <Share2 className="w-4 h-4 text-[#FF5B28]" />
-                      <span>Social Media Sklepu</span>
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">Discord Webhook / Invite</label>
-                        <input
-                          type="text"
-                          value={discordInput}
-                          onChange={(e) => setDiscordInput(e.target.value)}
-                          placeholder="https://discord.gg/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">Facebook Fanpage</label>
-                        <input
-                          type="text"
-                          value={facebookInput}
-                          onChange={(e) => setFacebookInput(e.target.value)}
-                          placeholder="https://facebook.com/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">X (Twitter)</label>
-                        <input
-                          type="text"
-                          value={xInput}
-                          onChange={(e) => setXInput(e.target.value)}
-                          placeholder="https://x.com/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">Instagram Profile</label>
-                        <input
-                          type="text"
-                          value={instagramInput}
-                          onChange={(e) => setInstagramInput(e.target.value)}
-                          placeholder="https://instagram.com/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">Behance Portfolio</label>
-                        <input
-                          type="text"
-                          value={behanceInput}
-                          onChange={(e) => setBehanceInput(e.target.value)}
-                          placeholder="https://behance.net/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">YouTube Channel</label>
-                        <input
-                          type="text"
-                          value={youtubeInput}
-                          onChange={(e) => setYoutubeInput(e.target.value)}
-                          placeholder="https://youtube.com/@..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">TikTok Account</label>
-                        <input
-                          type="text"
-                          value={tiktokInput}
-                          onChange={(e) => setTiktokInput(e.target.value)}
-                          placeholder="https://tiktok.com/@..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-zinc-400 mb-1">Telegram Group</label>
-                        <input
-                          type="text"
-                          value={telegramInput}
-                          onChange={(e) => setTelegramInput(e.target.value)}
-                          placeholder="https://t.me/..."
-                          className="w-full px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button type="submit" className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm cursor-pointer">
-                    💾 Zapisz Ustawienia Sklepu & Social Media
-                  </button>
-                </form>
-              )}
-
-              {/* SUBTAB 2: PRODUKTY */}
-              {builderSubTab === "products" && (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                        <ShoppingCart className="w-5 h-5 text-[#FF5B28]" />
-                        <span>Katalog Produktów Sklepu ({storeProducts.length})</span>
-                      </h2>
-                      <p className="text-xs text-zinc-400 mt-1">Zarządzaj asortymentem, cenami i stanem magazynowym.</p>
-                    </div>
-
-                    <button onClick={handleOpenAddProduct} className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white text-xs font-extrabold rounded-full shadow-sm cursor-pointer flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      <span>Dodaj Nowy Produkt</span>
-                    </button>
-                  </div>
-
-                  {storeProducts.length === 0 ? (
-                    <div className="p-8 bg-[#090A0C] border border-white/5 rounded-xl text-center">
-                      <p className="text-xs text-zinc-400">Brak dodanych produktów. Kliknij przycisk powyżej, aby dodać pierwszy artykuł.</p>
-                    </div>
+              <div className="flex items-center gap-5 z-10">
+                {/* Logo / Initial */}
+                <div className="w-16 h-16 rounded-2xl bg-[#0E0E11] border border-white/10 flex items-center justify-center text-white font-black text-2xl shrink-0 shadow-lg overflow-hidden">
+                  {currentStore.logoUrl ? (
+                    <img src={currentStore.logoUrl} alt={currentStore.name} className="w-full h-full object-contain p-2" />
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {storeProducts.map((p) => (
-                        <div key={p.id} className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl flex flex-col justify-between hover:border-white/10 transition-all">
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="px-2 py-0.5 bg-white/10 text-white text-[10px] font-extrabold rounded-md uppercase">
-                                {p.type}
-                              </span>
-                              <span className="text-[10px] text-zinc-400 font-mono">Stan: {p.stock} szt.</span>
-                            </div>
-                            <h4 className="font-extrabold text-white text-sm">{p.name}</h4>
-                            <p className="text-xs text-zinc-400 line-clamp-2 mt-1">{p.description}</p>
-                            <div className="mt-3 flex items-baseline gap-2">
-                              <span className="text-sm font-extrabold text-[#FF5B28] font-mono">{p.price} PLN</span>
-                              {p.comparePrice && <span className="text-xs text-zinc-500 line-through font-mono">{p.comparePrice} PLN</span>}
-                            </div>
-                          </div>
-
-                          <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                            <button onClick={() => handleEditProduct(p)} className="text-xs text-cyan-400 hover:underline font-bold">
-                              Edytuj
-                            </button>
-                            <button onClick={() => executeWithSafeGuard(() => deleteProduct(p.id))} className="text-xs text-red-400 hover:underline font-bold">
-                              Usuń
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="text-[#FF5B28]">{(currentStore.name || "S").charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-              )}
 
-              {/* SUBTAB 3: ZAMÓWIENIA */}
-              {builderSubTab === "orders" && (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-4">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Briefcase className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Historia Zamówień Sklepu ({paidOrders.length})</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Przeglądaj opłacone transakcje klientów Twojego sklepu.</p>
+                {/* Info & Badges */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      {currentStore.name}
+                    </h1>
+                    <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[11px] font-extrabold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Aktywny</span>
+                    </span>
+                    <span className="px-2.5 py-0.5 bg-[#FF5B28]/15 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-[11px] font-extrabold uppercase">
+                      Pakiet {currentStore.planType || user.plan || "Start"}
+                    </span>
                   </div>
 
-                  {paidOrders.length === 0 ? (
-                    <div className="p-8 bg-[#090A0C] border border-white/5 rounded-xl text-center">
-                      <p className="text-xs text-zinc-400">Brak zamowień. Zamówienia klientów pojawią się w tym miejscu natychmiast po opłaceniu w koszyku.</p>
+                  {/* Subdomain Link Bar */}
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-zinc-400 font-mono">
+                    <span>Adres sklepu:</span>
+                    <a
+                      href={liveStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-cyan-400 hover:text-cyan-300 font-bold underline flex items-center gap-1"
+                    >
+                      <span>{currentStore.subdomain}.iskral.pl</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 w-full lg:w-auto z-10 flex-wrap">
+                <button
+                  onClick={handleCopyStoreLink}
+                  className="px-4 py-3 bg-[#0E0E11] hover:bg-white/10 text-white font-bold text-xs rounded-xl border border-white/10 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-400" />}
+                  <span>{linkCopied ? "Skopiowano!" : "Kopiuj link"}</span>
+                </button>
+
+                <a
+                  href={liveStoreUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-3 bg-white/10 hover:bg-white/15 text-white font-extrabold text-xs rounded-xl border border-white/10 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <span>Otwórz sklep</span>
+                  <ExternalLink className="w-4 h-4 text-[#FF5B28]" />
+                </a>
+
+                <button
+                  onClick={handleOpenAddProduct}
+                  className="px-5 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Dodaj Produkt</span>
+                </button>
+              </div>
+            </div>
+
+            {/* BENTO GRID - QUICK STATS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              
+              {/* Stat 1: Przychód całkowity */}
+              <div className="p-6 bg-[#18181B] border border-white/10 rounded-2xl shadow-xl space-y-3 relative overflow-hidden group hover:border-[#FF5B28]/40 transition-all">
+                <div className="flex justify-between items-center text-zinc-400">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider">Przychód Całkowity</span>
+                  <div className="p-2.5 bg-[#FF5B28]/10 text-[#FF5B28] rounded-xl border border-[#FF5B28]/20">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-white font-mono">{totalRevenuePLN} PLN</div>
+                <div className="flex items-center justify-between text-xs text-zinc-400 pt-1 border-t border-white/5">
+                  <span>Średnia wartość koszyka:</span>
+                  <strong className="text-emerald-400 font-mono">{aovPLN} PLN</strong>
+                </div>
+              </div>
+
+              {/* Stat 2: Liczba zamówień */}
+              <div className="p-6 bg-[#18181B] border border-white/10 rounded-2xl shadow-xl space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all">
+                <div className="flex justify-between items-center text-zinc-400">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider">Liczba Zamówień</span>
+                  <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-white font-mono">{totalOrdersCount}</div>
+                <div className="flex items-center justify-between text-xs text-zinc-400 pt-1 border-t border-white/5">
+                  <span>Status realizacji:</span>
+                  <span className="text-blue-400 font-bold">100% zrealizowanych</span>
+                </div>
+              </div>
+
+              {/* Stat 3: Odsłony sklepu */}
+              <div className="p-6 bg-[#18181B] border border-white/10 rounded-2xl shadow-xl space-y-3 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+                <div className="flex justify-between items-center text-zinc-400">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider">Odsłony Sklepu</span>
+                  <div className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black text-white font-mono">{visitsCount}</div>
+                <div className="flex items-center justify-between text-xs text-zinc-400 pt-1 border-t border-white/5">
+                  <span>Ruch na subdomenie:</span>
+                  <span className="text-purple-400 font-mono">+{storeProducts.length * 3 + 12} dzisiaj</span>
+                </div>
+              </div>
+
+              {/* Stat 4: Aktywny Pakiet */}
+              <div className="p-6 bg-[#18181B] border border-white/10 rounded-2xl shadow-xl space-y-3 relative overflow-hidden group hover:border-amber-500/40 transition-all">
+                <div className="flex justify-between items-center text-zinc-400">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider">Aktywny Pakiet</span>
+                  <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-white flex items-center gap-2">
+                  <span>{(currentStore.planType || user.plan || "Start").toUpperCase()}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5">
+                  <span className="text-zinc-400">{formatExpirationDate(currentStore.planExpiresAt || user.planExpiresAt)}</span>
+                  <button
+                    onClick={() => setActiveTab("plans")}
+                    className="text-amber-400 hover:text-amber-300 font-extrabold text-[11px] underline cursor-pointer"
+                  >
+                    Zmień plan →
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* TAB CONTENT SWITCHER */}
+            {activeTab === "home" && (
+              <div className="flex flex-col gap-8 animate-in fade-in duration-200">
+                
+                {/* 1. PRODUKTY TABLE SECTION */}
+                <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h2 className="text-xl font-black text-white flex items-center gap-2">
+                        <Package className="w-5 h-5 text-[#FF5B28]" />
+                        <span>Katalog Produktów ({storeProducts.length})</span>
+                      </h2>
+                      <p className="text-xs text-zinc-400 mt-1">Zarządzaj stanem magazynowym, wariantami rozmiarów i statusem publikacji.</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:w-64">
+                        <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          placeholder="Szukaj produktu..."
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleOpenAddProduct}
+                        className="px-4 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Dodaj Produkt</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredProducts.length === 0 ? (
+                    <div className="p-12 bg-[#0E0E11] border border-white/5 rounded-2xl text-center space-y-3">
+                      <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-zinc-500 mx-auto text-xl">
+                        📦
+                      </div>
+                      <p className="text-sm font-bold text-white">Brak produktów w sklepie</p>
+                      <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                        Kliknij przycisk "Dodaj Produkt" powyżej, aby dodać pierwszy artykuł fizyczny lub cyfrowy do Twojego sklepu.
+                      </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto border border-white/5 rounded-xl">
+                    <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#0E0E11]">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-white/5 text-zinc-400 uppercase font-extrabold text-[10px]">
+                        <thead className="bg-[#121216] text-zinc-400 uppercase tracking-wider font-extrabold text-[10px] border-b border-white/10">
                           <tr>
-                            <th className="p-3">ID Transakcji</th>
-                            <th className="p-3">E-mail Klienta</th>
-                            <th className="p-3">Kwota PLN</th>
-                            <th className="p-3">Data</th>
-                            <th className="p-3">Status</th>
+                            <th className="p-4">PRODUKT</th>
+                            <th className="p-4">TYP</th>
+                            <th className="p-4">CENA (PLN)</th>
+                            <th className="p-4">STAN MAGAZYNOWY</th>
+                            <th className="p-4">WARIANTY / ROZMIARY</th>
+                            <th className="p-4">STATUS</th>
+                            <th className="p-4 text-right">AKCJE</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {paidOrders.map((o) => (
-                            <tr key={o.id} className="hover:bg-white/[0.02]">
-                              <td className="p-3 font-mono text-zinc-400">{o.id}</td>
-                              <td className="p-3 font-extrabold text-white font-mono">{o.customerEmail}</td>
-                              <td className="p-3 font-extrabold text-emerald-400 font-mono">{(o.amountTotalCents / 100).toFixed(2)} PLN</td>
-                              <td className="p-3 text-zinc-400">{new Date(o.createdAt || Date.now()).toLocaleDateString("pl-PL")}</td>
-                              <td className="p-3">
-                                <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-extrabold">
-                                  ✓ Opłacone Stripe
+                        <tbody className="divide-y divide-white/5 text-white">
+                          {filteredProducts.map((prod) => (
+                            <tr key={prod.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={prod.image || (prod.images && prod.images[0]) || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"}
+                                    alt={prod.name}
+                                    className="w-12 h-12 rounded-xl object-cover border border-white/10 bg-[#18181B] shrink-0"
+                                  />
+                                  <div>
+                                    <h4 className="font-extrabold text-white text-sm">{prod.name}</h4>
+                                    <p className="text-xs text-zinc-500 line-clamp-1 max-w-xs">{prod.description}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                                  prod.isDigital || prod.type === "Cyfrowy" ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30" : "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                }`}>
+                                  {prod.isDigital || prod.type === "Cyfrowy" ? "💻 Cyfrowy" : "📦 Fizyczny"}
                                 </span>
+                              </td>
+                              <td className="p-4 font-mono font-black text-sm">
+                                <span className="text-[#FF5B28]">{prod.price}</span>
+                                {prod.comparePrice && (
+                                  <span className="text-xs text-zinc-500 line-through block font-normal">{prod.comparePrice}</span>
+                                )}
+                              </td>
+                              <td className="p-4 font-mono font-bold text-zinc-300">
+                                {prod.stock !== undefined ? `${prod.stock} szt.` : "50 szt."}
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {(prod.variants && prod.variants.length > 0 ? prod.variants : ["S", "M", "L", "XL"]).map((v) => (
+                                    <span key={v} className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-[10px] font-mono font-extrabold text-zinc-300">
+                                      {v}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <button
+                                  onClick={() => executeWithSafeGuard(() => toggleProductStatus(prod.id))}
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border cursor-pointer transition-all ${
+                                    prod.status === "Zawieszony"
+                                      ? "bg-zinc-500/15 text-zinc-400 border-zinc-500/30 hover:bg-zinc-500/25"
+                                      : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
+                                  }`}
+                                >
+                                  {prod.status === "Zawieszony" ? "⚪ Szkic" : "🟢 Aktywny"}
+                                </button>
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleEditProduct(prod)}
+                                    className="p-2 bg-white/5 hover:bg-white/10 text-cyan-400 rounded-xl transition-all cursor-pointer"
+                                    title="Edytuj produkt"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => executeWithSafeGuard(() => deleteProduct(prod.id))}
+                                    className="p-2 bg-white/5 hover:bg-red-500/15 text-red-400 rounded-xl transition-all cursor-pointer"
+                                    title="Usuń produkt"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -2133,560 +1171,391 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* SUBTAB 4: WYGLĄD & SZABLONY */}
-              {builderSubTab === "design" && (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Palette className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Wygląd Graficzny Sklepu & Szablon</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Wybierz jeden z 4 predefiniowanych szablonów przygotowanych pod wysokie nawrócenie.</p>
+                {/* 2. ZAMÓWIENIA TABLE SECTION */}
+                <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-black text-white flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5 text-blue-400" />
+                        <span>Ostatnie Transakcje & Zamówienia ({paidOrders.length})</span>
+                      </h2>
+                      <p className="text-xs text-zinc-400 mt-1">Lista opłaconych zamówień klientów przez system Stripe.</p>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {[
-                      { name: "Dark Vibe", desc: "Prestiż, Streetwear & Neon Vibe", img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80" },
-                      { name: "Minimalist Luxury", desc: "Czysta Elegancja & Odzież Premium", img: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop&q=80" },
-                      { name: "Cyberpunk Launch", desc: "Drop Mode & Limitowane Edycje", img: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&auto=format&fit=crop&q=80" },
-                      { name: "Digital Creator", desc: "E-booki, Kursy i Pliki Cyfrowe", img: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80" },
-                    ].map((tmpl) => (
-                      <div key={tmpl.name} className="p-4 bg-[#090A0C] border border-white/5 hover:border-[#FF5B28]/40 rounded-2xl shadow-xl flex flex-col justify-between transition-all">
+                  {paidOrders.length === 0 ? (
+                    <div className="p-12 bg-[#0E0E11] border border-white/5 rounded-2xl text-center space-y-2">
+                      <p className="text-sm font-bold text-white">Brak zamówień do wyświetlenia</p>
+                      <p className="text-xs text-zinc-400">
+                        Gdy klienci dokonają zakupu na stronie Twojego sklepu, transakcje pojawią się tutaj automatycznie.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#0E0E11]">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#121216] text-zinc-400 uppercase tracking-wider font-extrabold text-[10px] border-b border-white/10">
+                          <tr>
+                            <th className="p-4">ID ZAMÓWIENIA</th>
+                            <th className="p-4">KLIENT (E-MAIL)</th>
+                            <th className="p-4">KWOTA</th>
+                            <th className="p-4">STATUS REALIZACJI</th>
+                            <th className="p-4 text-right">DATA</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-white">
+                          {paidOrders.map((ord) => (
+                            <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="p-4 font-mono font-bold text-zinc-300">
+                                #{ord.id.slice(-6).toUpperCase()}
+                              </td>
+                              <td className="p-4 font-mono text-white">
+                                {ord.customerEmail}
+                              </td>
+                              <td className="p-4 font-mono font-black text-emerald-400 text-sm">
+                                {(ord.amountTotalCents / 100).toFixed(2)} PLN
+                              </td>
+                              <td className="p-4">
+                                <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-extrabold">
+                                  🟢 Opłacone (Stripe)
+                                </span>
+                              </td>
+                              <td className="p-4 text-right font-mono text-zinc-400">
+                                {new Date(ord.createdAt || Date.now()).toLocaleDateString("pl-PL")}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB: PRODUKTY */}
+            {activeTab === "products" && (
+              <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Package className="w-5 h-5 text-[#FF5B28]" />
+                      <span>Pełny Katalog Produktów ({storeProducts.length})</span>
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-1">Dodawaj nowe pozycje, edytuj warianty rozmiarów i kontroluj stan magazynu.</p>
+                  </div>
+
+                  <button
+                    onClick={handleOpenAddProduct}
+                    className="px-5 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Dodaj Nowy Produkt</span>
+                  </button>
+                </div>
+
+                {storeProducts.length === 0 ? (
+                  <div className="p-12 bg-[#0E0E11] border border-white/5 rounded-2xl text-center space-y-2">
+                    <p className="text-sm font-bold text-white">Brak produktów</p>
+                    <p className="text-xs text-zinc-400">Kliknij przycisk powyżej, aby dodać produkt.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {storeProducts.map((p) => (
+                      <div key={p.id} className="p-5 bg-[#0E0E11] border border-white/10 rounded-2xl flex flex-col justify-between hover:border-[#FF5B28]/40 transition-all shadow-xl">
                         <div>
-                          <div className="w-full h-36 rounded-xl bg-cover bg-center mb-3 border border-white/10" style={{ backgroundImage: `url(${tmpl.img})` }} />
-                          <h3 className="text-sm font-extrabold text-white">{tmpl.name}</h3>
-                          <p className="text-[11px] text-zinc-400 mt-1">{tmpl.desc}</p>
+                          <div className="w-full h-48 rounded-xl bg-[#18181B] overflow-hidden mb-4 border border-white/5">
+                            <img
+                              src={p.image || (p.images && p.images[0]) || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-white/10 text-white text-[10px] font-extrabold rounded-md uppercase">
+                              {p.type}
+                            </span>
+                            <span className="text-[11px] text-zinc-400 font-mono font-bold">Magazyn: {p.stock} szt.</span>
+                          </div>
+                          <h4 className="font-extrabold text-white text-base">{p.name}</h4>
+                          <p className="text-xs text-zinc-400 line-clamp-2 mt-1">{p.description}</p>
+                          <div className="mt-4 flex items-baseline gap-2">
+                            <span className="text-lg font-black text-[#FF5B28] font-mono">{p.price}</span>
+                            {p.comparePrice && <span className="text-xs text-zinc-500 line-through font-mono">{p.comparePrice}</span>}
+                          </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            executeWithSafeGuard(() => {
-                              updateStoreConfig({ template: tmpl.name });
-                              setTemplateInput(tmpl.name);
-                              setMessage({ type: "success", text: `Aktywowano szablon: ${tmpl.name}` });
-                            });
-                          }}
-                          className={`mt-4 w-full py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
-                            currentStore.template === tmpl.name
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                              : "bg-[#FF5B28] hover:bg-[#e04f20] text-white border-[#FF5B28]"
-                          }`}
-                        >
-                          {currentStore.template === tmpl.name ? "✓ Aktywny Szablon" : "Zastosuj Szablon"}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* SUBTAB 5: DROPY */}
-              {builderSubTab === "drop" && (
-                !hasAccess("canUseDrops") ? (
-                  <FeatureGateLock
-                    title="Moduł Dropu i Premier Produktowych"
-                    description="Twórz limitowane edycje produktów, uruchamiaj odliczanie w czasie rzeczywistym i buduj ekskluzywność marek streetwear/digital."
-                    requiredPlan="Creator"
-                    onUpgrade={() => setActiveTab("marketplace")}
-                  />
-                ) : (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Tryb Dropu (Drop Mode Countdown)</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Włącz licznik odliczający do premiery nowej kolekcji lub dropu produktów.</p>
-                  </div>
-
-                  <div className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-extrabold text-white text-sm">Status Trybu Dropu</h4>
-                        <p className="text-xs text-zinc-400">Po włączeniu strona główna sklepu będzie wyświetlać wyłącznie ekran odliczania.</p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          executeWithSafeGuard(() => {
-                            const newStatus = !currentStore.dropConfig?.enabled;
-                            updateStoreConfig({
-                              dropConfig: { ...currentStore.dropConfig, enabled: newStatus },
-                            });
-                            setMessage({ type: "success", text: `Tryb dropu został ${newStatus ? "WŁĄCZONY" : "WYŁĄCZONY"}.` });
-                          });
-                        }}
-                        className={`px-4 py-2 rounded-full text-xs font-extrabold border ${
-                          currentStore.dropConfig?.enabled
-                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                            : "bg-white/5 text-zinc-400 border-white/10"
-                        }`}
-                      >
-                        {currentStore.dropConfig?.enabled ? "🟢 WŁĄCZONY" : "⚪ WYŁĄCZONY"}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-white/5">
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1">Data & Godzina Premiery Dropu</label>
-                        <input
-                          type="datetime-local"
-                          value={currentStore.dropConfig?.targetDate || ""}
-                          onChange={(e) => {
-                            updateStoreConfig({
-                              dropConfig: { ...currentStore.dropConfig, targetDate: e.target.value },
-                            });
-                          }}
-                          className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1">Motyw Odliczania Dropu</label>
-                        <select
-                          value={currentStore.dropConfig?.template || "Cyberpunk Launch"}
-                          onChange={(e) => {
-                            updateStoreConfig({
-                              dropConfig: { ...currentStore.dropConfig, template: e.target.value as any },
-                            });
-                          }}
-                          className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white font-extrabold"
-                        >
-                          <option value="Cyberpunk Launch">Cyberpunk Launch</option>
-                          <option value="Minimalist Timer">Minimalist Timer</option>
-                          <option value="Hypebeast Countdown">Hypebeast Countdown</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                )
-              )}
-
-              {/* SUBTAB 6: ZESPÓŁ (TEAM COLLABORATION) */}
-              {builderSubTab === "team" && (
-                !hasAccess("canUseTeam") ? (
-                  <FeatureGateLock
-                    title="Współpraca Zespołowa (Team Collaboration)"
-                    description="Zapraszaj członków zespołu, przydzielaj indywidualne role i bezpiecznie zarządzaj uprawnieniami w Twoim sklepie."
-                    requiredPlan="Creator"
-                    onUpgrade={() => setActiveTab("marketplace")}
-                  />
-                ) : (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Users className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Współpraca Zespołowa (Team Collaboration)</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Dodawaj współpracowników i przydzielaj im role zarządcze w Twoim sklepie.</p>
-                  </div>
-
-                  <form onSubmit={handleAddTeamMemberSubmit} className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-4">
-                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">Dodaj Nowego Członka Zespołu</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <input
-                        type="email"
-                        value={teamEmailInput}
-                        onChange={(e) => setTeamEmailInput(e.target.value)}
-                        placeholder="pracownik@firma.pl"
-                        className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
-                      <select
-                        value={teamRoleInput}
-                        onChange={(e) => setTeamRoleInput(e.target.value)}
-                        className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white font-extrabold"
-                      >
-                        <option value="Edytor">Edytor (Produkty & Opisy)</option>
-                        <option value="Manager">Manager (Zamówienia & Analityka)</option>
-                        <option value="Właściciel">Współwłaściciel</option>
-                      </select>
-                      <button type="submit" className="px-5 py-2 bg-[#FF5B28] text-white font-extrabold text-xs rounded-xl cursor-pointer">
-                        ➕ Dodaj do Zespołu
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="space-y-2">
-                    {(currentStore.team || []).length === 0 ? (
-                      <p className="text-xs text-zinc-400">Brak dodanych członków zespołu. Jesteś jedynym właścicielem tego sklepu.</p>
-                    ) : (
-                      (currentStore.team || []).map((m) => (
-                        <div key={m.id} className="p-3 bg-[#090A0C] rounded-xl flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-mono font-bold text-white">{m.email}</span>
-                            <span className="ml-3 px-2 py-0.5 bg-white/10 text-zinc-300 rounded-md text-[10px] font-bold">{m.role}</span>
-                          </div>
+                        <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
                           <button
-                            type="button"
-                            onClick={() => {
-                              executeWithSafeGuard(() => {
-                                updateStoreConfig({
-                                  team: (currentStore.team || []).filter((t) => t.id !== m.id),
-                                });
-                                setMessage({ type: "success", text: `Usunięto członka zespołu ${m.email}` });
-                              });
-                            }}
-                            className="text-red-400 hover:underline font-bold"
+                            onClick={() => handleEditProduct(p)}
+                            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-cyan-400 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                          >
+                            Edytuj
+                          </button>
+                          <button
+                            onClick={() => executeWithSafeGuard(() => deleteProduct(p.id))}
+                            className="px-3 py-1.5 bg-white/5 hover:bg-red-500/15 text-red-400 rounded-lg text-xs font-bold transition-all cursor-pointer"
                           >
                             Usuń
                           </button>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-                )
-              )}
-
-              {/* SUBTAB 7: NEWSLETTER & KAMPANIE */}
-              {builderSubTab === "campaigns" && (
-                !hasAccess("canUseNewsletter") ? (
-                  <FeatureGateLock
-                    title="Wbudowany E-mail Newsletter"
-                    description="Zbieraj bazy subskrybentów i wysyłaj automatyczne kampanie e-mail do swoich klientów."
-                    requiredPlan="Creator"
-                    onUpgrade={() => setActiveTab("marketplace")}
-                  />
-                ) : (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Send className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Newsletter & Kampanie Mailowe</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Wysyłaj masowe wiadomości e-mail do klientów, którzy zrobili zakupy w Twoim sklepie.</p>
-                  </div>
-
-                  <form onSubmit={handleSendCampaignSubmit} className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-4">
-                    <h4 className="font-extrabold text-white text-xs uppercase tracking-wider">Stwórz nową kampanię mailową</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1">Nazwa Kampanii (wewnętrzna)</label>
-                        <input
-                          type="text"
-                          value={campaignTitleInput}
-                          onChange={(e) => setCampaignTitleInput(e.target.value)}
-                          placeholder="Drop Kolekcji Wiosna 2026"
-                          className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white"
-                        />
                       </div>
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-400 mb-1">Temat Wiadomości E-mail</label>
-                        <input
-                          type="text"
-                          value={campaignSubjectInput}
-                          onChange={(e) => setCampaignSubjectInput(e.target.value)}
-                          placeholder="⚡ Nowa dostawa już na sklepie!"
-                          className="w-full px-4 py-2 bg-[#111216] border border-white/10 rounded-xl text-xs text-white"
-                        />
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-                    <button type="submit" className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full cursor-pointer flex items-center gap-2">
-                      <Send className="w-4 h-4" />
-                      <span>Wyślij Newsletter do Klientów</span>
-                    </button>
-                  </form>
+            {/* TAB: TRYB DROPU (COUNTDOWN TIMER) */}
+            {activeTab === "drop" && (
+              <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-orange-400" />
+                    <span>Konfiguracja Odliczania do Dropu (Countdown Timer)</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Ustaw datę i godzinę premiery kolekcji. Na stronie sklepu pojawi się dynamiczny, animowany licznik na żywo, a sprzedaż zostanie odblokowana w godzinie zero.
+                  </p>
                 </div>
-                )
-              )}
 
-              {/* SUBTAB 8: WŁASNA DOMENA */}
-              {builderSubTab === "domain" && (
-                !hasAccess("canUseCustomDomain") ? (
-                  <FeatureGateLock
-                    title="Podpinanie Własnej Domeny Zewnętrznej"
-                    description="Podepnij swój własny adres strony (np. twojadomena.pl) z darmowym certyfikatem SSL, darmowym CDN i automatyczną weryfikacją DNS."
-                    requiredPlan="Brand"
-                    onUpgrade={() => setActiveTab("marketplace")}
-                  />
-                ) : (
-                <div className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
+                <form onSubmit={handleSaveDropConfig} className="space-y-6 max-w-2xl">
+                  {/* Drop Enable Toggle */}
+                  <div className="p-4 bg-[#0E0E11] border border-white/10 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-white">Włącz Odliczanie do Dropu (Drop Mode)</h4>
+                      <p className="text-xs text-zinc-400 mt-0.5">Blokuje standardowy widok sklepu i wyświetla licznik hype'u.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={dropEnabled}
+                      onChange={(e) => setDropEnabled(e.target.checked)}
+                      className="w-5 h-5 accent-[#FF5B28] cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Datetime Local Picker */}
                   <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Link2 className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Podpięcie Własnej Domeny Zewnętrznej</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Podepnij własny adres www (np. mojastrona.pl) pod Twój sklep.</p>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">
+                      Data i godzina najbliższego dropu (Data Picker)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={dropDate}
+                      onChange={(e) => setDropDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-mono font-bold focus:border-[#FF5B28] outline-none"
+                    />
                   </div>
 
-                  <div className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Własna Domena WWW</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={customDomainInput}
-                          onChange={(e) => setCustomDomainInput(e.target.value)}
-                          placeholder="mojastrona.pl"
-                          className="w-full px-4 py-2.5 bg-[#111216] border border-white/10 rounded-xl text-xs text-white font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            executeWithSafeGuard(() => {
-                              updateStoreConfig({ customDomain: customDomainInput, domainVerified: true });
-                              setMessage({ type: "success", text: "Zapisano domenę i zweryfikowano rekordy CNAME!" });
-                            });
-                          }}
-                          className="px-5 py-2.5 bg-[#FF5B28] text-white font-extrabold text-xs rounded-xl cursor-pointer whitespace-nowrap"
-                        >
-                          Zapisz & Weryfikuj Rekordy
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-[#111216] border border-white/5 rounded-xl text-xs text-zinc-400 space-y-1 font-mono">
-                      <p className="font-bold text-white">Instrukcja Rekordów DNS u Twojego Rejestratora:</p>
-                      <p>• Rekord CNAME: <span className="text-cyan-400">cname.iskral.pl</span></p>
-                      <p>• Rekord A: <span className="text-cyan-400">76.76.21.21</span></p>
-                    </div>
-                  </div>
-                </div>
-                )
-              )}
-
-              {/* SUBTAB 9: SEO SKLEPU */}
-              {builderSubTab === "seo" && (
-                <form onSubmit={handleSaveSeoSubmit} className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
+                  {/* Template Style */}
                   <div>
-                    <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                      <Search className="w-5 h-5 text-[#FF5B28]" />
-                      <span>Pozycjonowanie SEO & Słowa Kluczowe Google</span>
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1">Zoptymalizuj nagłówki meta i zapowiedzi w wyszukiwarkach i na social mediach.</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Meta Tytuł (Title Tag)</label>
-                      <input
-                        type="text"
-                        value={metaTitleInput}
-                        onChange={(e) => setMetaTitleInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Meta Opis (Meta Description)</label>
-                      <textarea
-                        rows={3}
-                        value={metaDescriptionInput}
-                        onChange={(e) => setMetaDescriptionInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Słowa Kluczowe (Google Keywords)</label>
-                      <input
-                        type="text"
-                        value={keywordsInput}
-                        onChange={(e) => setKeywordsInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Podgląd Karty Google */}
-                  <div className="p-4 bg-[#090A0C] border border-white/5 rounded-xl space-y-1">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Podgląd w Wynikach Wyszukiwania Google</span>
-                    <h4 className="text-sm font-bold text-blue-400 hover:underline cursor-pointer">{metaTitleInput}</h4>
-                    <p className="text-[11px] text-emerald-400 font-mono">https://{subdomainInput || "demo"}.iskral.pl</p>
-                    <p className="text-xs text-zinc-400 line-clamp-2">{metaDescriptionInput}</p>
-                  </div>
-
-                  <button type="submit" className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full cursor-pointer">
-                    🔍 Zapisz Ustawienia SEO
-                  </button>
-                </form>
-              )}
-
-              {/* SUBTAB 10: REGULAMIN SKLEPU & RODO */}
-              {builderSubTab === "legal" && (
-                <form onSubmit={handleSaveLegalTermsSubmit} className="p-6 bg-[#111216] border border-white/5 rounded-2xl shadow-xl space-y-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-[#FF5B28]" />
-                        <span>Regulamin Sklepu & Polityka Prywatności (RODO)</span>
-                      </h2>
-                      <p className="text-xs text-zinc-400 mt-1">Zarządzaj treścią wymaganego prawem regulaminu dla Twoich kupujących.</p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleGenerateLegalTermsTemplate}
-                      className="px-4 py-2 bg-[#FF5B28]/10 hover:bg-[#FF5B28]/20 text-[#FF5B28] border border-[#FF5B28]/30 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap"
+                    <label className="block text-xs font-bold text-zinc-400 mb-1.5">
+                      Styl Wizualny Odliczania
+                    </label>
+                    <select
+                      value={dropTemplate}
+                      onChange={(e: any) => setDropTemplate(e.target.value)}
+                      className="w-full px-4 py-3 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-bold outline-none cursor-pointer"
                     >
-                      ⚡ Wygeneruj Wzorzec Regulaminu (RODO)
+                      <option value="Cyberpunk Launch">🔥 Modern Streetwear Hype / Cyberpunk</option>
+                      <option value="Minimalist Timer">💎 Minimalist Luxury Clean</option>
+                      <option value="Hypebeast Countdown">⚡ Electric Neon Countdown</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Flame className="w-4 h-4" />
+                    <span>Zapisz Ustawienia Dropu</span>
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* TAB: PAKIETY SAAS (SUBSKRYPCJE) */}
+            {activeTab === "plans" && (
+              <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-8 animate-in fade-in duration-200">
+                <div className="text-center max-w-xl mx-auto space-y-2">
+                  <span className="px-3 py-1 bg-[#FF5B28]/10 text-[#FF5B28] rounded-full text-xs font-extrabold border border-[#FF5B28]/20 uppercase">
+                    Pakiety Subskrypcyjne
+                  </span>
+                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Wybierz Pakiet Dla Swojego Sklepu</h1>
+                  <p className="text-xs text-zinc-400">Przełączaj plany subskrypcji w dowolnym momencie. Zmiana zostaje natychmiast zapisana w modelu sklepu.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Starter / Start */}
+                  <div className={`p-6 bg-[#0E0E11] border rounded-2xl flex flex-col justify-between transition-all ${
+                    currentStore.planType === "Start" ? "border-[#FF5B28] ring-2 ring-[#FF5B28]/30 shadow-xl" : "border-white/10"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-extrabold text-[#FF5B28] uppercase">Testowy</span>
+                        {currentStore.planType === "Start" && <span className="text-xs text-emerald-400 font-extrabold">Aktywny ✓</span>}
+                      </div>
+                      <h3 className="text-xl font-black text-white">Starter (Start)</h3>
+                      <p className="text-xs text-zinc-400 mt-1">14 dni bez opłat na przetestowanie pomysłu.</p>
+                      <div className="mt-4 text-3xl font-black text-white font-mono">0 PLN <span className="text-xs text-zinc-500 font-normal">/ 14 dni</span></div>
+                      <ul className="mt-6 space-y-2 text-xs text-zinc-400">
+                        <li className="flex items-center gap-2">✓ 1 sklep internetowy</li>
+                        <li className="flex items-center gap-2">✓ Do 5 produktów</li>
+                        <li className="flex items-center gap-2">✓ Płatności testowe Stripe</li>
+                        <li className="flex items-center gap-2">✓ Subdomena .iskral.pl</li>
+                      </ul>
+                    </div>
+                    <button
+                      onClick={() => executeWithSafeGuard(() => buyPlan("Start", "miesiac"))}
+                      disabled={currentStore.planType === "Start"}
+                      className={`mt-6 w-full py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        currentStore.planType === "Start"
+                          ? "bg-white/10 text-zinc-400 cursor-default"
+                          : "bg-[#FF5B28] hover:bg-[#e04f20] text-white shadow-lg shadow-[#FF5B28]/20"
+                      }`}
+                    >
+                      {currentStore.planType === "Start" ? "Twój Obecny Pakiet" : "Wybierz Starter"}
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Regulamin Sklepu Internetowego</label>
-                      <textarea
-                        rows={8}
-                        value={termsOfServiceInput}
-                        onChange={(e) => setTermsOfServiceInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
+                  {/* Drop / Creator */}
+                  <div className={`p-6 bg-[#0E0E11] border rounded-2xl flex flex-col justify-between transition-all relative ${
+                    currentStore.planType === "Creator" ? "border-[#FF5B28] ring-2 ring-[#FF5B28]/30 shadow-xl" : "border-white/10"
+                  }`}>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF5B28] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                      Bestseller
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-400 mb-1">Polityka Prywatności & Cookies</label>
-                      <textarea
-                        rows={6}
-                        value={privacyPolicyInput}
-                        onChange={(e) => setPrivacyPolicyInput(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-mono"
-                      />
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-extrabold text-[#FF5B28] uppercase">Polecany</span>
+                        {currentStore.planType === "Creator" && <span className="text-xs text-emerald-400 font-extrabold">Aktywny ✓</span>}
+                      </div>
+                      <h3 className="text-xl font-black text-white">Drop (Creator)</h3>
+                      <p className="text-xs text-zinc-400 mt-1">Dla marek odzieżowych i twórców dropów.</p>
+                      <div className="mt-4 text-3xl font-black text-white font-mono">49.90 PLN <span className="text-xs text-zinc-500 font-normal">/ miesiąc</span></div>
+                      <ul className="mt-6 space-y-2 text-xs text-zinc-400">
+                        <li className="flex items-center gap-2 text-white font-bold">✓ Nielimitowane produkty</li>
+                        <li className="flex items-center gap-2 text-white font-bold">✓ Dynamiczny Licznik Dropu</li>
+                        <li className="flex items-center gap-2">✓ Do 3 sklepów internetowych</li>
+                        <li className="flex items-center gap-2">✓ Prowizja tylko 1.0%</li>
+                      </ul>
                     </div>
+                    <button
+                      onClick={() => executeWithSafeGuard(() => buyPlan("Creator", "miesiac"))}
+                      disabled={currentStore.planType === "Creator"}
+                      className={`mt-6 w-full py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        currentStore.planType === "Creator"
+                          ? "bg-white/10 text-zinc-400 cursor-default"
+                          : "bg-[#FF5B28] hover:bg-[#e04f20] text-white shadow-lg shadow-[#FF5B28]/20"
+                      }`}
+                    >
+                      {currentStore.planType === "Creator" ? "Twój Obecny Pakiet" : "Wybierz Pakiet Drop"}
+                    </button>
                   </div>
 
-                  <button type="submit" className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full cursor-pointer">
-                    📜 Zapisz Regulamin Sklepu & Legal
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
+                  {/* Pro / Brand */}
+                  <div className={`p-6 bg-[#0E0E11] border rounded-2xl flex flex-col justify-between transition-all ${
+                    currentStore.planType === "Brand" ? "border-[#FF5B28] ring-2 ring-[#FF5B28]/30 shadow-xl" : "border-white/10"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs font-extrabold text-[#FF5B28] uppercase">Dla Firm</span>
+                        {currentStore.planType === "Brand" && <span className="text-xs text-emerald-400 font-extrabold">Aktywny ✓</span>}
+                      </div>
+                      <h3 className="text-xl font-black text-white">Pro (Brand)</h3>
+                      <p className="text-xs text-zinc-400 mt-1">Maksymalna wydajność i 0% prowizji.</p>
+                      <div className="mt-4 text-3xl font-black text-white font-mono">99.90 PLN <span className="text-xs text-zinc-500 font-normal">/ miesiąc</span></div>
+                      <ul className="mt-6 space-y-2 text-xs text-zinc-400">
+                        <li className="flex items-center gap-2 text-emerald-400 font-bold">✓ 0% prowizji od sprzedaży</li>
+                        <li className="flex items-center gap-2">✓ Do 10 sklepów internetowych</li>
+                        <li className="flex items-center gap-2">✓ Własne domeny .pl / .com</li>
+                        <li className="flex items-center gap-2">✓ Dedykowany support 24/7</li>
+                      </ul>
+                    </div>
+                    <button
+                      onClick={() => executeWithSafeGuard(() => buyPlan("Brand", "miesiac"))}
+                      disabled={currentStore.planType === "Brand"}
+                      className={`mt-6 w-full py-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                        currentStore.planType === "Brand"
+                          ? "bg-white/10 text-zinc-400 cursor-default"
+                          : "bg-[#FF5B28] hover:bg-[#e04f20] text-white shadow-lg shadow-[#FF5B28]/20"
+                      }`}
+                    >
+                      {currentStore.planType === "Brand" ? "Twój Obecny Pakiet" : "Wybierz Pakiet Pro"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        </div>
+            {/* TAB: USTAWIENIA */}
+            {activeTab === "settings" && (
+              <div className="p-6 sm:p-8 bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl space-y-6 animate-in fade-in duration-200 max-w-3xl">
+                <div>
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <SettingsIcon className="w-5 h-5 text-[#FF5B28]" />
+                    <span>Ustawienia Konta i Profilu</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-1">Zarządzaj swoimi danymi, bezpieczeństwem 2FA oraz hasłem.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1">Imię i Nazwisko</label>
+                    <input
+                      type="text"
+                      value={fullNameInput}
+                      onChange={(e) => setFullNameInput(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 mb-1">Adres E-mail</label>
+                    <input
+                      type="email"
+                      value={emailInput}
+                      disabled
+                      className="w-full px-4 py-2.5 bg-[#0E0E11]/60 border border-white/5 rounded-xl text-xs text-zinc-400 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
       </div>
 
-      {/* TARGET STORE SELECTOR MODAL FOR TEMPLATE APPLICATION */}
-      {showTemplateStoreModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#111216] border border-white/10 rounded-2xl p-6 flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-base font-extrabold text-white">Zastosuj Szablon Graficzny</h3>
-              <button onClick={() => setShowTemplateStoreModal(false)} className="text-zinc-400 hover:text-white font-bold">✕</button>
-            </div>
-
-            <p className="text-xs text-zinc-400">
-              Wybierz sklep, do którego chcesz przypisać szablon <strong className="text-white">{selectedTemplateToApply}</strong>:
-            </p>
-
-            <select
-              value={targetStoreForTemplate}
-              onChange={(e) => setTargetStoreForTemplate(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white font-extrabold outline-none"
-            >
-              {userStores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  🏬 {s.name} ({s.subdomain}.iskral.pl)
-                </option>
-              ))}
-            </select>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowTemplateStoreModal(false)} className="px-4 py-2 bg-white/10 text-white rounded-full text-xs font-bold">
-                Anuluj
-              </button>
-              <button onClick={handleConfirmTemplateApplication} className="px-5 py-2 bg-[#FF5B28] text-white rounded-full text-xs font-extrabold">
-                Zastosuj Szablon
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2FA AUTHENTICATOR SETUP MODAL */}
-      {show2FAModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#111216] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-2xl animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-[#FF5B28]" />
-                <span>Konfiguracja 2FA Authenticator</span>
-              </h2>
-              <button onClick={() => setShow2FAModal(false)} className="text-zinc-400 hover:text-white font-bold cursor-pointer">
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-zinc-400">
-              Zeskanuj kod QR poniżej w aplikacji <strong>Google Authenticator</strong>, <strong>Authy</strong> lub <strong>1Password</strong>:
-            </p>
-
-            {/* QR Code display */}
-            <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl">
-              <img src={totpQrUrl} alt="2FA QR Code" className="w-44 h-44 object-contain" />
-            </div>
-
-            {/* Manual secret key */}
-            <div className="p-3 bg-[#090A0C] border border-white/5 rounded-xl text-center space-y-1">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Klucz Ręczny (Secret Key):</span>
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-xs text-cyan-400 font-mono font-bold tracking-widest">{totpSecret}</code>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(totpSecret);
-                    setMessage({ type: "success", text: "Skopiowano klucz 2FA do schowka!" });
-                  }}
-                  className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-white rounded text-[10px] font-extrabold cursor-pointer"
-                >
-                  Kopiuj
-                </button>
-              </div>
-            </div>
-
-            {/* Verification Form */}
-            <form onSubmit={handleVerifyAndActivate2FA} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Wpisz 6-cyfrowy kod z aplikacji Authenticator:</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={totpVerificationInput}
-                  onChange={(e) => setTotpVerificationInput(e.target.value.replace(/[^0-9]/g, ""))}
-                  className="w-full px-4 py-3 bg-[#090A0C] border border-white/10 rounded-xl text-center text-lg font-mono text-white tracking-widest outline-none focus:border-[#FF5B28]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full shadow-sm cursor-pointer transition-all"
-              >
-                🚀 Zweryfikuj & Aktywuj 2FA
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ADD/EDIT PRODUCT MODAL */}
+      {/* MODAL: DODAWANIE / EDYCJA PRODUKTU */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-lg bg-[#111216] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-4 my-8 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h2 className="text-lg font-extrabold text-white">
-                {editingProductId ? "Edytuj Produkt" : "Dodaj Nowy Produkt"}
-              </h2>
-              <button onClick={() => setShowProductModal(false)} className="text-zinc-400 hover:text-white text-xl font-bold cursor-pointer">
-                ✕
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#18181B] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#FF5B28]" />
+                <span>{editingProductId ? "Edycja Produktu" : "Dodaj Nowy Produkt"}</span>
+              </h3>
+              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProductSubmit} className="space-y-4">
+            <form onSubmit={handleSaveProductSubmit} className="mt-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-zinc-400 mb-1">Nazwa Produktu</label>
                 <input
                   type="text"
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
-                  placeholder="np. Bluza Hype Hoodie"
-                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                  placeholder="np. Bluza Heavyweight Oversize 'Noir'"
+                  className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-bold outline-none focus:border-[#FF5B28]"
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 mb-1">Cena (PLN)</label>
                   <input
@@ -2694,26 +1563,139 @@ export default function DashboardPage() {
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
                     placeholder="149.00"
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                    className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-mono font-bold outline-none focus:border-[#FF5B28]"
+                    required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 mb-1">Magazyn</label>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Cena Porównawcza (PLN)</label>
+                  <input
+                    type="text"
+                    value={prodComparePrice}
+                    onChange={(e) => setProdComparePrice(e.target.value)}
+                    placeholder="199.00"
+                    className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-zinc-400 font-mono outline-none focus:border-[#FF5B28]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Stan Magazynowy (Szt.)</label>
                   <input
                     type="number"
                     value={prodStock}
                     onChange={(e) => setProdStock(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                    className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-mono outline-none focus:border-[#FF5B28]"
+                    min={0}
                   />
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-extrabold text-xs rounded-full transition-all shadow-sm cursor-pointer"
-              >
-                Zapisz Produkt w Sklepie
-              </button>
+              {/* WARIANTY / ROZMIARY */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Warianty / Rozmiary</label>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  {prodVariants.map((v) => (
+                    <span key={v} className="px-2.5 py-1 bg-white/10 border border-white/10 rounded-lg text-xs font-mono font-bold text-white flex items-center gap-1.5">
+                      <span>{v}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVariant(v)}
+                        className="text-zinc-400 hover:text-red-400 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Wpisz rozmiar (np. XXL, One-Size)..."
+                    value={prodVariantInput}
+                    onChange={(e) => setProdVariantInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddVariant();
+                      }
+                    }}
+                    className="px-3 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-mono flex-1 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    + Dodaj Wariant
+                  </button>
+                </div>
+              </div>
+
+              {/* OPIS */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Opis Produktu</label>
+                <textarea
+                  rows={3}
+                  value={prodDescription}
+                  onChange={(e) => setProdDescription(e.target.value)}
+                  placeholder="Krótki opis materiału, krojów lub instrukcji..."
+                  className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                />
+              </div>
+
+              {/* ZDJĘCIE URL */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Zdjęcie Produktu (URL)</label>
+                <input
+                  type="text"
+                  value={prodImage}
+                  onChange={(e) => setProdImage(e.target.value)}
+                  placeholder="https://images.unsplash.com/... lub link do zdjęcia"
+                  className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-mono outline-none"
+                />
+              </div>
+
+              {/* TYP I STATUS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Typ Produktu</label>
+                  <select
+                    value={prodType}
+                    onChange={(e: any) => setProdType(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Fizyczny">📦 Produkt Fizyczny</option>
+                    <option value="Cyfrowy">💻 Produkt Cyfrowy (Plik)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Status Publikacji</label>
+                  <select
+                    value={prodStatus}
+                    onChange={(e: any) => setProdStatus(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs text-white font-bold outline-none cursor-pointer"
+                  >
+                    <option value="Aktywny">🟢 Aktywny (Widoczny w sklepie)</option>
+                    <option value="Zawieszony">⚪ Szkic (Ukryty)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowProductModal(false)}
+                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer"
+                >
+                  {editingProductId ? "Zapisz Zmiany" : "Utwórz Produkt"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

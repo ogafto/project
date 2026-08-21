@@ -61,6 +61,7 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         .from("stores")
         .select("*")
         .eq("subdomain", cleanSub)
+        .neq("status", "deleted")
         .limit(1);
 
       if (!err1 && bySubdomain && bySubdomain.length > 0) {
@@ -72,6 +73,7 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         .from("stores")
         .select("*")
         .eq("custom_domain", cleanSub)
+        .neq("status", "deleted")
         .limit(1);
 
       if (!err2 && byDomain && byDomain.length > 0) {
@@ -83,6 +85,7 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         .from("stores")
         .select("*")
         .eq("id", cleanSub)
+        .neq("status", "deleted")
         .limit(1);
 
       if (!err3 && byId && byId.length > 0) {
@@ -112,6 +115,52 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
 }
 
 /**
+ * Fetch all stores associated with a specific user (by userId or userEmail)
+ */
+export async function fetchUserStoresFromSupabase(userId?: string, userEmail?: string): Promise<any[]> {
+  if (!userId && !userEmail) return [];
+
+  const dbClient: any = supabaseAdmin || supabase;
+  if (dbClient) {
+    try {
+      let query = dbClient.from("stores").select("*").neq("status", "deleted");
+
+      if (userId) {
+        query = query.eq("owner_id", userId);
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        return data;
+      }
+    } catch (err) {
+      console.warn("[Supabase] Fetch user stores error, trying API fallback:", err);
+    }
+  }
+
+  // API fallback
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.set("owner_id", userId);
+      if (userEmail) params.set("owner_email", userEmail);
+
+      const res = await fetch(`/api/stores/sync?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.stores)) {
+          return json.stores;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[Supabase] API fallback fetchUserStores error:", apiErr);
+    }
+  }
+
+  return [];
+}
+
+/**
  * Check if a subdomain is available (or reserved by grace period)
  */
 export async function checkSubdomainAvailability(
@@ -134,8 +183,9 @@ export async function checkSubdomainAvailability(
   try {
     const { data, error } = await (supabase as any)
       .from("stores")
-      .select("id, subdomain, grace_period_ends_at")
+      .select("id, subdomain, status, is_active, grace_period_ends_at")
       .eq("subdomain", cleanSub)
+      .neq("status", "deleted")
       .limit(1);
 
     if (error || !data || data.length === 0) {
@@ -144,6 +194,10 @@ export async function checkSubdomainAvailability(
 
     const existingStore = data[0];
     if (excludeStoreId && existingStore.id === excludeStoreId) {
+      return { available: true };
+    }
+
+    if (existingStore.is_active === false || existingStore.status === "deleted") {
       return { available: true };
     }
 
@@ -202,9 +256,8 @@ export async function fetchProductsFromSupabase(storeId: string): Promise<any[]>
 
 /**
  * Fast Supabase insert / update helper for store creation
- * Uses supabaseAdmin to bypass RLS and avoid FK constraint issues
  */
-export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
+export async function upsertStoreInSupabase(storeData: any, ownerId?: string): Promise<boolean> {
   const client: any = supabaseAdminClient || supabaseClient;
   if (!client) {
     console.warn("[Supabase] No client available for store upsert");
@@ -218,8 +271,11 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
       return false;
     }
 
+    const resolvedOwnerId = ownerId || storeData.owner_id || storeData.ownerId || null;
+
     const dbPayload: any = {
       id: storeData.id || `t_${Date.now()}`,
+      owner_id: resolvedOwnerId,
       name: storeData.name || "Mój Sklep",
       subdomain: subdomain,
       custom_domain: storeData.customDomain || null,
@@ -232,15 +288,15 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
       stripe_status: storeData.stripeStatus || "disconnected",
       balance_cents: storeData.balanceCents || 0,
       plan_type: storeData.planType || "Start",
-      plan_status: storeData.planStatus || "trialing",
+      plan_status: storeData.planStatus || "active",
       status: storeData.status || "active",
-      is_active: storeData.is_active !== false,
+      is_active: storeData.is_active !== false && storeData.status !== "deleted",
       social_links: storeData.socials || {},
-      theme_config: { template: storeData.template, accentColor: storeData.accentColor },
-      drop_config: storeData.dropConfig || {},
+      theme_config: { template: storeData.template, accentColor: storeData.accentColor, ownerEmail: storeData.ownerEmail },
+      drop_config: storeData.dropConfig || { enabled: false },
     };
 
-    console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id})...`);
+    console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id}, owner=${resolvedOwnerId})...`);
     const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
 
     if (error) {

@@ -33,6 +33,7 @@ export interface Product {
   dropTargetDate?: string;
   sales: number;
   stock: number;
+  variants?: string[];
   description: string;
   image?: string;
   images?: string[];
@@ -99,6 +100,9 @@ export interface DropConfig {
 
 export interface StoreConfig {
   id: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  visitsCount?: number;
   name: string;
   description?: string;
   logoUrl?: string;
@@ -826,13 +830,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
+    const userStores = existing.stores && existing.stores.length > 0 ? existing.stores : (existing.store ? [existing.store] : []);
+    const hasStore = userStores.length > 0 || Boolean(existing.hasStore);
+    const activeStoreId = existing.activeStoreId || (userStores.length > 0 ? userStores[0].id : undefined);
+
+    const loggedInUser: User = {
+      ...existing,
+      hasStore,
+      stores: userStores,
+      store: userStores[0] || existing.store,
+      activeStoreId,
+    };
+
     if (existing.is2FAEnabled) {
       setRequires2FA(true);
-      setPending2FAUser(existing);
+      setPending2FAUser(loggedInUser);
       return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
     }
 
-    setUser(existing);
+    setUser(loggedInUser);
     setMessage({ type: "success", text: `Witaj ponownie, ${existing.name}!` });
     return { success: true };
   };
@@ -1449,6 +1465,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updatedStore: StoreConfig = {
       ...(baseStore || CLEAN_EMPTY_STORE_TEMPLATE),
       id: storeId,
+      ownerId: user.id,
+      ownerEmail: user.email,
       name: params.name || "Mój Sklep",
       subdomain: finalSub,
       customDomain: params.customDomain || baseStore?.customDomain || "",
@@ -1456,7 +1474,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoUrl: params.logoUrl || baseStore?.logoUrl || "",
       template: params.template || "Dark Vibe",
       accentColor: params.accentColor || "#FF5B28",
-      announcement: params.announcement || "🎉 Zbuduj swój sklep z Motywo!",
+      announcement: params.announcement || "🎉 Witaj w naszym sklepie!",
       planType: params.plan,
       planStatus: "active",
       planExpiresAt: expiresAt,
@@ -1482,11 +1500,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
 
-    // KLUCZOWE: Zapisz sklep do Supabase bazy danych
-    // To zapewnia że subdomena będzie dostępna publicznie przez (subdomena).iskral.pl
-    upsertStoreInSupabase(updatedStore).then((saved) => {
+    // KLUCZOWE: Zapisz sklep do Supabase bazy danych z powiązaniem owner_id
+    upsertStoreInSupabase(updatedStore, user.id).then((saved) => {
       if (saved) {
-        console.log(`[Store] Sklep '${updatedStore.subdomain}' zapisany do Supabase`);
+        console.log(`[Store] Sklep '${updatedStore.subdomain}' zapisany do Supabase dla User ID: ${user.id}`);
       } else {
         console.warn(`[Store] Nie udało się zapisać sklepu '${updatedStore.subdomain}' do Supabase`);
       }
@@ -1495,7 +1512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetch("/api/stores/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ store: updatedStore }),
+      body: JSON.stringify({ store: updatedStore, owner_id: user.id }),
     }).catch(() => {});
 
     const priceCents = isTrial ? 0 : params.plan === "Creator" || params.plan === "starter" ? (params.billingCycle === "rok" ? 29900 : 4990) : (params.billingCycle === "rok" ? 59900 : 9990);

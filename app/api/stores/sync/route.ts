@@ -5,40 +5,59 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const subdomain = searchParams.get("subdomain")?.toLowerCase().trim();
-
-    if (!subdomain) {
-      return NextResponse.json({ success: false, error: "Brak parametru subdomeny." }, { status: 400 });
-    }
+    const ownerId = searchParams.get("owner_id")?.trim();
+    const ownerEmail = searchParams.get("owner_email")?.toLowerCase().trim();
 
     const dbClient: any = supabaseAdmin || supabase;
     if (!dbClient) {
       return NextResponse.json({ success: false, error: "Brak klienta Supabase." }, { status: 500 });
     }
 
-    // 1. Znajdź sklep po subdomenie, domenie własnej lub ID
-    const { data: stores, error: storeErr } = await dbClient
-      .from("stores")
-      .select("*")
-      .or(`subdomain.eq.${subdomain},custom_domain.eq.${subdomain},id.eq.${subdomain}`)
-      .limit(1);
+    // 1. Jeśli zapytanie jest o sklepy danego użytkownika (po owner_id)
+    if (ownerId) {
+      const { data: userStores, error: userStoreErr } = await dbClient
+        .from("stores")
+        .select("*")
+        .eq("owner_id", ownerId)
+        .neq("status", "deleted");
 
-    if (storeErr || !stores || stores.length === 0) {
-      return NextResponse.json({ success: false, store: null, products: [] }, { status: 404 });
+      if (!userStoreErr && userStores && userStores.length > 0) {
+        return NextResponse.json({
+          success: true,
+          stores: userStores,
+        });
+      }
     }
 
-    const store = stores[0];
+    // 2. Jeśli zapytanie jest o konkretny sklep po subdomenie, domenie własnej lub ID
+    if (subdomain) {
+      const { data: stores, error: storeErr } = await dbClient
+        .from("stores")
+        .select("*")
+        .or(`subdomain.eq.${subdomain},custom_domain.eq.${subdomain},id.eq.${subdomain}`)
+        .neq("status", "deleted")
+        .limit(1);
 
-    // 2. Pobierz produkty dla tego sklepu
-    const { data: products, error: prodErr } = await dbClient
-      .from("products")
-      .select("*")
-      .eq("store_id", store.id);
+      if (storeErr || !stores || stores.length === 0) {
+        return NextResponse.json({ success: false, store: null, products: [] }, { status: 404 });
+      }
 
-    return NextResponse.json({
-      success: true,
-      store,
-      products: products || [],
-    });
+      const store = stores[0];
+
+      // Pobierz produkty dla tego sklepu
+      const { data: products } = await dbClient
+        .from("products")
+        .select("*")
+        .eq("store_id", store.id);
+
+      return NextResponse.json({
+        success: true,
+        store,
+        products: products || [],
+      });
+    }
+
+    return NextResponse.json({ success: false, error: "Brak parametrów wyszukiwania (subdomain lub owner_id)." }, { status: 400 });
   } catch (err: any) {
     console.error("[API /api/stores/sync GET Exception]:", err);
     return NextResponse.json({ success: false, error: err.message || "Błąd serwera" }, { status: 500 });
@@ -48,7 +67,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { store } = body;
+    const { store, owner_id } = body;
 
     if (!store || !store.subdomain) {
       return NextResponse.json({ success: false, error: "Brak danych sklepu lub subdomeny." }, { status: 400 });
@@ -62,9 +81,11 @@ export async function POST(req: NextRequest) {
     }
 
     const storeId = store.id || `store_${cleanSubdomain}`;
+    const resolvedOwnerId = owner_id || store.owner_id || store.ownerId || null;
 
     const dbPayload = {
       id: storeId,
+      owner_id: resolvedOwnerId,
       name: store.name || "Mój Sklep",
       subdomain: cleanSubdomain,
       custom_domain: store.customDomain || null,
@@ -79,14 +100,18 @@ export async function POST(req: NextRequest) {
       plan_type: store.planType || "Start",
       plan_status: store.planStatus || "active",
       status: store.status || "active",
-      is_active: store.is_active !== false,
+      is_active: store.is_active !== false && store.status !== "deleted",
       social_links: store.socials || {},
-      theme_config: { template: store.template || "Dark Vibe", accentColor: store.accentColor || "#FF5B28" },
+      theme_config: {
+        template: store.template || "Dark Vibe",
+        accentColor: store.accentColor || "#FF5B28",
+        ownerEmail: store.ownerEmail,
+      },
       drop_config: store.dropConfig || { enabled: false },
     };
 
-    console.log(`[API /api/stores/sync] Synchronizowanie sklepu '${cleanSubdomain}' (id: ${storeId})...`);
-    const { data: storeSaved, error: storeErr } = await dbClient.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
+    console.log(`[API /api/stores/sync] Synchronizowanie sklepu '${cleanSubdomain}' (id: ${storeId}, owner: ${resolvedOwnerId})...`);
+    const { error: storeErr } = await dbClient.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
 
     if (storeErr) {
       console.error(`[API /api/stores/sync Error] Błąd zapisu '${cleanSubdomain}':`, storeErr.message);
@@ -119,7 +144,7 @@ export async function POST(req: NextRequest) {
           compare_price_cents: p.comparePriceCents || null,
           type: p.type || "Fizyczny",
           status: p.status || "Aktywny",
-          is_active: p.status !== "Nieaktywny",
+          is_active: p.status !== "Nieaktywny" && p.status !== "Szkic",
           stock: p.stock !== undefined ? parseInt(String(p.stock)) : 50,
           image_url: imgUrl,
           images: p.images && p.images.length > 0 ? p.images : [imgUrl].filter(Boolean),
@@ -134,34 +159,15 @@ export async function POST(req: NextRequest) {
           console.warn(`[API /api/stores/sync] Warning saving product '${p.name}':`, prodErr.message);
         }
       }
-    } else {
-      // Sprawdź czy sklep ma już jakiekolwiek produkty
-      const { data: existingProds } = await dbClient.from("products").select("id").eq("store_id", storeId).limit(1);
-      if (!existingProds || existingProds.length === 0) {
-        // Wstaw domyślny produkt startowy dla nowego sklepu
-        const defaultProd = {
-          id: `prod_start_${storeId}`,
-          store_id: storeId,
-          name: `Kolekcja Limitowana 2026 - ${store.name || "Iskral"}`,
-          description: "Wysokiej jakości produkt gotowy do natychmiastowego zakupu.",
-          price: "149.00 PLN",
-          price_cents: 14900,
-          type: "Fizyczny",
-          status: "Aktywny",
-          is_active: true,
-          stock: 50,
-          image_url: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80",
-          images: ["https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80"],
-          is_digital: false,
-        };
-        await dbClient.from("products").upsert(defaultProd, { onConflict: "id" });
-      }
     }
 
-    console.log(`[API /api/stores/sync Success] Sklep '${cleanSubdomain}' i produkty zapisane w Supabase.`);
-    return NextResponse.json({ success: true, store: dbPayload });
+    return NextResponse.json({
+      success: true,
+      message: `Sklep '${cleanSubdomain}' został pomyślnie zsynchronizowany.`,
+      storeId,
+    });
   } catch (err: any) {
-    console.error("[API /api/stores/sync Exception]:", err);
+    console.error("[API /api/stores/sync POST Exception]:", err);
     return NextResponse.json({ success: false, error: err.message || "Błąd serwera" }, { status: 500 });
   }
 }

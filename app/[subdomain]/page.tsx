@@ -26,7 +26,8 @@ export default function TenantStorePage({ params }: PageProps) {
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
   const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
-  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+  const [selectedVariants, setSelectedVariants] = useState<{ [productId: string]: string }>({});
+  const [cart, setCart] = useState<{ product: Product; quantity: number; selectedVariant?: string }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [purchasedDigitalItems, setPurchasedDigitalItems] = useState<Product[]>([]);
@@ -67,6 +68,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 dropTargetDate: p?.drop_target_date || undefined,
                 sales: p?.sales ?? 0,
                 stock: typeof p?.stock === "number" ? p.stock : 50,
+                variants: Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants : ["S", "M", "L", "XL"],
                 image: p?.image_url || p?.image || "",
                 imageUrl: p?.image_url || p?.image || "",
                 images: Array.isArray(p?.images) && p.images.length > 0 ? p.images : [p?.image_url || p?.image || ""].filter(Boolean),
@@ -154,7 +156,7 @@ export default function TenantStorePage({ params }: PageProps) {
     const targetTime = new Date(targetStore.dropConfig.targetDate).getTime();
     if (isNaN(targetTime)) return;
 
-    const interval = setInterval(() => {
+    const calculateTime = () => {
       const now = Date.now();
       const diff = targetTime - now;
 
@@ -167,8 +169,10 @@ export default function TenantStorePage({ params }: PageProps) {
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         setTimeLeft({ days, hours, minutes, seconds });
       }
-    }, 1000);
+    };
 
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
     return () => clearInterval(interval);
   }, [isDropActive, targetStore?.dropConfig?.targetDate]);
 
@@ -249,16 +253,19 @@ export default function TenantStorePage({ params }: PageProps) {
   const announcement = store.announcement || "";
   const niche = store.niche || "Sklep Internetowy";
   const categories = store.categories ?? [];
-  const products = store.products ?? [];
+  const products = (store.products ?? []).filter((p) => p.status !== "Zawieszony");
 
   const filteredProducts =
     selectedCategoryId === "all"
       ? products
       : products.filter((p) => p && p.categoryId === selectedCategoryId);
 
+  const handleSelectVariant = (productId: string, variant: string) => {
+    setSelectedVariants((prev) => ({ ...prev, [productId]: variant }));
+  };
+
   const addToCart = (product: Product) => {
     if (!product) return;
-    // Prevent adding locked drop products
     if (
       product.isDropOnly &&
       product.dropTargetDate &&
@@ -269,20 +276,28 @@ export default function TenantStorePage({ params }: PageProps) {
       return;
     }
 
+    const currentChosenVariant = selectedVariants[product.id] || (product.variants && product.variants[0]) || undefined;
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.product?.id === product.id);
+      const existing = prev.find(
+        (item) => item.product?.id === product.id && item.selectedVariant === currentChosenVariant
+      );
       if (existing) {
         return prev.map((item) =>
-          item.product?.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.product?.id === product.id && item.selectedVariant === currentChosenVariant
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, selectedVariant: currentChosenVariant }];
     });
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product?.id !== productId));
+  const removeFromCart = (productId: string, selectedVariant?: string) => {
+    setCart((prev) =>
+      prev.filter((item) => !(item.product?.id === productId && item.selectedVariant === selectedVariant))
+    );
   };
 
   const cartTotalCents = cart.reduce(
@@ -309,7 +324,6 @@ export default function TenantStorePage({ params }: PageProps) {
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
       } else {
-        // Direct checkout recording fallback
         if (store.id && firstItem?.id) {
           recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
         }
@@ -331,83 +345,69 @@ export default function TenantStorePage({ params }: PageProps) {
     }
   };
 
-  const isSuspended = store.status === "suspended" || store.planStatus === "suspended";
-
-  // FULLSCREEN SUSPENDED STORE SCREEN
-  if (isSuspended) {
-    return (
-      <main className="relative min-h-screen w-full bg-[#0B0C0E] text-white flex flex-col items-center justify-center p-6 overflow-hidden">
-        <BackgroundVideo />
-        <div className="relative z-10 max-w-md w-full bg-[#121316]/95 backdrop-blur-2xl border border-red-500/30 rounded-[28px] p-8 sm:p-10 text-center flex flex-col items-center shadow-2xl animate-in zoom-in-95 duration-200">
-          <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mb-4">
-            <span className="text-3xl">🚫</span>
-          </div>
-          <span className="px-3.5 py-1 bg-red-500/15 text-red-400 border border-red-500/30 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
-            STATUS: ZAWIESZONY
-          </span>
-          <h1 className="mt-4 text-2xl font-extrabold text-white tracking-tight">
-            Sklep tymczasowo niedostępny
-          </h1>
-          <p className="mt-2 text-xs text-[#A1A1AA] leading-relaxed">
-            Przepraszamy, ten sklep jest w tej chwili niedostępny. Płatności oraz składanie nowych zamówień zostały tymczasowo wstrzymane.
-          </p>
-          <div className="mt-6 p-4 w-full bg-[#0B0C0E] border border-white/[0.08] rounded-xl text-[11px] text-[#707075]">
-            Skontaktuj się z administratorem platformy <strong className="text-white">iskral.pl</strong>, aby odblokować dostęp.
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  // FULLSCREEN DROP MODE COUNTDOWN SCREEN
+  // FULLSCREEN DROP MODE COUNTDOWN SCREEN (HYPEBEAST / STREETWEAR AESTHETIC)
   if (isDropActive) {
     return (
-      <main className="relative min-h-screen w-full bg-[#09090C] text-white flex flex-col items-center justify-center p-6 overflow-hidden">
+      <main className="relative min-h-screen w-full bg-[#08080A] text-white flex flex-col items-center justify-center p-6 overflow-hidden select-none">
         <BackgroundVideo />
 
-        <div className="relative z-10 max-w-2xl w-full bg-[#121216]/90 backdrop-blur-xl border border-[#FF5B28]/40 rounded-[32px] p-8 sm:p-14 text-center flex flex-col items-center shadow-2xl">
-          <span className="px-4 py-1.5 bg-[#FF5B28] text-white text-xs font-bold rounded-full uppercase tracking-wider animate-pulse shadow-lg shadow-[#FF5B28]/40">
-            🔥 PREMIERA / DROP MODE ACTIVE
-          </span>
+        {/* Ambient Glowing Orbs */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#FF5B28]/15 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
 
-          <h1 className="mt-6 text-4xl sm:text-5xl font-extrabold tracking-tight">
+        <div className="relative z-10 max-w-3xl w-full bg-[#111216]/90 backdrop-blur-2xl border border-[#FF5B28]/40 rounded-[36px] p-8 sm:p-14 text-center flex flex-col items-center shadow-2xl ring-1 ring-white/10">
+          
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#FF5B28]/20 border border-[#FF5B28]/50 text-[#FF5B28] text-xs font-black rounded-full uppercase tracking-widest animate-pulse shadow-lg shadow-[#FF5B28]/20">
+            <span className="w-2 h-2 rounded-full bg-[#FF5B28] animate-ping" />
+            <span>DROP MODE ACTIVE • PREMIERA</span>
+          </div>
+
+          <h1 className="mt-6 text-4xl sm:text-6xl font-black tracking-tight text-white uppercase italic">
             {storeName}
           </h1>
 
-          <p className="mt-3 text-sm text-[#A1A1AA] max-w-md">
-            Sklep jest obecnie zablokowany przed nową premierą. Odliczanie trwa — zakupy zostaną odblokowane dokładnie o wyznaczonej godzinie!
+          <p className="mt-3 text-xs sm:text-sm text-zinc-400 max-w-md font-medium">
+            Sklep jest obecnie zablokowany przed nowym dropem. Licznik bije na żywo — koszyk i zakupy zostaną odblokowane dokładnie w sekundzie premiery.
           </p>
 
-          {/* Ticking Countdown Timer */}
-          <div className="mt-8 grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-lg">
-            <div className="p-4 bg-[#0E0E11] border border-white/10 rounded-[20px] flex flex-col items-center">
-              <span className="text-3xl sm:text-5xl font-extrabold text-[#FF5B28]">
-                {timeLeft.days}
+          {/* Hypebeast Live Ticking Countdown Timer */}
+          <div className="mt-10 grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-xl">
+            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FF5B28] to-transparent opacity-80" />
+              <span className="text-3xl sm:text-6xl font-black text-[#FF5B28] font-mono tracking-tight">
+                {String(timeLeft.days).padStart(2, "0")}
               </span>
-              <span className="text-[11px] text-[#707070] mt-1 font-semibold uppercase">DNI</span>
+              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">DNI</span>
             </div>
-            <div className="p-4 bg-[#0E0E11] border border-white/10 rounded-[20px] flex flex-col items-center">
-              <span className="text-3xl sm:text-5xl font-extrabold text-white">
+
+            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-40" />
+              <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
                 {String(timeLeft.hours).padStart(2, "0")}
               </span>
-              <span className="text-[11px] text-[#707070] mt-1 font-semibold uppercase">GODZ</span>
+              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">GODZ</span>
             </div>
-            <div className="p-4 bg-[#0E0E11] border border-white/10 rounded-[20px] flex flex-col items-center">
-              <span className="text-3xl sm:text-5xl font-extrabold text-white">
+
+            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-40" />
+              <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
                 {String(timeLeft.minutes).padStart(2, "0")}
               </span>
-              <span className="text-[11px] text-[#707070] mt-1 font-semibold uppercase">MIN</span>
+              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">MIN</span>
             </div>
-            <div className="p-4 bg-[#0E0E11] border border-white/10 rounded-[20px] flex flex-col items-center">
-              <span className="text-3xl sm:text-5xl font-extrabold text-white">
+
+            <div className="p-4 sm:p-6 bg-[#090A0C] border border-[#FF5B28]/30 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group bg-gradient-to-b from-[#18181B] to-[#090A0C]">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FF5B28] to-transparent opacity-100 animate-pulse" />
+              <span className="text-3xl sm:text-6xl font-black text-[#FF5B28] font-mono tracking-tight">
                 {String(timeLeft.seconds).padStart(2, "0")}
               </span>
-              <span className="text-[11px] text-[#707070] mt-1 font-semibold uppercase">SEK</span>
+              <span className="text-[10px] sm:text-xs text-[#FF5B28] mt-2 font-black uppercase tracking-wider">SEK</span>
             </div>
           </div>
 
-          <div className="mt-8 p-4 bg-white/[0.03] border border-white/10 rounded-[16px] text-xs text-[#707070]">
-            🔒 Przycisk koszyka i zakupów powróci automatycznie po zakończeniu odliczania.
+          <div className="mt-8 p-4 bg-[#090A0C]/80 border border-white/10 rounded-2xl text-xs text-zinc-400 flex items-center gap-2">
+            <span>🔒</span>
+            <span>Zapraszamy w dniu premiery: <strong>{new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL")}</strong></span>
           </div>
         </div>
       </main>
@@ -416,13 +416,13 @@ export default function TenantStorePage({ params }: PageProps) {
 
   // LIVE PUBLIC STOREFRONT SCREEN
   return (
-    <main className="relative min-h-screen w-full bg-[#0E0E11] text-white flex flex-col pb-24">
+    <main className="relative min-h-screen w-full bg-[#0E0E11] text-white flex flex-col pb-24 font-sans">
       <BackgroundVideo />
 
       {/* Announcement Top Bar */}
       {announcement && (
         <div
-          className="relative z-20 w-full py-2.5 text-white text-center text-xs font-bold tracking-wide shadow-md"
+          className="relative z-20 w-full py-2.5 text-white text-center text-xs font-black tracking-wide shadow-md"
           style={{ backgroundColor: accentColor }}
         >
           {announcement}
@@ -440,15 +440,15 @@ export default function TenantStorePage({ params }: PageProps) {
             />
           ) : (
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg"
               style={{ backgroundColor: accentColor }}
             >
               {(storeName || "S").charAt(0).toUpperCase()}
             </div>
           )}
           <div>
-            <h1 className="text-xl font-bold tracking-tight">{storeName}</h1>
-            <span className="text-xs text-[#707070]">
+            <h1 className="text-xl font-black tracking-tight">{storeName}</h1>
+            <span className="text-xs text-zinc-500 font-medium">
               {niche ? `${niche} • Sklep Internetowy` : "Oficjalny Sklep Internetowy"}
             </span>
           </div>
@@ -456,12 +456,12 @@ export default function TenantStorePage({ params }: PageProps) {
 
         <button
           onClick={() => setIsCartOpen(true)}
-          className="px-5 py-2.5 bg-[#17171B] hover:bg-white/10 border border-white/10 rounded-[12px] text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
+          className="px-5 py-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
         >
           <span>🛒 Koszyk</span>
           {cart.length > 0 && (
             <span
-              className="w-5 h-5 rounded-full text-white text-[11px] font-bold flex items-center justify-center"
+              className="w-5 h-5 rounded-full text-white text-[11px] font-black flex items-center justify-center"
               style={{ backgroundColor: accentColor }}
             >
               {cart.reduce((s, i) => s + (i.quantity || 1), 0)}
@@ -471,7 +471,8 @@ export default function TenantStorePage({ params }: PageProps) {
       </header>
 
       {/* Main Content Area */}
-      <div className="relative z-10 w-full px-6 xl:px-[140px] pt-10 flex flex-col gap-8">
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 xl:px-[140px] pt-10 flex flex-col gap-8">
+        
         {/* Category Filter Pills */}
         {categories.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -480,7 +481,7 @@ export default function TenantStorePage({ params }: PageProps) {
               className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 selectedCategoryId === "all"
                   ? "text-white shadow-lg"
-                  : "bg-[#17171B] text-[#A1A1AA] hover:text-white border border-white/10"
+                  : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
               }`}
               style={{
                 backgroundColor: selectedCategoryId === "all" ? accentColor : undefined,
@@ -496,7 +497,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   selectedCategoryId === cat.id
                     ? "text-white shadow-lg"
-                    : "bg-[#17171B] text-[#A1A1AA] hover:text-white border border-white/10"
+                    : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
                 }`}
                 style={{
                   backgroundColor: selectedCategoryId === cat.id ? accentColor : undefined,
@@ -511,8 +512,10 @@ export default function TenantStorePage({ params }: PageProps) {
 
         {/* Product Grid */}
         {filteredProducts.length === 0 ? (
-          <div className="p-12 text-center bg-[#17171B] border border-white/10 rounded-[24px] flex flex-col items-center">
-            <p className="text-sm text-[#707070]">Brak dostępnych produktów w sklepie.</p>
+          <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl flex flex-col items-center">
+            <span className="text-3xl mb-3">📦</span>
+            <p className="text-sm font-bold text-white">Brak dostępnych produktów w sklepie.</p>
+            <p className="text-xs text-zinc-500 mt-1">Wkrótce pojawią się nowe kolekcje.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -525,14 +528,16 @@ export default function TenantStorePage({ params }: PageProps) {
                   new Date(prod.dropTargetDate).getTime() > Date.now()
               );
 
+              const currentVariant = selectedVariants[prod.id] || (prod.variants && prod.variants[0]) || "";
+
               return (
                 <div
                   key={prod.id}
-                  className="group p-5 bg-[#17171B] border border-white/[0.08] hover:border-[#FF5B28]/50 rounded-[24px] transition-all flex flex-col justify-between shadow-xl"
+                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-[#FF5B28]/50 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
                 >
                   <div>
                     {/* Image Container */}
-                    <div className="relative w-full h-52 rounded-[18px] bg-[#0E0E11] overflow-hidden">
+                    <div className="relative w-full h-56 rounded-2xl bg-[#0E0E11] overflow-hidden">
                       <img
                         src={
                           prod.image ||
@@ -544,31 +549,54 @@ export default function TenantStorePage({ params }: PageProps) {
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold backdrop-blur-md ${
                             prod.isDigital ? "bg-cyan-500/80 text-white" : "bg-purple-500/80 text-white"
                           }`}
                         >
-                          {prod.isDigital ? "💻 Produkt Cyfrowy" : "📦 Produkt Fizyczny"}
+                          {prod.isDigital ? "💻 Cyfrowy" : "📦 Fizyczny"}
                         </span>
                         {isLockedProductDrop && (
-                          <span className="px-2.5 py-1 bg-amber-500/90 text-black rounded-full text-[10px] font-extrabold backdrop-blur-md">
-                            🔒 Oczekuje na Drop
+                          <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black backdrop-blur-md">
+                            🔒 Drop Only
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <h3 className="mt-4 font-bold text-lg text-white group-hover:text-[#FF5B28] transition-colors">
+                    <h3 className="mt-4 font-black text-lg text-white group-hover:text-[#FF5B28] transition-colors">
                       {prod.name}
                     </h3>
-                    <p className="mt-1 text-xs text-[#707070] line-clamp-2">{prod.description}</p>
+                    <p className="mt-1 text-xs text-zinc-400 line-clamp-2">{prod.description}</p>
+
+                    {/* Variant / Size Picker Pills */}
+                    {prod.variants && prod.variants.length > 0 && (
+                      <div className="mt-4">
+                        <span className="text-[10px] font-extrabold uppercase text-zinc-500 block mb-1.5">Wybierz Wariant / Rozmiar:</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {prod.variants.map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => handleSelectVariant(prod.id, v)}
+                              className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                                currentVariant === v
+                                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25 border border-[#FF5B28]"
+                                  : "bg-[#0E0E11] text-zinc-400 hover:text-white border border-white/10"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-4 flex items-baseline gap-3">
-                      <span className="text-2xl font-extrabold text-[#FF5B28]">
+                      <span className="text-2xl font-black text-[#FF5B28] font-mono">
                         {prod.price}
                       </span>
                       {prod.comparePrice && (
-                        <span className="text-xs text-[#707070] line-through font-semibold">
+                        <span className="text-xs text-zinc-500 line-through font-mono">
                           {prod.comparePrice}
                         </span>
                       )}
@@ -578,9 +606,9 @@ export default function TenantStorePage({ params }: PageProps) {
                   <button
                     onClick={() => addToCart(prod)}
                     disabled={isLockedProductDrop}
-                    className={`mt-6 w-full py-3 font-bold text-xs rounded-[12px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                    className={`mt-6 w-full py-3.5 font-black text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
                       isLockedProductDrop
-                        ? "bg-white/10 text-[#707070] cursor-not-allowed"
+                        ? "bg-white/10 text-zinc-500 cursor-not-allowed"
                         : "bg-[#FF5B28] hover:bg-[#e04f20] text-white shadow-[#FF5B28]/20"
                     }`}
                   >
@@ -596,36 +624,41 @@ export default function TenantStorePage({ params }: PageProps) {
       {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md h-full bg-[#17171B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl">
+          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <h2 className="text-lg font-bold">Twój Koszyk</h2>
+                <h2 className="text-lg font-black text-white">Twój Koszyk ({cart.length})</h2>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="text-xs text-[#A1A1AA] hover:text-white font-bold cursor-pointer"
+                  className="text-xs text-zinc-400 hover:text-white font-bold cursor-pointer"
                 >
                   Zamknij ✕
                 </button>
               </div>
 
               {cart.length === 0 ? (
-                <p className="mt-8 text-center text-xs text-[#707070]">Koszyk jest pusty.</p>
+                <p className="mt-8 text-center text-xs text-zinc-500">Koszyk jest pusty.</p>
               ) : (
-                <div className="mt-6 flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
-                  {cart.map((item) => (
+                <div className="mt-6 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+                  {cart.map((item, idx) => (
                     <div
-                      key={item.product?.id || Math.random().toString()}
-                      className="p-4 bg-[#0E0E11] border border-white/10 rounded-[16px] flex items-center justify-between"
+                      key={idx}
+                      className="p-4 bg-[#0E0E11] border border-white/10 rounded-2xl flex items-center justify-between"
                     >
                       <div>
-                        <h4 className="font-bold text-xs text-white">{item.product?.name}</h4>
-                        <span className="text-xs font-bold text-[#FF5B28]">
+                        <h4 className="font-extrabold text-xs text-white">{item.product?.name}</h4>
+                        {item.selectedVariant && (
+                          <span className="text-[10px] font-mono text-zinc-400 block mt-0.5">
+                            Wariant: <strong className="text-white">{item.selectedVariant}</strong>
+                          </span>
+                        )}
+                        <span className="text-xs font-black text-[#FF5B28] font-mono mt-1 block">
                           {item.product?.price} x {item.quantity}
                         </span>
                       </div>
                       <button
-                        onClick={() => removeFromCart(item.product?.id || "")}
-                        className="text-xs text-red-400 font-bold cursor-pointer"
+                        onClick={() => removeFromCart(item.product?.id || "", item.selectedVariant)}
+                        className="text-xs text-red-400 font-bold hover:underline cursor-pointer"
                       >
                         Usuń
                       </button>
@@ -638,17 +671,17 @@ export default function TenantStorePage({ params }: PageProps) {
             {cart.length > 0 && (
               <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
                 <div className="flex items-center justify-between text-sm font-bold">
-                  <span>Suma do zapłaty:</span>
-                  <span className="text-xl text-emerald-400">
+                  <span className="text-zinc-400">Suma do zapłaty:</span>
+                  <span className="text-2xl font-black text-emerald-400 font-mono">
                     {(cartTotalCents / 100).toFixed(2)} PLN
                   </span>
                 </div>
                 <button
                   onClick={handleStripeCheckout}
                   disabled={checkoutLoading}
-                  className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs rounded-[12px] transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-black text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
                 >
-                  {checkoutLoading ? "Przetwarzanie..." : "💳 Kup przez Stripe (Test Mode)"}
+                  {checkoutLoading ? "Przetwarzanie..." : "💳 Kup przez Stripe (Bezpieczna Płatność)"}
                 </button>
               </div>
             )}
@@ -659,12 +692,12 @@ export default function TenantStorePage({ params }: PageProps) {
       {/* DIGITAL FILE DOWNLOAD SUCCESS MODAL */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#17171B] border border-emerald-500/50 rounded-[28px] p-6 sm:p-8 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-lg bg-[#18181B] border border-emerald-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-3xl mb-4">
               🎉
             </div>
-            <h2 className="text-2xl font-extrabold text-white">Dziękujemy za zakup!</h2>
-            <p className="text-xs text-[#A1A1AA] mt-1 max-w-md">
+            <h2 className="text-2xl font-black text-white">Dziękujemy za zakup!</h2>
+            <p className="text-xs text-zinc-400 mt-1 max-w-md">
               Płatność Stripe została zaksięgowana. Poniżej znajduje się Twój zakupiony plik cyfrowy gotowy do natychmiastowego pobrania:
             </p>
 
@@ -678,7 +711,7 @@ export default function TenantStorePage({ params }: PageProps) {
                     <div>
                       <h4 className="text-sm font-bold text-white">{prod.name}</h4>
                       <span className="text-[11px] text-purple-300 font-mono">
-                        {prod.digitalFileName || "Poradnik_Cyfrowy.pdf"} ({prod.digitalFileSize || "15.4 MB"})
+                        {prod.digitalFileName || "Plik_Cyfrowy.pdf"} ({prod.digitalFileSize || "15.4 MB"})
                       </span>
                     </div>
                   </div>
