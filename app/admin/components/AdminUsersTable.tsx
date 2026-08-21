@@ -146,7 +146,7 @@ export default function AdminUsersTable({
   // Drawer Editing Form State
   const [selectedPlan, setSelectedPlan] = useState<"Starter" | "Brand" | "Pro">("Brand");
   const [expirationDateTime, setExpirationDateTime] = useState("2026-12-31T23:59");
-  const [customReason, setCustomReason] = useState("Weryfikacja płatności / Naruszenie regulaminu platformy motywo.pl");
+  const [customReason, setCustomReason] = useState("Weryfikacja płatności / Naruszenie regulaminu platformy iskral.pl");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
@@ -386,7 +386,7 @@ export default function AdminUsersTable({
                                     <Store className="w-3.5 h-3.5 text-[#FF5B28] shrink-0" />
                                     <span className="text-white font-extrabold">{st.name}</span>
                                     <span className="text-cyan-400 font-mono text-[11px]">
-                                      ({st.subdomain}.motywo.pl)
+                                      ({st.subdomain}.iskral.pl)
                                     </span>
                                   </div>
 
@@ -675,7 +675,7 @@ export default function AdminUsersTable({
                               </span>
                             </div>
                             <span className="text-xs text-cyan-400 font-mono mt-0.5 block">
-                              {st.subdomain}.motywo.pl
+                              {st.subdomain}.iskral.pl
                             </span>
                           </div>
 

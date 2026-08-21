@@ -29,9 +29,9 @@ export default function AdminWaitlistTab() {
   const [loading, setLoading] = useState(true);
 
   const [isMailingModalOpen, setIsMailingModalOpen] = useState(false);
-  const [emailSubject, setEmailSubject] = useState("Odpalamy motywo.pl! Twój kod na start: MOTYWO2026");
+  const [emailSubject, setEmailSubject] = useState("Odpalamy iskral.pl! Twój kod na start: ISKRAL2026");
   const [emailContent, setEmailContent] = useState(
-    "Cześć! Platforma motywo.pl oficjalnie wystartowała. Twój 14-dniowy darmowy dostęp oraz specjalny rabat powitalny czekają na Ciebie."
+    "Cześć! Platforma iskral.pl oficjalnie wystartowała. Twój 14-dniowy darmowy dostęp oraz specjalny rabat powitalny czekają na Ciebie."
   );
   const [sendingMailing, setSendingMailing] = useState(false);
   const [mailingSuccessMessage, setMailingSuccessMessage] = useState<string | null>(null);

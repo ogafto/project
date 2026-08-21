@@ -141,18 +141,18 @@ export default function TenantStorePage({ params }: PageProps) {
             Okres rozliczeniowy lub darmowy trial tego sklepu dobiegł końca. Subdomena oraz zasoby sklepu pozostają zarezerwowane dla właściciela w okresie karencji.
           </p>
           <div className="pt-2 flex flex-col gap-3">
-            <Link
-              href="/logowanie"
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] text-white font-bold text-sm hover:opacity-90 transition shadow-lg shadow-[#FF5B28]/20 flex items-center justify-center gap-2"
+            <a
+              href="https://iskral.pl/logowanie"
+              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] text-white font-bold text-sm hover:opacity-90 transition shadow-lg shadow-[#FF5B28]/20 flex items-center justify-center gap-2 text-center"
             >
               Właścicielu? Zaloguj się i opłać pakiet
-            </Link>
-            <Link
-              href="/"
-              className="w-full py-3 px-6 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-white/10 transition flex items-center justify-center"
+            </a>
+            <a
+              href="https://iskral.pl"
+              className="w-full py-3 px-6 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-white/10 transition flex items-center justify-center text-center"
             >
               Strona główna platformy
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -309,7 +309,7 @@ export default function TenantStorePage({ params }: PageProps) {
             Przepraszamy, ten sklep jest w tej chwili niedostępny. Płatności oraz składanie nowych zamówień zostały tymczasowo wstrzymane.
           </p>
           <div className="mt-6 p-4 w-full bg-[#0B0C0E] border border-white/[0.08] rounded-xl text-[11px] text-[#707075]">
-            Skontaktuj się z administratorem platformy <strong className="text-white">motywo.pl</strong>, aby odblokować dostęp.
+            Skontaktuj się z administratorem platformy <strong className="text-white">iskral.pl</strong>, aby odblokować dostęp.
           </div>
         </div>
       </main>

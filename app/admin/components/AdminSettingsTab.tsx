@@ -29,7 +29,7 @@ export default function AdminSettingsTab() {
             <span>Bezpieczeństwo i Uprawnienia Superadmina</span>
           </h2>
           <p className="text-xs text-[#A1A1AA] mt-1">
-            Główne konto Superadmina posiada stały, niezmienialny dostęp do platformy motywo.pl bez opcji edycji ról w zwykłym interfejsie.
+            Główne konto Superadmina posiada stały, niezmienialny dostęp do platformy iskral.pl bez opcji edycji ról w zwykłym interfejsie.
           </p>
         </div>
 

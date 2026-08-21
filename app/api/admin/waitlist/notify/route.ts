@@ -4,8 +4,8 @@ import { supabaseAdmin, supabase, isSupabaseConfigured } from "@/lib/supabase";
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const subject = body.subject || "Odpalamy motywo.pl! Twój kod na start: MOTYWO2026";
-    const content = body.content || "Twój darmowy 14-dniowy dostęp do motywo.pl jest już aktywny.";
+    const subject = body.subject || "Odpalamy iskral.pl! Twój kod na start: ISKRAL2026";
+    const content = body.content || "Twój darmowy 14-dniowy dostęp do iskral.pl jest już aktywny.";
     const now = new Date().toISOString();
 
     let notifiedEmails: string[] = [];

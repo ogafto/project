@@ -61,7 +61,7 @@ export default function AdminNavbar({
                 Tryb Impersonacji Aktywny
               </span>
               <p className="text-xs text-amber-100/90 font-medium">
-                Zarządzasz obecnie sklepem: <strong className="text-white">{impersonatedStore ? impersonatedStore.name : impersonatedStoreId}</strong> {impersonatedStore ? `(${impersonatedStore.subdomain}.motywo.pl)` : ""}
+                Zarządzasz obecnie sklepem: <strong className="text-white">{impersonatedStore ? impersonatedStore.name : impersonatedStoreId}</strong> {impersonatedStore ? `(${impersonatedStore.subdomain}.iskral.pl)` : ""}
               </p>
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function AdminNavbar({
           <Link href="/admin" className="flex items-center gap-3 shrink-0">
             <Image
               src="/logo.svg"
-              alt="Motywo Logo"
+              alt="Iskral Logo"
               width={140}
               height={32}
               className="w-[130px] h-auto object-contain"

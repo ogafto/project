@@ -337,11 +337,11 @@ const CLEAN_EMPTY_STORE_TEMPLATE: StoreConfig = {
   team: [],
 };
 
-// Super-Admin Account: projekt@motywo.pl / motywo1!
+// Super-Admin Account: projekt@iskral.pl / iskral1!
 const ADMIN_USER: User = {
   id: "usr_admin_projekt",
   name: "Administrator",
-  email: "projekt@motywo.pl",
+  email: "projekt@iskral.pl",
   role: "superadmin",
   plan: "Brand",
   billingCycle: "rok",
@@ -358,7 +358,7 @@ const ADMIN_USER: User = {
       ...CLEAN_EMPTY_STORE_TEMPLATE,
       id: "t_admin_projekt",
       name: "Sklep Główny Admina",
-      subdomain: "admin-store",
+      subdomain: "gigantto",
       balanceCents: 0,
       stripeStatus: "connected",
       planType: "Brand",
@@ -368,7 +368,7 @@ const ADMIN_USER: User = {
     ...CLEAN_EMPTY_STORE_TEMPLATE,
     id: "t_admin_projekt",
     name: "Sklep Główny Admina",
-    subdomain: "admin-store",
+    subdomain: "gigantto",
     balanceCents: 0,
     stripeStatus: "connected",
     planType: "Brand",
@@ -382,7 +382,7 @@ const DEFAULT_SUBSCRIPTION_HISTORY: SaaSSubscriptionRecord[] = [
     id: "sub_101",
     tenantId: "t_admin_projekt",
     userId: "usr_admin_projekt",
-    userEmail: "projekt@motywo.pl",
+    userEmail: "projekt@iskral.pl",
     planName: "Brand",
     billingCycle: "rok",
     amountPaidCents: 59900,
@@ -397,7 +397,7 @@ const DEFAULT_BLOG_POSTS: BlogPost[] = [
     category: "E-Commerce",
     content: "Poznaj sprawdzony przewodnik krok po kroku budowania marży...",
     date: "2026-08-10",
-    author: "Zespół motywo.pl",
+    author: "Zespół iskral.pl",
   },
 ];
 
@@ -415,17 +415,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cookieAllUsers) {
         try {
           const parsed: User[] = JSON.parse(cookieAllUsers);
-          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@motywo.pl")) {
+          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@iskral.pl" || u.email.toLowerCase() === "projekt@motywo.pl")) {
             parsed.unshift(ADMIN_USER);
           }
           return parsed;
         } catch {}
       }
-      const saved = localStorage.getItem("motywo_users_v11");
+      const saved = localStorage.getItem("iskra_users_v12") || localStorage.getItem("motywo_users_v11");
       if (saved) {
         try {
           const parsed: User[] = JSON.parse(saved);
-          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@motywo.pl")) {
+          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@iskral.pl" || u.email.toLowerCase() === "projekt@motywo.pl")) {
             parsed.unshift(ADMIN_USER);
           }
           return parsed;
@@ -525,7 +525,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setAuthCookie("iskra_all_users", JSON.stringify(allUsers));
-      localStorage.setItem("motywo_users_v11", JSON.stringify(allUsers));
+      localStorage.setItem("iskra_users_v12", JSON.stringify(allUsers));
     }
   }, [allUsers]);
 
@@ -533,17 +533,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       if (user) {
         setAuthCookie("iskra_session", JSON.stringify(user));
-        localStorage.setItem("motywo_current_user_v11", JSON.stringify(user));
+        localStorage.setItem("iskra_current_user_v12", JSON.stringify(user));
+
+        // Automatyczna synchronizacja wszystkich sklepów użytkownika do bazy danych Supabase
+        const storesToSync = user.stores && user.stores.length > 0 ? user.stores : user.store ? [user.store] : [];
+        storesToSync.forEach((st) => {
+          if (st && st.subdomain) {
+            upsertStoreInSupabase(st).catch(() => {});
+            fetch("/api/stores/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ store: st }),
+            }).catch(() => {});
+          }
+        });
       } else {
         deleteAuthCookie("iskra_session");
-        localStorage.removeItem("motywo_current_user_v11");
+        localStorage.removeItem("iskra_current_user_v12");
       }
     }
   }, [user]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("motywo_subs_history_v11", JSON.stringify(subscriptionHistory));
+      localStorage.setItem("iskra_subs_history_v12", JSON.stringify(subscriptionHistory));
     }
   }, [subscriptionHistory]);
 
@@ -601,6 +614,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Asynchronously sync store mutation to Supabase PostgreSQL database
     upsertStoreInSupabase(updatedStore).catch(() => {});
+    fetch("/api/stores/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store: updatedStore }),
+    }).catch(() => {});
 
     const currentStores = user.stores && user.stores.length > 0 ? user.stores : [updatedStore];
     const exists = currentStores.some((s) => s.id === updatedStore.id);
@@ -1055,6 +1073,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (priceCents > 0) {
       recordSaaSSubscription(updatedStore.id, user.id, user.email, plan, priceCents);
     }
+
+    // Wysyłka potwierdzenia pakietu na e-mail
+    if (user.email) {
+      const planNameFormatted = isTrial ? "Pakiet Start (Trial 14 dni)" : `Pakiet ${plan} (${billingCycle})`;
+      const amountFormatted = isTrial ? "0.00 PLN (Okres Próbny)" : `${(priceCents / 100).toFixed(2)} PLN`;
+      const expiresFormatted = isTrial ? "14 dni" : billingCycle === "rok" ? "1 rok (365 dni)" : "30 dni";
+
+      fetch("/api/auth/send-plan-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          planName: planNameFormatted,
+          amountFormatted,
+          expiresAtFormatted: `${expiresFormatted} (do: ${new Date(expiresAt).toLocaleDateString("pl-PL")})`,
+          dashboardUrl: "https://iskral.pl/dashboard",
+        }),
+      }).catch(console.warn);
+    }
   };
 
   const createStripeCheckout = async (params: {
@@ -1454,6 +1491,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn(`[Store] Nie udało się zapisać sklepu '${updatedStore.subdomain}' do Supabase`);
       }
     }).catch(console.error);
+
+    fetch("/api/stores/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store: updatedStore }),
+    }).catch(() => {});
 
     const priceCents = isTrial ? 0 : params.plan === "Creator" || params.plan === "starter" ? (params.billingCycle === "rok" ? 29900 : 4990) : (params.billingCycle === "rok" ? 59900 : 9990);
     if (priceCents > 0) {

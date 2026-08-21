@@ -76,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </span>
           <h1 className="mt-4 text-xl font-extrabold text-white tracking-tight">Wymagane Uprawnienia Admina</h1>
           <p className="mt-2 text-xs text-zinc-400 leading-relaxed">
-            Dostęp do tej sekcji posiadają wyłącznie konta z uprawnieniami Właściciel / Superadmin w serwisie motywo.pl.
+            Dostęp do tej sekcji posiadają wyłącznie konta z uprawnieniami Właściciel / Superadmin w serwisie iskral.pl.
           </p>
           <Link
             href="/dashboard"
@@ -117,11 +117,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-3">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-[#111216] p-3 px-6 rounded-2xl border border-white/5 shadow-xl">
           
-          {/* Left: motywo.pl Brand Logo (Official /logo.svg) */}
+          {/* Left: iskral.pl Brand Logo (Official /logo.svg) */}
           <Link href="/admin" className="flex items-center shrink-0">
             <img
               src="/logo.svg"
-              alt="motywo.pl"
+              alt="iskral.pl"
               className="h-8 sm:h-9 w-auto object-contain cursor-pointer"
             />
           </Link>

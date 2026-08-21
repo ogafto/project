@@ -276,9 +276,9 @@ export default function DashboardPage() {
   // 2FA Authenticator Modal & Input state
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [totpVerificationInput, setTotpVerificationInput] = useState("");
-  const totpSecret = "MOTYWO2FASEC2026KEY";
+  const totpSecret = "ISKRAL2FASEC2026KEY";
   const totpQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-    `otpauth://totp/Motywo.pl:${user?.email || "klient@motywo.pl"}?secret=${totpSecret}&issuer=Motywo.pl`
+    `otpauth://totp/Iskral.pl:${user?.email || "klient@iskral.pl"}?secret=${totpSecret}&issuer=Iskral.pl`
   )}`;
 
   const handleVerifyAndActivate2FA = (e: React.FormEvent) => {
@@ -329,7 +329,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (activeStore) {
       setStoreNameInput(activeStore.name || "");
-      setStoreDescriptionInput(activeStore.description || "Oficjalny sklep marki motywo.pl");
+      setStoreDescriptionInput(activeStore.description || "Oficjalny sklep marki iskral.pl");
       setSubdomainInput(activeStore.subdomain || "");
       setCustomDomainInput(activeStore.customDomain || "");
       setLogoUrlInput(activeStore.logoUrl || "");
@@ -348,11 +348,11 @@ export default function DashboardPage() {
       // SEO
       setMetaTitleInput(activeStore.seoConfig?.metaTitle || `${activeStore.name} | Sklep Odzieżowy & Drop`);
       setMetaDescriptionInput(activeStore.seoConfig?.metaDescription || `Kupuj ubrania i akcesoria w sklepie ${activeStore.name}. Szybka wysyłka, oryginalne projekty.`);
-      setKeywordsInput(activeStore.seoConfig?.keywords || `sklep, moda, streetwear, ${activeStore.subdomain}, motywo`);
+      setKeywordsInput(activeStore.seoConfig?.keywords || `sklep, moda, streetwear, ${activeStore.subdomain}, iskral`);
 
       // Legal Terms
-      setTermsOfServiceInput(activeStore.legalTerms?.termsOfService || "Regulamin Sklepu Internetowego motywo.pl...");
-      setPrivacyPolicyInput(activeStore.legalTerms?.privacyPolicy || "Polityka Prywatności i Plików Cookies motywo.pl...");
+      setTermsOfServiceInput(activeStore.legalTerms?.termsOfService || "Regulamin Sklepu Internetowego iskral.pl...");
+      setPrivacyPolicyInput(activeStore.legalTerms?.privacyPolicy || "Polityka Prywatności i Plików Cookies iskral.pl...");
     }
   }, [activeStore]);
 
@@ -713,7 +713,7 @@ export default function DashboardPage() {
             >
               ← Powrót do Panelu Sklepu
             </button>
-            <span className="text-xs text-zinc-400 font-mono">Panel Twórcy Motywo</span>
+            <span className="text-xs text-zinc-400 font-mono">Panel Twórcy Iskral</span>
           </div>
 
           <StoreBuilderWizard
@@ -794,11 +794,11 @@ export default function DashboardPage() {
       <header className="relative z-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-3">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-[#111216] p-3 px-6 rounded-2xl border border-white/5 shadow-xl">
           
-          {/* Left: motywo.pl Brand Logo (Official /logo.svg) */}
+          {/* Left: iskral.pl Brand Logo (Official /logo.svg) */}
           <Link href="/dashboard" className="flex items-center shrink-0">
             <img
               src="/logo.svg"
-              alt="motywo.pl"
+              alt="iskral.pl"
               className="h-8 sm:h-9 w-auto object-contain cursor-pointer"
             />
           </Link>

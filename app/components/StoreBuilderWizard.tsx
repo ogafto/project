@@ -214,6 +214,17 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
         } : undefined,
       });
 
+      // Synchronizacja sklepu do Supabase API
+      try {
+        await fetch("/api/stores/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ store: createdStore }),
+        });
+      } catch (syncErr) {
+        console.warn("Store sync API notice:", syncErr);
+      }
+
       // 2. Check if Stripe Checkout is required for Paid SaaS plan (Creator or Brand)
       const isPaidPlan = selectedPlan === "Creator" || selectedPlan === "Brand";
 
@@ -224,7 +235,7 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
 
         const checkoutUrl = await createStripeCheckout({
           planType: selectedPlan,
-          title: `Subskrypcja Motywo SaaS - Pakiet ${selectedPlan} (${billingCycle})`,
+          title: `Subskrypcja Iskral SaaS - Pakiet ${selectedPlan} (${billingCycle})`,
           priceCents: saasPriceCents,
           tenantId: createdStore.id,
         });
@@ -232,6 +243,21 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
           return;
+        }
+      } else {
+        // Send free trial confirmation email
+        if (user?.email) {
+          fetch("/api/auth/send-plan-confirmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              planName: "Pakiet Start (Darmowy Trial 14 dni)",
+              amountFormatted: "0.00 PLN (Okres Próbny)",
+              expiresAtFormatted: "14 dni",
+              dashboardUrl: "https://iskral.pl/dashboard",
+            }),
+          }).catch(console.warn);
         }
       }
 
@@ -262,7 +288,7 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
                 {step === 4 && "Krok 4: Pierwszy Produkt & Pliki Cyfrowe"}
               </h2>
               <p className="text-xs sm:text-sm text-[#707070]">
-                Kreator Sklepu Internetowego Motywo — skonfiguruj sklep w mniej niż 2 minuty.
+                Kreator Sklepu Internetowego Iskral — skonfiguruj sklep w mniej niż 2 minuty.
               </p>
             </div>
           </div>
@@ -512,7 +538,7 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[#A1A1AA] mb-2">
-                  Darmowa Subdomena Motywo *
+                  Darmowa Subdomena Iskral *
                 </label>
                 <div className="flex items-center bg-[#0E0E11] border border-white/10 rounded-xl overflow-hidden focus-within:border-[#FF5B28]">
                   <input
@@ -985,7 +1011,7 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
             <span className="font-bold text-[#FF5B28] block text-sm mb-2">📋 Podsumowanie nowego sklepu:</span>
             <p className="text-white">• Nazwa Sklepu: <strong className="text-emerald-400">{storeName}</strong></p>
             <p className="text-white">• Logo: <strong className="text-emerald-400">{logoUrl ? "Wgrane ze zbioru plików ✓" : "Brak (Domyślny inicjał)"}</strong></p>
-            <p className="text-white">• Domena: <strong className="text-emerald-400">https://{subdomain}.motywo.pl</strong></p>
+            <p className="text-white">• Domena: <strong className="text-emerald-400">https://{subdomain}.iskral.pl</strong></p>
             <p className="text-white">• Wybrany Pakiet: <strong className="text-emerald-400">{selectedPlan} ({billingCycle})</strong></p>
             <p className="text-white">• Szablon: <strong className="text-emerald-400">{selectedTemplate}</strong></p>
           </div>

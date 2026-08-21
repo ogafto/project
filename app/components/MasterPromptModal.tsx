@@ -31,7 +31,7 @@ Rola: Jesteś starszym inżynierem oprogramowania i architektem Full-Stack tworz
 5. Statystyki: Obrót, średni koszyk, konwersja.
 6. Kampania E-mail: Newsletter i mailing do kupujących.
 7. Baza Klientów: Lista kupujących z historią zamówień.
-8. Domena: Subdomena .motywo.pl, własna domena i weryfikator rekordów DNS (Rekord A, CNAME).
+8. Domena: Subdomena .iskral.pl, własna domena i weryfikator rekordów DNS (Rekord A, CNAME).
 9. Team Collaboration: Dodawanie współpracowników z uprawnieniami (Edytor, Produkty, Statystyki, Obsługa Zamówień, Finanse).
 
 ### 5. Panel Administratora:
