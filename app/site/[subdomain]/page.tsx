@@ -44,10 +44,11 @@ export default function TenantStorePage({ params }: PageProps) {
           dropTargetDate: p.drop_target_date,
           salesCount: p.sales || 0,
           sales: p.sales || 0,
-          stock: p.stock || 50,
+          stock: p.stock !== undefined ? p.stock : 50,
+          image: p.image_url || "",
           imageUrl: p.image_url || "",
-          images: p.images || [],
-          isDigital: p.is_digital || false,
+          images: p.images && p.images.length > 0 ? p.images : [p.image_url || ""].filter(Boolean),
+          isDigital: Boolean(p.is_digital || p.type === "Cyfrowy"),
           digitalFileName: p.digital_file_name,
           digitalFileUrl: p.digital_file_url,
         }));
@@ -267,14 +268,14 @@ export default function TenantStorePage({ params }: PageProps) {
       title: `${store.name} - Zamówienie (${cart.length} przedm.)`,
       priceCents: cartTotalCents,
       tenantId: store.id,
-      customerEmail: "klient@motywo.pl",
+      customerEmail: "klient@iskral.pl",
     });
 
     if (checkoutUrl) {
       window.location.href = checkoutUrl;
     } else {
       // Direct checkout recording fallback
-      recordOrder(store.id, firstItem.id, "klient@motywo.pl", cartTotalCents);
+      recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
       setCart([]);
       setIsCartOpen(false);
 
