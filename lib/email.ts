@@ -9,7 +9,7 @@ const getResendClient = () => {
   return new Resend(apiKey);
 };
 
-const SENDER_EMAIL = process.env.RESEND_FROM_EMAIL || "Iskral Auth <no-reply@iskral.pl>";
+const SENDER_EMAIL = "Iskral Auth <no-reply@iskral.pl>";
 
 /**
  * 1. Wysyłanie kodu weryfikacyjnego OTP
@@ -22,7 +22,7 @@ export async function sendOtpEmail({
   code: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   const resend = getResendClient();
-  const cleanEmail = to.trim().toLowerCase();
+  const cleanEmail = (to || "").trim().toLowerCase();
 
   if (!resend) {
     return { success: false, error: "Brak skonfigurowanego klucza RESEND_API_KEY w pliku środowiskowym." };

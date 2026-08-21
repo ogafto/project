@@ -883,11 +883,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string): Promise<boolean> => {
     const cleanEmail = email.toLowerCase().trim();
+    setPendingEmail(cleanEmail);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("iskra_pending_email", cleanEmail);
+    }
+
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
     if (existing) {
       if (!existing.isEmailVerified) {
         setPendingUserToVerify(existing);
-        setPendingEmail(existing.email);
         const sent = await sendOTP(cleanEmail);
         return sent;
       }

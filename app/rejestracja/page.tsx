@@ -45,11 +45,14 @@ export default function RejestracjaPage() {
     setLoading(true);
 
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("iskra_pending_email", formattedEmail);
+      }
       const ok = await register(formattedName, formattedEmail);
       if (ok) {
         router.push("/potwierdzenie-email");
       } else {
-        setError(message?.text || "Nie udało się założyć konta. Spróbuj ponownie.");
+        setError(message?.text || "Konto o tym adresie e-mail już istnieje lub wystąpił błąd.");
       }
     } catch (err: any) {
       setError("Błąd rejestracji: " + (err.message || err));
