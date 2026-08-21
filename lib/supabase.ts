@@ -51,59 +51,64 @@ export const supabaseAdmin = supabaseAdminClient || supabaseClient;
  * Safe & fast query to fetch store by subdomain, custom domain, or ID
  */
 export async function fetchStoreFromSupabase(subdomain: string): Promise<any | null> {
-  if (!supabase) {
-    return null;
+  const cleanSub = (subdomain || "").trim().toLowerCase();
+  if (!cleanSub) return null;
+
+  if (supabase) {
+    try {
+      // Zapytanie 1: szukamy po subdomenie (najczęstszy przypadek)
+      const { data: bySubdomain, error: err1 } = await (supabase as any)
+        .from("stores")
+        .select("*")
+        .eq("subdomain", cleanSub)
+        .limit(1);
+
+      if (!err1 && bySubdomain && bySubdomain.length > 0) {
+        return bySubdomain[0];
+      }
+
+      // Zapytanie 2: szukamy po własnej domenie
+      const { data: byDomain, error: err2 } = await (supabase as any)
+        .from("stores")
+        .select("*")
+        .eq("custom_domain", cleanSub)
+        .limit(1);
+
+      if (!err2 && byDomain && byDomain.length > 0) {
+        return byDomain[0];
+      }
+
+      // Zapytanie 3: szukamy po ID (fallback)
+      const { data: byId, error: err3 } = await (supabase as any)
+        .from("stores")
+        .select("*")
+        .eq("id", cleanSub)
+        .limit(1);
+
+      if (!err3 && byId && byId.length > 0) {
+        return byId[0];
+      }
+    } catch (err) {
+      console.warn("[Supabase] Direct store fetch error, attempting API fallback:", err);
+    }
   }
-  try {
-    const cleanSub = (subdomain || "").trim().toLowerCase();
-    if (!cleanSub) return null;
 
-    // Zapytanie 1: szukamy po subdomenie (najczęstszy przypadek)
-    const { data: bySubdomain, error: err1 } = await (supabase as any)
-      .from("stores")
-      .select("*")
-      .eq("subdomain", cleanSub)
-      .limit(1);
-
-    if (!err1 && bySubdomain && bySubdomain.length > 0) {
-      console.log(`[Supabase] Store found by subdomain: '${cleanSub}'`);
-      return bySubdomain[0];
+  // Fallback: pobieranie przez wewnętrzne API serwera
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch(`/api/stores/sync?subdomain=${encodeURIComponent(cleanSub)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.store) {
+          return json.store;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[Supabase] API fallback fetch error:", apiErr);
     }
-
-    if (err1) {
-      console.warn(`[Supabase] Store subdomain query warning for '${cleanSub}':`, err1.message);
-    }
-
-    // Zapytanie 2: szukamy po własnej domenie
-    const { data: byDomain, error: err2 } = await (supabase as any)
-      .from("stores")
-      .select("*")
-      .eq("custom_domain", cleanSub)
-      .limit(1);
-
-    if (!err2 && byDomain && byDomain.length > 0) {
-      console.log(`[Supabase] Store found by custom_domain: '${cleanSub}'`);
-      return byDomain[0];
-    }
-
-    // Zapytanie 3: szukamy po ID (fallback)
-    const { data: byId, error: err3 } = await (supabase as any)
-      .from("stores")
-      .select("*")
-      .eq("id", cleanSub)
-      .limit(1);
-
-    if (!err3 && byId && byId.length > 0) {
-      console.log(`[Supabase] Store found by id: '${cleanSub}'`);
-      return byId[0];
-    }
-
-    console.warn(`[Supabase] No store found for '${cleanSub}'`);
-    return null;
-  } catch (err) {
-    console.error("[Supabase] Unexpected error fetching store:", err);
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -160,23 +165,39 @@ export async function checkSubdomainAvailability(
  * Safe & fast query to fetch products for a store ID
  */
 export async function fetchProductsFromSupabase(storeId: string): Promise<any[]> {
-  if (!supabase || !storeId) return [];
-  try {
-    const { data, error } = await (supabase as any)
-      .from("products")
-      .select("*")
-      .eq("store_id", storeId);
+  if (!storeId) return [];
 
-    if (error) {
-      console.warn(`[Supabase] Products query warning for store '${storeId}':`, error.message);
-      return [];
+  if (supabase) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from("products")
+        .select("*")
+        .eq("store_id", storeId);
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn(`[Supabase] Products query warning for store '${storeId}':`, err);
     }
-
-    return data || [];
-  } catch (err) {
-    console.error("[Supabase] Unexpected error fetching products:", err);
-    return [];
   }
+
+  // Fallback API
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch(`/api/stores/sync?subdomain=${encodeURIComponent(storeId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.products) {
+          return json.products;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[Supabase] Products API fallback error:", apiErr);
+    }
+  }
+
+  return [];
 }
 
 /**
@@ -184,7 +205,6 @@ export async function fetchProductsFromSupabase(storeId: string): Promise<any[]>
  * Uses supabaseAdmin to bypass RLS and avoid FK constraint issues
  */
 export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
-  // Use admin client to bypass RLS; fall back to anon client
   const client: any = supabaseAdminClient || supabaseClient;
   if (!client) {
     console.warn("[Supabase] No client available for store upsert");
@@ -218,9 +238,6 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
       social_links: storeData.socials || {},
       theme_config: { template: storeData.template, accentColor: storeData.accentColor },
       drop_config: storeData.dropConfig || {},
-      // owner_id is intentionally omitted to avoid FK constraint issues
-      // when the profile doesn't exist in Supabase yet
-      // trial_ends_at, grace_period_ends_at - columns don't exist in current DB schema
     };
 
     console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id})...`);
@@ -238,4 +255,3 @@ export async function upsertStoreInSupabase(storeData: any): Promise<boolean> {
     return false;
   }
 }
-

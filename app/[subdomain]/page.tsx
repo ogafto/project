@@ -3,19 +3,24 @@
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 import NotFoundPage from "@/app/not-found";
 
 interface PageProps {
-  params: Promise<{ subdomain: string }>;
+  params: Promise<{ subdomain: string }> | { subdomain: string };
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default function TenantStorePage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  const subdomain = resolvedParams.subdomain;
+  // Safe unwrap of Promise params for Next.js 15+ / 16+ & sync fallback
+  const resolvedParams =
+    params && typeof (params as any).then === "function"
+      ? use(params as Promise<{ subdomain: string }>)
+      : (params as { subdomain: string });
+  const rawSubdomain = resolvedParams?.subdomain || "";
+  const subdomain = decodeURIComponent(rawSubdomain).toLowerCase().trim();
 
   const { allUsers, createStripeCheckout, recordOrder } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
@@ -27,61 +32,66 @@ export default function TenantStorePage({ params }: PageProps) {
         setIsDBLoading(false);
         return;
       }
-      const dbData = await fetchStoreFromSupabase(subdomain);
-      if (dbData) {
-        const dbProducts = await fetchProductsFromSupabase(dbData.id);
-        const mappedProducts = dbProducts.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description || "",
-          price: p.price || `${(p.price_cents / 100).toFixed(2)} PLN`,
-          priceCents: p.price_cents,
-          comparePrice: p.compare_price,
-          comparePriceCents: p.compare_price_cents,
-          type: p.type || "Fizyczny",
-          status: p.status || "Aktywny",
-          isDropOnly: p.is_drop_only || false,
-          dropTargetDate: p.drop_target_date,
-          salesCount: p.sales || 0,
-          sales: p.sales || 0,
-          stock: p.stock !== undefined ? p.stock : 50,
-          image: p.image_url || "",
-          imageUrl: p.image_url || "",
-          images: p.images && p.images.length > 0 ? p.images : [p.image_url || ""].filter(Boolean),
-          isDigital: Boolean(p.is_digital || p.type === "Cyfrowy"),
-          digitalFileName: p.digital_file_name,
-          digitalFileUrl: p.digital_file_url,
-        }));
+      try {
+        const dbData = await fetchStoreFromSupabase(subdomain);
+        if (dbData) {
+          const dbProducts = await fetchProductsFromSupabase(dbData.id);
+          const mappedProducts: Product[] = dbProducts.map((p: any) => ({
+            id: p.id,
+            tenantId: dbData.id,
+            name: p.name,
+            description: p.description || "",
+            price: p.price || `${(p.price_cents / 100).toFixed(2)} PLN`,
+            priceCents: p.price_cents,
+            comparePrice: p.compare_price,
+            comparePriceCents: p.compare_price_cents,
+            type: p.type || "Fizyczny",
+            status: p.status || "Aktywny",
+            isDropOnly: p.is_drop_only || false,
+            dropTargetDate: p.drop_target_date,
+            sales: p.sales || 0,
+            stock: p.stock !== undefined ? p.stock : 50,
+            image: p.image_url || "",
+            images: p.images && p.images.length > 0 ? p.images : [p.image_url || ""].filter(Boolean),
+            isDigital: Boolean(p.is_digital || p.type === "Cyfrowy"),
+            digitalFileName: p.digital_file_name,
+            digitalFileSize: p.digital_file_size,
+            digitalFileUrl: p.digital_file_url,
+          }));
 
-        setAsyncStore({
-          id: dbData.id,
-          name: dbData.name,
-          subdomain: dbData.subdomain,
-          customDomain: dbData.custom_domain || "",
-          domainVerified: Boolean(dbData.domain_verified),
-          logoUrl: dbData.logo_url || "",
-          description: dbData.description || "",
-          announcement: dbData.announcement || "",
-          niche: dbData.niche || "",
-          template: dbData.template || "Dark Vibe",
-          accentColor: dbData.accent_color || "#FF5B28",
-          stripeStatus: dbData.stripe_status || "disconnected",
-          balanceCents: dbData.balance_cents || 0,
-          planType: dbData.plan_type || "Start",
-          planStatus: dbData.plan_status || "active",
-          status: dbData.status || "active",
-          socials: dbData.social_links || {},
-          dropConfig: dbData.drop_config || { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
-          categories: [],
-          products: mappedProducts,
-          orders: [],
-          payoutHistory: [],
-          customers: [],
-          campaigns: [],
-          team: [],
-        });
+          setAsyncStore({
+            id: dbData.id,
+            name: dbData.name,
+            subdomain: dbData.subdomain,
+            customDomain: dbData.custom_domain || "",
+            domainVerified: Boolean(dbData.domain_verified),
+            logoUrl: dbData.logo_url || "",
+            description: dbData.description || "",
+            announcement: dbData.announcement || "",
+            niche: dbData.niche || "",
+            template: dbData.template || "Dark Vibe",
+            accentColor: dbData.accent_color || "#FF5B28",
+            stripeStatus: dbData.stripe_status || "disconnected",
+            balanceCents: dbData.balance_cents || 0,
+            planType: dbData.plan_type || "Start",
+            planStatus: dbData.plan_status || "active",
+            status: dbData.status || "active",
+            socials: dbData.social_links || {},
+            dropConfig: dbData.drop_config || { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
+            categories: [],
+            products: mappedProducts,
+            orders: [],
+            payoutHistory: [],
+            customers: [],
+            campaigns: [],
+            team: [],
+          });
+        }
+      } catch (err) {
+        console.error("[TenantStorePage] Error loading store from DB:", err);
+      } finally {
+        setIsDBLoading(false);
       }
-      setIsDBLoading(false);
     }
     loadFromDB();
   }, [subdomain]);
@@ -91,14 +101,13 @@ export default function TenantStorePage({ params }: PageProps) {
   let ownerUser: User | undefined;
 
   if (subdomain) {
-    const cleanSubdomain = subdomain.toLowerCase();
     for (const u of allUsers) {
       const uStores = u.stores || (u.store ? [u.store] : []);
       const found = uStores.find(
         (s) =>
-          s.subdomain?.toLowerCase() === cleanSubdomain ||
-          s.customDomain?.toLowerCase() === cleanSubdomain ||
-          s.id === cleanSubdomain
+          s.subdomain?.toLowerCase() === subdomain ||
+          s.customDomain?.toLowerCase() === subdomain ||
+          s.id === subdomain
       );
       if (found) {
         targetStore = found;
@@ -113,7 +122,7 @@ export default function TenantStorePage({ params }: PageProps) {
   }
 
   // Verification:
-  // 1. Store must exist in database/users records
+  // 1. Store must exist in database or user records
   // 2. Owner user must have an active account status
   // 3. Store must have an active status / plan status
   const isOwnerActive = ownerUser
@@ -169,7 +178,7 @@ export default function TenantStorePage({ params }: PageProps) {
       <div className="min-h-screen bg-[#090A0C] text-white flex items-center justify-center p-6 font-sans">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#FF5B28] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-mono text-zinc-400">Ładowanie sklepu...</span>
+          <span className="text-xs font-mono text-zinc-400">Ładowanie sklepu: {subdomain}...</span>
         </div>
       </div>
     );
@@ -202,7 +211,7 @@ export default function TenantStorePage({ params }: PageProps) {
       } else {
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const minutes = Math.floor((diff % (1000 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         setTimeLeft({ days, hours, minutes, seconds });
       }

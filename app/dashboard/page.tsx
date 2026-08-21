@@ -1752,9 +1752,21 @@ export default function DashboardPage() {
                   <span>← Powrót do Listy Sklepów</span>
                 </button>
 
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-zinc-400">Edytujesz sklep:</span>
-                  <strong className="text-white font-extrabold">{currentStore.name}</strong>
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-400">Edytujesz sklep:</span>
+                    <strong className="text-white font-extrabold">{currentStore.name}</strong>
+                  </div>
+
+                  <a
+                    href={getStoreUrl(currentStore.subdomain, currentStore.customDomain)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-[11px] rounded-full shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>🌐 Odwiedź Sklep ({currentStore.subdomain})</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </div>
 

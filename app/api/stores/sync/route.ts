@@ -1,6 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
 
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const subdomain = searchParams.get("subdomain")?.toLowerCase().trim();
+
+    if (!subdomain) {
+      return NextResponse.json({ success: false, error: "Brak parametru subdomeny." }, { status: 400 });
+    }
+
+    const dbClient: any = supabaseAdmin || supabase;
+    if (!dbClient) {
+      return NextResponse.json({ success: false, error: "Brak klienta Supabase." }, { status: 500 });
+    }
+
+    // 1. Znajdź sklep po subdomenie, domenie własnej lub ID
+    const { data: stores, error: storeErr } = await dbClient
+      .from("stores")
+      .select("*")
+      .or(`subdomain.eq.${subdomain},custom_domain.eq.${subdomain},id.eq.${subdomain}`)
+      .limit(1);
+
+    if (storeErr || !stores || stores.length === 0) {
+      return NextResponse.json({ success: false, store: null, products: [] }, { status: 404 });
+    }
+
+    const store = stores[0];
+
+    // 2. Pobierz produkty dla tego sklepu
+    const { data: products, error: prodErr } = await dbClient
+      .from("products")
+      .select("*")
+      .eq("store_id", store.id);
+
+    return NextResponse.json({
+      success: true,
+      store,
+      products: products || [],
+    });
+  } catch (err: any) {
+    console.error("[API /api/stores/sync GET Exception]:", err);
+    return NextResponse.json({ success: false, error: err.message || "Błąd serwera" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

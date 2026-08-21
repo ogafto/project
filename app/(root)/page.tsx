@@ -1,7 +1,7 @@
-import BadgeUp from "./components/badgeup";
-import BackgroundVideo from "./components/BackgroundVideo";
-import Hero from "./components/hero";
-import SliderLog from "./components/sliderlog";
+import BadgeUp from "../components/badgeup";
+import BackgroundVideo from "../components/BackgroundVideo";
+import Hero from "../components/hero";
+import SliderLog from "../components/sliderlog";
 
 export default function Home() {
   return (
@@ -25,7 +25,3 @@ export default function Home() {
     </main>
   );
 }
-
-
-
-
