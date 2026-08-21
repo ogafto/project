@@ -22,7 +22,7 @@ export default function TenantStorePage({ params }: PageProps) {
   const rawSubdomain = resolvedParams?.subdomain || "";
   const subdomain = decodeURIComponent(rawSubdomain).toLowerCase().trim();
 
-  const { allUsers, createStripeCheckout, recordOrder } = useAuth();
+  const { allUsers = [], createStripeCheckout, recordOrder } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
   const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
 
@@ -35,50 +35,62 @@ export default function TenantStorePage({ params }: PageProps) {
       try {
         const dbData = await fetchStoreFromSupabase(subdomain);
         if (dbData) {
-          const dbProducts = await fetchProductsFromSupabase(dbData.id);
-          const mappedProducts: Product[] = dbProducts.map((p: any) => ({
-            id: p.id,
-            tenantId: dbData.id,
-            name: p.name,
-            description: p.description || "",
-            price: p.price || `${(p.price_cents / 100).toFixed(2)} PLN`,
-            priceCents: p.price_cents,
-            comparePrice: p.compare_price,
-            comparePriceCents: p.compare_price_cents,
-            type: p.type || "Fizyczny",
-            status: p.status || "Aktywny",
-            isDropOnly: p.is_drop_only || false,
-            dropTargetDate: p.drop_target_date,
-            sales: p.sales || 0,
-            stock: p.stock !== undefined ? p.stock : 50,
-            image: p.image_url || "",
-            images: p.images && p.images.length > 0 ? p.images : [p.image_url || ""].filter(Boolean),
-            isDigital: Boolean(p.is_digital || p.type === "Cyfrowy"),
-            digitalFileName: p.digital_file_name,
-            digitalFileSize: p.digital_file_size,
-            digitalFileUrl: p.digital_file_url,
-          }));
+          let dbProducts: any[] = [];
+          try {
+            dbProducts = (await fetchProductsFromSupabase(dbData.id)) || [];
+          } catch (prodErr) {
+            console.error("Błąd ładowania produktów sklepu:", prodErr);
+          }
+
+          const mappedProducts: Product[] = Array.isArray(dbProducts)
+            ? dbProducts.map((p: any) => ({
+                id: p?.id || `p_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                tenantId: dbData?.id || "",
+                categoryId: p?.category_id || undefined,
+                name: p?.name || "Produkt",
+                description: p?.description || "",
+                price: p?.price || `${(((p?.price_cents ?? 0) / 100) || 0).toFixed(2)} PLN`,
+                priceCents: typeof p?.price_cents === "number" ? p.price_cents : 0,
+                comparePrice: p?.compare_price || undefined,
+                comparePriceCents: p?.compare_price_cents || undefined,
+                type: p?.type === "Cyfrowy" ? "Cyfrowy" : "Fizyczny",
+                status: p?.status === "Nieaktywny" || p?.status === "Zawieszony" ? "Zawieszony" : "Aktywny",
+                isDropOnly: Boolean(p?.is_drop_only),
+                dropTargetDate: p?.drop_target_date || undefined,
+                sales: p?.sales ?? 0,
+                stock: typeof p?.stock === "number" ? p.stock : 50,
+                image: p?.image_url || p?.image || "",
+                imageUrl: p?.image_url || p?.image || "",
+                images: Array.isArray(p?.images) && p.images.length > 0 ? p.images : [p?.image_url || p?.image || ""].filter(Boolean),
+                isDigital: Boolean(p?.is_digital || p?.type === "Cyfrowy"),
+                digitalFileName: p?.digital_file_name || undefined,
+                digitalFileSize: p?.digital_file_size || undefined,
+                digitalFileUrl: p?.digital_file_url || undefined,
+              }))
+            : [];
 
           setAsyncStore({
-            id: dbData.id,
-            name: dbData.name,
-            subdomain: dbData.subdomain,
-            customDomain: dbData.custom_domain || "",
-            domainVerified: Boolean(dbData.domain_verified),
-            logoUrl: dbData.logo_url || "",
-            description: dbData.description || "",
-            announcement: dbData.announcement || "",
-            niche: dbData.niche || "",
-            template: dbData.template || "Dark Vibe",
-            accentColor: dbData.accent_color || "#FF5B28",
-            stripeStatus: dbData.stripe_status || "disconnected",
-            balanceCents: dbData.balance_cents || 0,
-            planType: dbData.plan_type || "Start",
-            planStatus: dbData.plan_status || "active",
-            status: dbData.status || "active",
-            socials: dbData.social_links || {},
-            dropConfig: dbData.drop_config || { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
-            categories: [],
+            id: dbData?.id || `t_${subdomain}`,
+            name: dbData?.name || `Sklep ${subdomain}`,
+            subdomain: dbData?.subdomain || subdomain,
+            customDomain: dbData?.custom_domain || "",
+            domainVerified: Boolean(dbData?.domain_verified),
+            logoUrl: dbData?.logo_url || "",
+            description: dbData?.description || "",
+            announcement: dbData?.announcement || "",
+            niche: dbData?.niche || "Sklep Internetowy",
+            template: dbData?.template || "Dark Vibe",
+            accentColor: dbData?.accent_color || "#FF5B28",
+            stripeStatus: dbData?.stripe_status || "disconnected",
+            balanceCents: typeof dbData?.balance_cents === "number" ? dbData.balance_cents : 0,
+            planType: dbData?.plan_type || "Start",
+            planStatus: dbData?.plan_status || "active",
+            status: dbData?.status || "active",
+            socials: (typeof dbData?.social_links === "object" && dbData?.social_links !== null) ? dbData.social_links : {},
+            dropConfig: (typeof dbData?.drop_config === "object" && dbData?.drop_config !== null)
+              ? dbData.drop_config
+              : { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
+            categories: Array.isArray(dbData?.categories) ? dbData.categories : [],
             products: mappedProducts,
             orders: [],
             payoutHistory: [],
@@ -87,8 +99,8 @@ export default function TenantStorePage({ params }: PageProps) {
             team: [],
           });
         }
-      } catch (err) {
-        console.error("[TenantStorePage] Error loading store from DB:", err);
+      } catch (error) {
+        console.error("Błąd ładowania sklepu:", error);
       } finally {
         setIsDBLoading(false);
       }
@@ -101,13 +113,13 @@ export default function TenantStorePage({ params }: PageProps) {
   let ownerUser: User | undefined;
 
   if (subdomain) {
-    for (const u of allUsers) {
-      const uStores = u.stores || (u.store ? [u.store] : []);
+    for (const u of allUsers || []) {
+      const uStores = u?.stores || (u?.store ? [u.store] : []);
       const found = uStores.find(
         (s) =>
-          s.subdomain?.toLowerCase() === subdomain ||
-          s.customDomain?.toLowerCase() === subdomain ||
-          s.id === subdomain
+          s?.subdomain?.toLowerCase() === subdomain ||
+          s?.customDomain?.toLowerCase() === subdomain ||
+          s?.id === subdomain
       );
       if (found) {
         targetStore = found;
@@ -189,10 +201,18 @@ export default function TenantStorePage({ params }: PageProps) {
   }
 
   const store: StoreConfig = targetStore;
+  const storeName = store.name || `Sklep ${subdomain || ""}`;
+  const accentColor = store.accentColor || "#FF5B28";
+  const logoUrl = store.logoUrl || "";
+  const announcement = store.announcement || "";
+  const niche = store.niche || "Sklep Internetowy";
+  const categories = store.categories ?? [];
+  const products = store.products ?? [];
 
   const isDropActive = Boolean(
     store.dropConfig?.enabled &&
       store.dropConfig?.targetDate &&
+      !isNaN(new Date(store.dropConfig.targetDate).getTime()) &&
       new Date(store.dropConfig.targetDate).getTime() > Date.now()
   );
 
@@ -201,17 +221,19 @@ export default function TenantStorePage({ params }: PageProps) {
 
   useEffect(() => {
     if (!isDropActive || !store.dropConfig?.targetDate) return;
+    const targetTime = new Date(store.dropConfig.targetDate).getTime();
+    if (isNaN(targetTime)) return;
+
     const interval = setInterval(() => {
-      const target = new Date(store.dropConfig.targetDate).getTime();
       const now = Date.now();
-      const diff = target - now;
+      const diff = targetTime - now;
 
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       } else {
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60)) / (1000 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         setTimeLeft({ days, hours, minutes, seconds });
       }
@@ -226,26 +248,29 @@ export default function TenantStorePage({ params }: PageProps) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const categories = store.categories || [];
-  const products = store.products || [];
-
   const filteredProducts =
     selectedCategoryId === "all"
       ? products
-      : products.filter((p) => p.categoryId === selectedCategoryId);
+      : products.filter((p) => p && p.categoryId === selectedCategoryId);
 
   const addToCart = (product: Product) => {
+    if (!product) return;
     // Prevent adding locked drop products
-    if (product.isDropOnly && product.dropTargetDate && new Date(product.dropTargetDate).getTime() > Date.now()) {
+    if (
+      product.isDropOnly &&
+      product.dropTargetDate &&
+      !isNaN(new Date(product.dropTargetDate).getTime()) &&
+      new Date(product.dropTargetDate).getTime() > Date.now()
+    ) {
       alert("Ten produkt wyjdzie dopiero w dniu premiery dropu!");
       return;
     }
 
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find((item) => item.product?.id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.product?.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prev, { product, quantity: 1 }];
@@ -254,11 +279,11 @@ export default function TenantStorePage({ params }: PageProps) {
   };
 
   const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+    setCart((prev) => prev.filter((item) => item.product?.id !== productId));
   };
 
   const cartTotalCents = cart.reduce(
-    (sum, item) => sum + (item.product.priceCents || 1000) * item.quantity,
+    (sum, item) => sum + (item.product?.priceCents ?? 1000) * (item.quantity ?? 1),
     0
   );
 
@@ -269,33 +294,41 @@ export default function TenantStorePage({ params }: PageProps) {
     if (cart.length === 0) return;
     setCheckoutLoading(true);
 
-    const firstItem = cart[0].product;
-    const digitalItems = cart.map((i) => i.product).filter((p) => p.isDigital || p.digitalFileUrl);
+    try {
+      const firstItem = cart[0]?.product;
+      const digitalItems = cart.map((i) => i.product).filter((p) => p && (p.isDigital || p.digitalFileUrl));
 
-    const checkoutUrl = await createStripeCheckout({
-      productId: firstItem.id,
-      title: `${store.name} - Zamówienie (${cart.length} przedm.)`,
-      priceCents: cartTotalCents,
-      tenantId: store.id,
-      customerEmail: "klient@iskral.pl",
-    });
+      const checkoutUrl = await createStripeCheckout({
+        productId: firstItem?.id || "order_prod",
+        title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
+        priceCents: cartTotalCents,
+        tenantId: store.id || `t_${subdomain}`,
+        customerEmail: "klient@iskral.pl",
+      });
 
-    if (checkoutUrl) {
-      window.location.href = checkoutUrl;
-    } else {
-      // Direct checkout recording fallback
-      recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
-      setCart([]);
-      setIsCartOpen(false);
-
-      if (digitalItems.length > 0) {
-        setPurchasedDigitalItems(digitalItems);
-        setShowSuccessModal(true);
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
       } else {
-        alert("🎉 Zamówienie opłacone pomyślnie przez Stripe! Transakcja trafiła do panelu sklepu.");
+        // Direct checkout recording fallback
+        if (store.id && firstItem?.id) {
+          recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
+        }
+        setCart([]);
+        setIsCartOpen(false);
+
+        if (digitalItems.length > 0) {
+          setPurchasedDigitalItems(digitalItems);
+          setShowSuccessModal(true);
+        } else {
+          alert("🎉 Zamówienie opłacone pomyślnie przez Stripe! Transakcja trafiła do panelu sklepu.");
+        }
       }
+    } catch (checkoutErr) {
+      console.error("Błąd podczas realizacji zamówienia Stripe:", checkoutErr);
+      alert("Wystąpił problem z realizacją zamówienia. Spróbuj ponownie.");
+    } finally {
+      setCheckoutLoading(false);
     }
-    setCheckoutLoading(false);
   };
 
   const isSuspended = store.status === "suspended" || store.planStatus === "suspended";
@@ -338,7 +371,7 @@ export default function TenantStorePage({ params }: PageProps) {
           </span>
 
           <h1 className="mt-6 text-4xl sm:text-5xl font-extrabold tracking-tight">
-            {store.name}
+            {storeName}
           </h1>
 
           <p className="mt-3 text-sm text-[#A1A1AA] max-w-md">
@@ -387,30 +420,36 @@ export default function TenantStorePage({ params }: PageProps) {
       <BackgroundVideo />
 
       {/* Announcement Top Bar */}
-      {store.announcement && (
-        <div className="relative z-20 w-full py-2.5 bg-[#FF5B28] text-white text-center text-xs font-bold tracking-wide shadow-md">
-          {store.announcement}
+      {announcement && (
+        <div
+          className="relative z-20 w-full py-2.5 text-white text-center text-xs font-bold tracking-wide shadow-md"
+          style={{ backgroundColor: accentColor }}
+        >
+          {announcement}
         </div>
       )}
 
       {/* Navbar Header */}
       <header className="relative z-10 w-full px-6 xl:px-[140px] py-6 flex items-center justify-between border-b border-white/[0.08] bg-[#0E0E11]/80 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          {store.logoUrl ? (
+          {logoUrl ? (
             <img
-              src={store.logoUrl}
-              alt={store.name}
+              src={logoUrl}
+              alt={storeName}
               className="h-10 w-auto max-w-[180px] object-contain rounded-lg"
             />
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FF5B28] to-orange-400 flex items-center justify-center font-bold text-white text-lg shadow-lg">
-              {store.name.charAt(0)}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-lg"
+              style={{ backgroundColor: accentColor }}
+            >
+              {(storeName || "S").charAt(0).toUpperCase()}
             </div>
           )}
           <div>
-            <h1 className="text-xl font-bold tracking-tight">{store.name}</h1>
+            <h1 className="text-xl font-bold tracking-tight">{storeName}</h1>
             <span className="text-xs text-[#707070]">
-              {store.niche ? `${store.niche} • Sklep Internetowy` : "Oficjalny Sklep Internetowy"}
+              {niche ? `${niche} • Sklep Internetowy` : "Oficjalny Sklep Internetowy"}
             </span>
           </div>
         </div>
@@ -421,8 +460,11 @@ export default function TenantStorePage({ params }: PageProps) {
         >
           <span>🛒 Koszyk</span>
           {cart.length > 0 && (
-            <span className="w-5 h-5 rounded-full bg-[#FF5B28] text-white text-[11px] font-bold flex items-center justify-center">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
+            <span
+              className="w-5 h-5 rounded-full text-white text-[11px] font-bold flex items-center justify-center"
+              style={{ backgroundColor: accentColor }}
+            >
+              {cart.reduce((s, i) => s + (i.quantity || 1), 0)}
             </span>
           )}
         </button>
@@ -437,9 +479,13 @@ export default function TenantStorePage({ params }: PageProps) {
               onClick={() => setSelectedCategoryId("all")}
               className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 selectedCategoryId === "all"
-                  ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/30"
+                  ? "text-white shadow-lg"
                   : "bg-[#17171B] text-[#A1A1AA] hover:text-white border border-white/10"
               }`}
+              style={{
+                backgroundColor: selectedCategoryId === "all" ? accentColor : undefined,
+                boxShadow: selectedCategoryId === "all" ? `0 10px 15px -3px ${accentColor}40` : undefined,
+              }}
             >
               Wszystkie Produkty ({products.length})
             </button>
@@ -449,9 +495,13 @@ export default function TenantStorePage({ params }: PageProps) {
                 onClick={() => setSelectedCategoryId(cat.id)}
                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   selectedCategoryId === cat.id
-                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/30"
+                    ? "text-white shadow-lg"
                     : "bg-[#17171B] text-[#A1A1AA] hover:text-white border border-white/10"
                 }`}
+                style={{
+                  backgroundColor: selectedCategoryId === cat.id ? accentColor : undefined,
+                  boxShadow: selectedCategoryId === cat.id ? `0 10px 15px -3px ${accentColor}40` : undefined,
+                }}
               >
                 {cat.name}
               </button>
@@ -467,9 +517,11 @@ export default function TenantStorePage({ params }: PageProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((prod) => {
+              if (!prod) return null;
               const isLockedProductDrop = Boolean(
                 prod.isDropOnly &&
                   prod.dropTargetDate &&
+                  !isNaN(new Date(prod.dropTargetDate).getTime()) &&
                   new Date(prod.dropTargetDate).getTime() > Date.now()
               );
 
@@ -484,10 +536,10 @@ export default function TenantStorePage({ params }: PageProps) {
                       <img
                         src={
                           prod.image ||
-                          (prod.images && prod.images[0]) ||
+                          (Array.isArray(prod.images) && prod.images[0]) ||
                           "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"
                         }
-                        alt={prod.name}
+                        alt={prod.name || "Produkt"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
@@ -562,17 +614,17 @@ export default function TenantStorePage({ params }: PageProps) {
                 <div className="mt-6 flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
                   {cart.map((item) => (
                     <div
-                      key={item.product.id}
+                      key={item.product?.id || Math.random().toString()}
                       className="p-4 bg-[#0E0E11] border border-white/10 rounded-[16px] flex items-center justify-between"
                     >
                       <div>
-                        <h4 className="font-bold text-xs text-white">{item.product.name}</h4>
+                        <h4 className="font-bold text-xs text-white">{item.product?.name}</h4>
                         <span className="text-xs font-bold text-[#FF5B28]">
-                          {item.product.price} x {item.quantity}
+                          {item.product?.price} x {item.quantity}
                         </span>
                       </div>
                       <button
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.product?.id || "")}
                         className="text-xs text-red-400 font-bold cursor-pointer"
                       >
                         Usuń
