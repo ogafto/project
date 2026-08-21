@@ -14,7 +14,7 @@ interface PageProps {
 }
 
 export default function TenantStorePage({ params }: PageProps) {
-  // Safe unwrap of Promise params for Next.js 15+ / 16+ & sync fallback
+  // 1. ALL HOOKS MUST BE UNCONDITIONALLY EXECUTED AT THE TOP (Rules of Hooks)
   const resolvedParams =
     params && typeof (params as any).then === "function"
       ? use(params as Promise<{ subdomain: string }>)
@@ -25,7 +25,15 @@ export default function TenantStorePage({ params }: PageProps) {
   const { allUsers = [], createStripeCheckout, recordOrder } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
   const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
+  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [purchasedDigitalItems, setPurchasedDigitalItems] = useState<Product[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
+  // 2. Load store & products from Supabase
   useEffect(() => {
     async function loadFromDB() {
       if (!subdomain) {
@@ -108,7 +116,7 @@ export default function TenantStorePage({ params }: PageProps) {
     loadFromDB();
   }, [subdomain]);
 
-  // Find store by subdomain or custom domain across all users and stores, or use Supabase store
+  // 3. Resolve targetStore
   let targetStore: StoreConfig | undefined;
   let ownerUser: User | undefined;
 
@@ -133,10 +141,41 @@ export default function TenantStorePage({ params }: PageProps) {
     targetStore = asyncStore;
   }
 
-  // Verification:
-  // 1. Store must exist in database or user records
-  // 2. Owner user must have an active account status
-  // 3. Store must have an active status / plan status
+  const isDropActive = Boolean(
+    targetStore?.dropConfig?.enabled &&
+      targetStore?.dropConfig?.targetDate &&
+      !isNaN(new Date(targetStore.dropConfig.targetDate).getTime()) &&
+      new Date(targetStore.dropConfig.targetDate).getTime() > Date.now()
+  );
+
+  // 4. Drop mode timer effect - MUST BE CALLED UNCONDITIONALLY BEFORE ANY RETURNS
+  useEffect(() => {
+    if (!isDropActive || !targetStore?.dropConfig?.targetDate) return;
+    const targetTime = new Date(targetStore.dropConfig.targetDate).getTime();
+    if (isNaN(targetTime)) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = targetTime - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isDropActive, targetStore?.dropConfig?.targetDate]);
+
+  // ==========================================
+  // CONDITIONAL RENDERING STARTS HERE (SAFE)
+  // ==========================================
+
   const isOwnerActive = ownerUser
     ? ownerUser.accountStatus !== "Blocked" && ownerUser.accountStatus !== "Suspended"
     : true;
@@ -148,6 +187,7 @@ export default function TenantStorePage({ params }: PageProps) {
       targetStore.planStatus !== "suspended"
     : false;
 
+  // Suspended store condition
   if (targetStore && !isStoreActive) {
     return (
       <div className="min-h-screen bg-[#090A0C] text-white flex flex-col items-center justify-center px-4 relative overflow-hidden font-sans">
@@ -181,10 +221,12 @@ export default function TenantStorePage({ params }: PageProps) {
     );
   }
 
+  // Not found after loading finishes
   if (!isDBLoading && (!targetStore || !isOwnerActive)) {
     return <NotFoundPage />;
   }
 
+  // Loading spinner
   if (isDBLoading && !targetStore) {
     return (
       <div className="min-h-screen bg-[#090A0C] text-white flex items-center justify-center p-6 font-sans">
@@ -208,45 +250,6 @@ export default function TenantStorePage({ params }: PageProps) {
   const niche = store.niche || "Sklep Internetowy";
   const categories = store.categories ?? [];
   const products = store.products ?? [];
-
-  const isDropActive = Boolean(
-    store.dropConfig?.enabled &&
-      store.dropConfig?.targetDate &&
-      !isNaN(new Date(store.dropConfig.targetDate).getTime()) &&
-      new Date(store.dropConfig.targetDate).getTime() > Date.now()
-  );
-
-  // Ticking countdown for drop mode
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
-  useEffect(() => {
-    if (!isDropActive || !store.dropConfig?.targetDate) return;
-    const targetTime = new Date(store.dropConfig.targetDate).getTime();
-    if (isNaN(targetTime)) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const diff = targetTime - now;
-
-      if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      } else {
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft({ days, hours, minutes, seconds });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isDropActive, store.dropConfig?.targetDate]);
-
-  // Filtering & Cart State
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
-  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const filteredProducts =
     selectedCategoryId === "all"
@@ -286,9 +289,6 @@ export default function TenantStorePage({ params }: PageProps) {
     (sum, item) => sum + (item.product?.priceCents ?? 1000) * (item.quantity ?? 1),
     0
   );
-
-  const [purchasedDigitalItems, setPurchasedDigitalItems] = useState<Product[]>([]);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleStripeCheckout = async () => {
     if (cart.length === 0) return;
