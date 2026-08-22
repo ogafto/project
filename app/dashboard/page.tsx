@@ -298,9 +298,27 @@ export default function DashboardPage() {
   }
 
   // Derive user services/packages
-  const userServices: ServicePackage[] = user.services || [];
-  const hasPurchasedPackages = userServices.length > 0;
-  const hasConfiguredStore = userStores.length > 0 && user.hasStore;
+  const userServices: ServicePackage[] = (user.services && user.services.length > 0)
+    ? user.services
+    : (user.plan && user.plan !== "Brak")
+    ? [
+        {
+          id: `srv_${user.id || "active"}`,
+          number: 442,
+          title: (user.stores && user.stores[0]?.name) || `Pakiet ${user.plan} #442`,
+          planType: user.plan,
+          status: (user.stores && user.stores.length > 0 && user.hasStore) ? "Przypisany" : "Nieprzypisany",
+          assignedStoreId: (user.stores && user.stores[0]?.id) || user.store?.id,
+          assignedStoreName: (user.stores && user.stores[0]?.name) || user.store?.name || "Mój Sklep",
+          assignedSubdomain: (user.stores && user.stores[0]?.subdomain) || user.store?.subdomain || "dropwear",
+          expiresAt: user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pl-PL") : "21.09.2026, godz. 00:02",
+          createdAt: user.createdAt || new Date().toISOString(),
+        },
+      ]
+    : [];
+
+  const hasPurchasedPackages = userServices.length > 0 || (Boolean(user.plan) && user.plan !== "Brak");
+  const hasConfiguredStore = (userStores.length > 0 && user.hasStore) || userServices.some((s) => s.status === "Przypisany");
 
   const displayServices: ServicePackage[] = userServices;
 

@@ -409,11 +409,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<User[]>(() => {
     if (typeof window !== "undefined") {
-      const cookieAllUsers = getAuthCookie("iskra_all_users_clean_v1");
+      const cookieAllUsers = getAuthCookie("iskra_all_users");
       if (cookieAllUsers) {
         try {
           const parsed: User[] = JSON.parse(cookieAllUsers);
-          return parsed.map((u) => ({ ...u, hasStore: false, stores: [], store: undefined, services: [] }));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch {}
+      }
+      const saved = localStorage.getItem("iskra_users_v12");
+      if (saved) {
+        try {
+          const parsed: User[] = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
         } catch {}
       }
     }
@@ -426,15 +437,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cookieUser) {
         try {
           const parsed = JSON.parse(cookieUser);
-          if (parsed) {
-            return {
-              ...parsed,
-              hasStore: false,
-              stores: [],
-              store: undefined,
-              services: [],
-              activeStoreId: undefined,
-            };
+          if (parsed && parsed.email) {
+            return parsed;
+          }
+        } catch {}
+      }
+      const savedUser = localStorage.getItem("iskra_current_user_v12");
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.email) {
+            return parsed;
           }
         } catch {}
       }
