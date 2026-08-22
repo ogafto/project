@@ -143,6 +143,10 @@ export default function AeuxDashboard({
   // Billing Interval for Packages ("miesiac" | "rok")
   const [billingInterval, setBillingInterval] = useState<"miesiac" | "rok">("miesiac");
 
+  // Template Filter for Szablony tab ("Darmowe" | "Premium")
+  const [templateFilter, setTemplateFilter] = useState<"Darmowe" | "Premium">("Darmowe");
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string>("Dark Vibe");
+
   // User Packages State (Pakiety i sklepy użytkownika)
   const [userPackages, setUserPackages] = useState<UserPackage[]>(() => {
     if (typeof window !== "undefined") {
@@ -293,6 +297,19 @@ export default function AeuxDashboard({
     setConfigSubdomain("");
     setConfigLogo("");
     setShowConfigModal(true);
+  };
+
+  const handleSelectTemplate = (templateName: string) => {
+    setSelectedTemplateName(templateName);
+    if (updateStoreConfig) {
+      updateStoreConfig({ template: templateName });
+    }
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Wybrano szablon "${templateName}" jako aktywny motyw Twojego sklepu!`,
+      });
+    }
   };
 
   const handleStartRename = (pkg: UserPackage) => {
@@ -675,7 +692,7 @@ export default function AeuxDashboard({
                 {activeTab === "produkty" && "Sklep"}
                 {activeTab === "zamowienia" && "Zamówienia"}
                 {activeTab === "pakiety" && "Pakiety"}
-                {activeTab === "kreator" && "Kreator i Szablony"}
+                {activeTab === "kreator" && "Szablony"}
                 {activeTab === "drop" && "Tryb Dropu"}
                 {activeTab === "ustawienia" && "Ustawienia Konta"}
                 {activeTab === "profil" && "Twój Profil"}
@@ -697,7 +714,7 @@ export default function AeuxDashboard({
               {activeTab === "produkty" && "Wybierz pakiet dla swojej marki lub zarządzaj aktywnymi subskrypcjami."}
               {activeTab === "zamowienia" && "Historia zamówień i płatności Twoich klientów."}
               {activeTab === "pakiety" && "Przegląd ważności i przedłużanie subskrypcji."}
-              {activeTab === "kreator" && "Dopasuj unikalny motyw i wygląd swojego sklepu."}
+              {activeTab === "kreator" && "Wybierz gotowy motyw wizualny dla swojego sklepu."}
               {activeTab === "drop" && "Konfiguruj premiery i tryb odliczania do dropu."}
               {activeTab === "ustawienia" && "Zarządzaj danymi konta, podepnij domenę i skonfiguruj wypłaty."}
               {activeTab === "profil" && "Szczegóły profilu użytkownika i dane kontaktowe."}
@@ -1395,88 +1412,192 @@ export default function AeuxDashboard({
         {/* WIDOK 5: KREATOR & SZABLONY */}
         {/* ========================================================================= */}
         {activeTab === "kreator" && (
-          <div className="space-y-6 max-w-4xl">
-            <div>
-              <h2 className="text-lg font-bold text-white">Kreator i Wygląd Sklepu: {currentStore.name}</h2>
-              <p className="text-xs text-zinc-400">Dostosuj nazwę, subdomenę, szablon graficzny i ogłoszenia.</p>
-            </div>
-
-            <div className="bg-[#121620] border border-[#202738] rounded-2xl p-6 space-y-5 shadow-xl">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">Nazwa Sklepu</label>
-                  <input
-                    type="text"
-                    defaultValue={currentStore.name}
-                    onChange={(e) => updateStoreConfig && updateStoreConfig({ name: e.target.value })}
-                    className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">Subdomena (.iskral.pl)</label>
-                  <input
-                    type="text"
-                    defaultValue={currentStore.subdomain}
-                    onChange={(e) => updateStoreConfig && updateStoreConfig({ subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") })}
-                    className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">Pasek Ogłoszeń (Announcement Bar)</label>
-                <input
-                  type="text"
-                  defaultValue={currentStore.announcement}
-                  onChange={(e) => updateStoreConfig && updateStoreConfig({ announcement: e.target.value })}
-                  className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
-                />
-              </div>
-
-              {/* Wybór Szablonu */}
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-2">Szablon Graficzny Sklepu</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { name: "Dark Vibe", desc: "Mroczny streetwear z pomarańczowymi akcentami" },
-                    { name: "Minimal Clean", desc: "Czysty minimalizm i duże zdjęcia" },
-                    { name: "Cyber Drop", desc: "Futurystyczny szablon z zegarem dropu" },
-                  ].map((tpl) => (
-                    <button
-                      key={tpl.name}
-                      type="button"
-                      onClick={() => updateStoreConfig && updateStoreConfig({ template: tpl.name })}
-                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                        currentStore.template === tpl.name
-                          ? "bg-[#FF5A28]/15 border-[#FF5A28] text-white shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                          : "bg-[#181D2A] border-[#242D40] text-zinc-400 hover:border-zinc-500"
-                      }`}
-                    >
-                      <span className="font-bold text-xs block text-white">{tpl.name}</span>
-                      <span className="text-[11px] text-zinc-400 block mt-1">{tpl.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-3 flex justify-end gap-3">
-                <a
-                  href={liveStoreUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2.5 bg-[#181D2A] hover:bg-[#242D40] text-white font-bold text-xs rounded-xl transition-colors inline-flex items-center gap-1.5 border border-[#273245]"
-                >
-                  <span>Otwórz Sklep Live</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#FF5A28]" />
-                </a>
+          <div className="space-y-6 max-w-6xl">
+            
+            {/* PRZEŁĄCZNIK DARMOWE / PREMIUM - WYRÓWNANY DO LEWEJ, W STYLU NEON (#D0FF00) */}
+            <div className="flex justify-start items-center">
+              <div className="bg-[#0D0E12] border border-[#181A22] p-1.5 rounded-full inline-flex items-center gap-1.5">
                 <button
-                  onClick={() => setMessage && setMessage({ type: "success", text: "Zapisano konfigurację sklepu!" })}
-                  className="px-6 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-md"
+                  type="button"
+                  onClick={() => setTemplateFilter("Darmowe")}
+                  className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer ${
+                    templateFilter === "Darmowe"
+                      ? "bg-[#D0FF00] text-black shadow-sm font-bold"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
-                  Zapisz Zmiany
+                  Darmowe
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplateFilter("Premium")}
+                  className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer flex items-center gap-2 ${
+                    templateFilter === "Premium"
+                      ? "bg-[#D0FF00] text-black shadow-sm font-bold"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <span>Premium</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                      templateFilter === "Premium"
+                        ? "bg-black text-[#D0FF00]"
+                        : "bg-[#D0FF00] text-black"
+                    }`}
+                  >
+                    PRO
+                  </span>
                 </button>
               </div>
             </div>
+
+            {/* SIATKA SZABLONÓW */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+              {(templateFilter === "Darmowe" ? [
+                {
+                  id: "dark-vibe",
+                  name: "Dark Vibe",
+                  tier: "Pakiet Start",
+                  badgeText: "W Pakiecie Start",
+                  tag: "Streetwear Dark",
+                  desc: "Mroczny, minimalistyczny streetwear z mocnymi kontrastami i akcentami.",
+                  image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80",
+                  features: ["Responsywny layout", "Szybki koszyk boczny", "Warianty rozmiarów", "Pasek ogłoszeń"],
+                },
+                {
+                  id: "minimal-clean",
+                  name: "Minimal Clean",
+                  tier: "Pakiet Start",
+                  badgeText: "W Pakiecie Start",
+                  tag: "Aesthetic Minimal",
+                  desc: "Czysty minimalizm nastawiony na ekspozycję dużych zdjęć produktów.",
+                  image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80",
+                  features: ["Duża siatka zdjęć", "Minimalistyczna nawigacja", "Lekki i szybki kod", "Podstawowe filtry"],
+                },
+                {
+                  id: "street-essential",
+                  name: "Street Essential",
+                  tier: "Pakiet Start",
+                  badgeText: "W Pakiecie Start",
+                  tag: "Urban Classics",
+                  desc: "Klasyczny i przejrzysty układ dla debiutujących marek odzieżowych.",
+                  image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80",
+                  features: ["Kafelki kolekcji", "Szybki zakup BLIK & karta", "Sekcja nowości", "Subdomena .iskral.pl"],
+                },
+              ] : [
+                {
+                  id: "cyber-drop",
+                  name: "Cyber Drop",
+                  tier: "Pakiet Creator & Brand",
+                  badgeText: "Pakiet Creator & Brand",
+                  tag: "Drop & Countdown",
+                  desc: "Futurystyczny szablon z zaawansowanym zegarem odliczania do dropu.",
+                  image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80",
+                  features: ["Zegar odliczania na żywo", "Tryb blokady hasłem (Password)", "Dynamiczne animacje", "Efekt neon glow"],
+                },
+                {
+                  id: "oversize-club",
+                  name: "Oversize Club",
+                  tier: "Pakiet Creator & Brand",
+                  badgeText: "Pakiet Creator & Brand",
+                  tag: "Lookbook & Fit",
+                  desc: "Dedykowany motyw dla marek oversize z lookbookiem i tabelą dopasowania.",
+                  image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80",
+                  features: ["Interaktywna tabela fitu", "Lookbook wideo / galeria", "Kody rabatowe popup", "Powiadomienia o dropie"],
+                },
+                {
+                  id: "monochrome-luxury",
+                  name: "Monochrome Luxury",
+                  tier: "Pakiet Brand",
+                  badgeText: "Pakiet Brand",
+                  tag: "High Fashion",
+                  desc: "Ekskluzywny design z typografią high-fashion i unikalną estetyką.",
+                  image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
+                  features: ["Typografia High-Fashion", "Customowa paleta barw", "Wielowalutowość", "Priorytetowe ładowanie"],
+                },
+              ]).map((tpl) => {
+                const isActive = (selectedTemplateName || currentStore.template) === tpl.name;
+
+                return (
+                  <div
+                    key={tpl.id}
+                    className={`bg-[#0D0E12] border ${
+                      isActive ? "border-2 border-[#D0FF00]/50" : "border-[#181A22] hover:border-[#242836]"
+                    } rounded-[24px] p-7 flex flex-col justify-between transition-all relative`}
+                  >
+                    <div className="space-y-4">
+                      {/* GÓRNY BADGE */}
+                      <div className="flex items-center justify-between">
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Poppins',sans-serif] w-fit ${
+                            isActive
+                              ? "bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] font-semibold"
+                              : "bg-[#111319] border border-[#1C1E26] text-zinc-400"
+                          }`}
+                        >
+                          {isActive && <Sparkles className="w-3.5 h-3.5 text-[#D0FF00]" />}
+                          <span>{isActive ? "Aktualny szablon" : tpl.badgeText}</span>
+                        </div>
+                      </div>
+
+                      {/* NAZWA I OPIS */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif]">
+                          {tpl.name}
+                        </h3>
+                        <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif] leading-relaxed min-h-[36px]">
+                          {tpl.desc}
+                        </p>
+                      </div>
+
+                      {/* PODGLĄD GRAFICZNY SZABLONU */}
+                      <div className="my-3 rounded-2xl overflow-hidden border border-[#1C1E26] bg-[#111319] aspect-[16/10] relative group">
+                        <img
+                          src={tpl.image}
+                          alt={tpl.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0E12] via-transparent to-transparent opacity-80" />
+                        <span className="absolute bottom-3 left-3 text-[11px] font-bold text-white bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 font-['Poppins',sans-serif]">
+                          {tpl.tag}
+                        </span>
+                      </div>
+
+                      {/* CECHY SZABLONU */}
+                      <ul className="space-y-2.5 text-xs text-zinc-300 font-['Poppins',sans-serif]">
+                        {tpl.features.map((feat) => (
+                          <li key={feat} className="flex items-center gap-2">
+                            <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* PRZYCISK WYBORU */}
+                    <div className="pt-4 mt-4">
+                      {isActive ? (
+                        <button
+                          disabled
+                          className="w-full px-[24px] py-[12px] bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/40 text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl flex items-center justify-center gap-2 cursor-default whitespace-nowrap"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Aktywny szablon</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSelectTemplate(tpl.name)}
+                          className="w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
+                        >
+                          Wybierz szablon
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
         )}
 
