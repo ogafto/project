@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen w-full bg-[#0B0D12]">
+    <div className="min-h-screen w-full bg-[#0A0B0D]">
       {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #FF5A28) */}
       <AeuxDashboard
         user={user}

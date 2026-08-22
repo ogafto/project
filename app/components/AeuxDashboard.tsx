@@ -354,7 +354,7 @@ export default function AeuxDashboard({
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0B0D12] text-white flex font-sans antialiased selection:bg-[#FF5A28] selection:text-white">
+    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex font-sans antialiased selection:bg-[#FF5A28] selection:text-white">
       
       {/* ========================================================================= */}
       {/* LEWY SIDEBAR (BG #070709, LOGODB.SVG 188x22, POPPINS, #D0FF00 HIGHLIGHT) */}
@@ -497,17 +497,17 @@ export default function AeuxDashboard({
       </aside>
 
       {/* ========================================================================= */}
-      {/* GŁÓWNA PRZESTRZEŃ DASHBOARDU - PEŁNY DARK THEME (BG #0B0D12) */}
+      {/* GŁÓWNA PRZESTRZEŃ DASHBOARDU - PEŁNY DARK THEME (BG #0A0B0D) */}
       {/* ========================================================================= */}
-      <main className="flex-1 bg-[#0B0D12] min-h-screen p-6 sm:p-8 lg:p-10 overflow-y-auto">
+      <main className="flex-1 bg-[#0A0B0D] min-h-screen p-6 sm:p-8 lg:p-10 overflow-y-auto font-sans">
         
         {/* GÓRNY PASEK NAGŁÓWKA */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                {activeTab === "pulpit" && "Pulpit Główny"}
-                {activeTab === "produkty" && "Zarządzanie Produktami"}
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                {activeTab === "pulpit" && "Strona główna"}
+                {activeTab === "produkty" && "Sklep i Produkty"}
                 {activeTab === "zamowienia" && "Zamówienia Klientów"}
                 {activeTab === "pakiety" && "Pakiety i Ważność Usług"}
                 {activeTab === "kreator" && "Kreator i Szablony"}
@@ -519,14 +519,14 @@ export default function AeuxDashboard({
                 href={liveStoreUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#131722] border border-[#202738] text-xs font-bold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#FF5A28]/50 transition-all"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#12141A] border border-[#1E222D] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
               >
                 <span>{storeSubdomain}.iskral.pl</span>
-                <ExternalLink className="w-3 h-3 text-[#FF5A28]" />
+                <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
               </a>
             </div>
             <p className="text-xs text-zinc-400 mt-1">
-              Zarządzaj sprzedażą, produktami, dropami i swoim sklepem internetowym.
+              Zarządzaj swoim sklepem internetowym w jednym miejscu.
             </p>
           </div>
 
@@ -535,468 +535,276 @@ export default function AeuxDashboard({
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="w-10 h-10 rounded-2xl bg-[#131722] hover:bg-[#181D2A] border border-[#202738] shadow-sm flex items-center justify-center text-zinc-300 relative transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-2xl bg-[#12141A] hover:bg-[#181B23] border border-[#1E222D] shadow-sm flex items-center justify-center text-zinc-300 relative transition-colors cursor-pointer"
               >
                 <Bell className="w-4 h-4" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A28] absolute top-2.5 right-2.5 ring-2 ring-[#0E1118] shadow-[0_0_8px_#FF5A28]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A28] absolute top-2.5 right-2.5 ring-2 ring-[#0A0B0D] shadow-[0_0_8px_#FF5A28]" />
               </button>
 
               {/* Dropdown powiadomień */}
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-[#131722] border border-[#202738] rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in">
-                  <span className="text-[11px] font-bold uppercase text-zinc-400 block mb-2 px-1">
+                <div className="absolute right-0 mt-2 w-72 bg-[#12141A] border border-[#1E222D] rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in">
+                  <span className="text-[11px] font-bold uppercase text-zinc-400 block mb-2 px-1 tracking-wider">
                     Powiadomienia
                   </span>
                   <div className="space-y-2 text-xs">
-                    <div className="p-2.5 bg-[#FF5A28]/10 rounded-xl border border-[#FF5A28]/30 text-white">
-                      <span className="font-bold block text-[#FF5A28]">🎉 Nowe zamówienie</span>
-                      <span className="text-[11px] text-zinc-300">Opłacono zamówienie na kwotę 249.00 PLN</span>
-                    </div>
-                    <div className="p-2.5 bg-[#181D2A] rounded-xl border border-[#202738] text-white">
-                      <span className="font-bold block">🟢 Sklep aktywny</span>
-                      <span className="text-[11px] text-zinc-400">Certyfikat SSL i subdomena aktywne</span>
+                    <div className="p-2.5 bg-[#181B23] rounded-xl border border-[#242A38] text-white">
+                      <span className="font-bold block text-[#D0FF00]">🟢 Status Sklepu</span>
+                      <span className="text-[11px] text-zinc-400">Subdomena i certyfikat SSL są aktywne.</span>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Główny przycisk akcji */}
-            <button
-              onClick={handleOpenAddProduct}
-              className="px-5 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white text-xs font-bold rounded-2xl shadow-[0_0_20px_rgba(255,90,40,0.35)] flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Dodaj Produkt</span>
-            </button>
+            {/* Karta Konta Użytkownika z Dropdownem (ze screena) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-3 bg-[#12141A] hover:bg-[#181B23] border border-[#1E222D] rounded-2xl p-1.5 pr-3.5 cursor-pointer transition-all shadow-sm group select-none"
+              >
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 shrink-0 flex items-center justify-center">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user?.name || "User"} className="w-full h-full object-cover" />
+                  ) : (
+                    <img
+                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80"
+                      alt={user?.name || "Jan Kowalski"}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <div className="text-left min-w-0">
+                  <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate">
+                    {user?.name || "Jan Kowalski"}
+                  </span>
+                  <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5">
+                    {user?.email || "jan.kowalski@gmail.com"}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-transform ml-1 ${isUserMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Dropdown menu konta */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-[#12141A] border border-[#1E222D] rounded-2xl p-1.5 z-50 shadow-2xl animate-in fade-in">
+                  <div className="px-3 py-2 border-b border-[#1E222D] mb-1">
+                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider">
+                      {isAdmin ? "Administrator" : "Konto Klienta"}
+                    </span>
+                    <span className="text-xs font-semibold text-white block truncate">{user?.name || "Jan Kowalski"}</span>
+                    <span className="text-[10px] text-zinc-500 block truncate">{user?.email || "jan.kowalski@gmail.com"}</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("profil");
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#1A1E28] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Twój profil</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("ustawienia");
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#1A1E28] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Ustawienia konta</span>
+                  </button>
+
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full text-left px-3 py-2 text-xs font-medium text-[#D0FF00] hover:bg-[#D0FF00]/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-[#D0FF00]" />
+                      <span>Panel Administratora</span>
+                    </Link>
+                  )}
+
+                  <div className="border-t border-[#1E222D] my-1" />
+
+                  {logout && (
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Wyloguj się</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* WIDOK 1: PULPIT GŁÓWNY (DARK THEME + #FF5A28 GLOW) */}
+        {/* WIDOK 1: STRONA GŁÓWNA */}
         {/* ========================================================================= */}
         {activeTab === "pulpit" && (
-          <div className="space-y-7">
+          <div className="space-y-6 max-w-6xl">
             
-            {/* GÓRNY WIERSZ: 3 KARTY STATYSTYK KPI */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* KARTA 1: PRZYCHÓD ZE SKLEPU */}
-              <div className="bg-[#121620] text-white rounded-[24px] p-6 shadow-xl flex items-center justify-between relative overflow-hidden border border-[#202738] hover:border-[#FF5A28]/40 transition-all group">
-                <div>
-                  <span className="text-xs text-zinc-400 font-medium block mb-1">
-                    Całkowity Przychód Sklepu
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-                    {totalRevenuePLN} <span className="text-base sm:text-lg font-bold text-[#FF5A28]">PLN</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-[11px] text-[#FF5A28] font-bold">
-                    <span>↗ +18.4% w tym miesiącu</span>
-                  </div>
+            {/* HERO BANER ONBOARDINGU / STATUSU */}
+            <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#12151D] via-[#0E1017] to-[#0A0B0D] border border-[#1E2330] p-6 sm:p-8 shadow-2xl">
+              <div className="relative z-10 max-w-2xl space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Witaj w panelu platformy</span>
                 </div>
-
-                {/* Pionowe świecące pomarańczowe słupki wykresu */}
-                <div className="flex items-end gap-1.5 h-12">
-                  <div className="w-1.5 h-8 bg-[#FF5A28]/40 rounded-full" />
-                  <div className="w-1.5 h-12 bg-[#FF5A28] rounded-full shadow-[0_0_10px_#FF5A28]" />
-                  <div className="w-1.5 h-6 bg-[#FF5A28]/60 rounded-full" />
-                  <div className="w-1.5 h-10 bg-[#FF5A28] rounded-full shadow-[0_0_8px_#FF5A28]" />
-                  <div className="w-1.5 h-7 bg-[#FF5A28]/80 rounded-full" />
-                </div>
-              </div>
-
-              {/* KARTA 2: ZREALIZOWANE ZAMÓWIENIA */}
-              <div className="bg-[#121620] text-white rounded-[24px] p-6 shadow-xl flex items-center justify-between border border-[#202738] hover:border-[#FF5A28]/40 transition-all">
-                <div>
-                  <span className="text-xs text-zinc-400 font-medium block mb-1">
-                    Zrealizowane Zamówienia
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-                    {totalOrdersCount} <span className="text-base sm:text-lg font-normal text-zinc-400">zam.</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-[11px] text-[#FF5A28] font-bold">
-                    <span>↗ +12 nowych w tym tygodniu</span>
-                  </div>
-                </div>
-
-                {/* Mini wykres słupkowy */}
-                <div className="flex items-end gap-1.5 h-12">
-                  <div className="w-1.5 h-7 bg-[#FF5A28]/40 rounded-full" />
-                  <div className="w-1.5 h-11 bg-[#FF5A28] rounded-full shadow-[0_0_8px_#FF5A28]" />
-                  <div className="w-1.5 h-5 bg-[#FF5A28]/50 rounded-full" />
-                  <div className="w-1.5 h-10 bg-[#FF5A28] rounded-full" />
-                  <div className="w-1.5 h-8 bg-[#FF5A28]/70 rounded-full" />
-                </div>
-              </div>
-
-              {/* KARTA 3: ŚREDNIA WARTOŚĆ KOSZYKA (AOV) */}
-              <div className="bg-[#121620] text-white rounded-[24px] p-6 shadow-xl flex items-center justify-between border border-[#202738] hover:border-[#FF5A28]/40 transition-all">
-                <div>
-                  <span className="text-xs text-zinc-400 font-medium block mb-1">
-                    Średnia Wartość Koszyka (AOV)
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-                    {aovPLN} <span className="text-base sm:text-lg font-bold text-[#FF5A28]">PLN</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-[11px] text-[#FF5A28] font-bold">
-                    <span>↗ 5.2% współczynnik konwersji</span>
-                  </div>
-                </div>
-
-                {/* Mini wykres */}
-                <div className="flex items-end gap-1.5 h-12">
-                  <div className="w-1.5 h-6 bg-[#FF5A28]/40 rounded-full" />
-                  <div className="w-1.5 h-12 bg-[#FF5A28] rounded-full shadow-[0_0_8px_#FF5A28]" />
-                  <div className="w-1.5 h-7 bg-[#FF5A28]/60 rounded-full" />
-                  <div className="w-1.5 h-9 bg-[#FF5A28] rounded-full" />
-                  <div className="w-1.5 h-11 bg-[#FF5A28]/80 rounded-full" />
-                </div>
-              </div>
-
-            </div>
-
-            {/* ŚRODKOWY WIERSZ: DUŻY WYKRES SPRZEDAŻY + STATUS PAKIETU */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* LEWY DUŻY WYKRES: DYNAMIKA SPRZEDAŻY & PRZYCHODU */}
-              <div className="lg:col-span-8 bg-[#121620] rounded-[24px] p-6 border border-[#202738] shadow-xl flex flex-col justify-between">
                 
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-base font-bold text-white">
-                      Dynamika Sprzedaży & Przychodu
-                    </h2>
-                    <span className="text-xs text-zinc-400">Wykres tygodniowy transakcji Stripe & BLIK</span>
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsTimeDropdownOpen(!isTimeDropdownOpen)}
-                      className="px-3.5 py-1.5 bg-[#1A1F2C] border border-[#263044] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer hover:border-[#FF5A28]/50 transition-all"
-                    >
-                      <span>{timeRange}</span>
-                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-                    </button>
-
-                    {isTimeDropdownOpen && (
-                      <div className="absolute right-0 mt-1.5 w-36 bg-[#131722] border border-[#202738] rounded-xl shadow-2xl p-1 z-40">
-                        {["Ostatnie 30 dni", "2 miesiące", "Cały rok"].map((tr) => (
-                          <button
-                            key={tr}
-                            onClick={() => {
-                              setTimeRange(tr);
-                              setIsTimeDropdownOpen(false);
-                            }}
-                            className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-[#1B212F] hover:text-white rounded-lg transition-colors flex items-center justify-between cursor-pointer"
-                          >
-                            <span>{tr}</span>
-                            {timeRange === tr && <Check className="w-3.5 h-3.5 text-[#FF5A28]" />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Słupki wykresu W1–W8 */}
-                <div className="relative pt-6 pb-2">
-                  {/* Poziome linie odniesienia */}
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none text-[10px] text-zinc-500 pb-6">
-                    <div className="border-b border-dashed border-[#202738] w-full pl-8">5 000 PLN</div>
-                    <div className="border-b border-dashed border-[#FF5A28]/30 w-full pl-8 text-[#FF5A28]">Cel: 4 000 PLN</div>
-                    <div className="border-b border-dashed border-[#202738] w-full pl-8">3 000 PLN</div>
-                    <div className="border-b border-dashed border-[#202738] w-full pl-8">2 000 PLN</div>
-                    <div className="border-b border-dashed border-[#202738] w-full pl-8">1 000 PLN</div>
-                    <div className="w-full pl-8">0 PLN</div>
-                  </div>
-
-                  <div className="grid grid-cols-8 gap-2 sm:gap-3 pl-8 h-48 items-end relative z-10">
-                    {weeklySalesData.map((item) => (
-                      <div
-                        key={item.week}
-                        className="flex flex-col items-center justify-end h-full group cursor-pointer"
-                      >
-                        {item.peak && (
-                          <div className="mb-2 px-2.5 py-0.5 bg-[#FF5A28] text-white text-[10px] font-bold rounded-lg shadow-[0_0_12px_#FF5A28] flex items-center gap-1 animate-bounce">
-                            <span>Szczyt: {item.peak}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-end gap-1.5 justify-center w-full">
-                          {item.past.map((val, idx) => (
-                            <div
-                              key={idx}
-                              style={{ height: `${val * 1.5}px` }}
-                              className="w-1 sm:w-1.5 bg-[#252D3D] rounded-full transition-all group-hover:bg-[#343F55]"
-                            />
-                          ))}
-
-                          {item.active.map((val, idx) => (
-                            <div
-                              key={idx}
-                              style={{ height: `${val * 1.5}px` }}
-                              className={`w-1 sm:w-1.5 rounded-full transition-all ${
-                                idx === 0 && item.week === "W4"
-                                  ? "bg-white shadow-[0_0_8px_#ffffff]"
-                                  : "bg-[#FF5A28] shadow-[0_0_10px_rgba(255,90,40,0.5)] group-hover:brightness-125"
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        <span className="text-[10px] font-bold text-zinc-400 mt-2.5 block">
-                          {item.week}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* PRAWA KARTA: PAKIET SKLEPU & KATEGORIE SPRZEDAŻY */}
-              <div className="lg:col-span-4 bg-[#121620] rounded-[24px] p-6 border border-[#202738] shadow-xl flex flex-col justify-between">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                  Uruchom swój sklep i zacznij sprzedawać
+                </h2>
                 
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      Aktywny Pakiet Sklepu
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#FF5A28]/15 text-[#FF5A28] border border-[#FF5A28]/30 text-[10px] font-bold">
-                      Ważny do 21.09
-                    </span>
-                  </div>
+                <p className="text-sm text-zinc-400 leading-relaxed">
+                  Skonfiguruj swoją markę odzieżową w kilku prostych krokach. Wybierz pakiet, aby odblokować płatności online BLIK i kartą, nielimitowane produkty, kreator szablonów oraz własną domenę.
+                </p>
 
-                  <div className="text-3xl font-extrabold text-white tracking-tight mt-2">
-                    Pakiet {currentStore.planType || user?.plan || "Brand"}
-                  </div>
-
-                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF5A28] mt-1.5">
-                    <span>✓ Nielimitowane produkty i subdomena</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-6 border-t border-[#202738] mt-6">
-                  
-                  {/* Sprzedaż odzieży */}
-                  <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#171C28] border border-[#242D40]">
-                    <div className="w-10 h-10 rounded-xl bg-[#FF5A28]/15 border border-[#FF5A28]/30 flex items-center justify-center text-[#FF5A28] shrink-0">
-                      <ShoppingBag className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-white block">
-                        Odzież & Drop fizyczny
-                      </span>
-                      <span className="text-xs text-zinc-400 block font-mono mt-0.5">
-                        12 400.00 PLN sprzedaży
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Produkty cyfrowe */}
-                  <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-[#171C28] border border-[#242D40]">
-                    <div className="w-10 h-10 rounded-xl bg-[#FF5A28]/15 border border-[#FF5A28]/30 flex items-center justify-center text-[#FF5A28] shrink-0">
-                      <Flame className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-white block">
-                        Dropy limitowane & Cyfrowe
-                      </span>
-                      <span className="text-xs text-zinc-400 block font-mono mt-0.5">
-                        1 850.00 PLN sprzedaży
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* DOLNY WIERSZ: OSTATNIE ZAMÓWIENIA + GEOGRAFIA SPRZEDAŻY (MAPA) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* LEWA TABELA: OSTATNIE ZAMÓWIENIA KLIENTÓW */}
-              <div className="lg:col-span-8 bg-[#121620] rounded-[24px] p-6 border border-[#202738] shadow-xl flex flex-col justify-between">
-                
-                <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <h2 className="text-base font-bold text-white">
-                        Ostatnie Zamówienia w Sklepie
-                      </h2>
-                      <span className="text-xs text-zinc-400">Płatności przetworzone przez Stripe i BLIK</span>
-                    </div>
-
-                    <button
-                      onClick={() => setActiveTab("zamowienia")}
-                      className="text-xs font-bold text-[#FF5A28] hover:underline transition-all cursor-pointer"
-                    >
-                      Zobacz wszystkie →
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="text-[11px] font-bold text-zinc-400 border-b border-[#202738] pb-3 uppercase tracking-wider">
-                          <th className="pb-3 font-semibold">Klient & Kraj</th>
-                          <th className="pb-3 font-semibold">Produkt</th>
-                          <th className="pb-3 font-semibold">Płatność</th>
-                          <th className="pb-3 font-semibold">Trend</th>
-                          <th className="pb-3 font-semibold">Status</th>
-                          <th className="pb-3 font-semibold">Kwota</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#1A212E] text-xs">
-                        {[
-                          { flag: "🇵🇱", email: "kacper.nowak@gmail.com", country: "Polska", product: "Boxy Hoodie Black", method: "BLIK / Stripe", trend: "up", status: "Opłacone", amount: "249.00 PLN" },
-                          { flag: "🇩🇪", email: "johan.m@berlin.de", country: "Niemcy", product: "Vintage Tee Acid Wash", method: "Karta Visa", trend: "up", status: "Opłacone", amount: "139.00 PLN" },
-                          { flag: "🇵🇱", email: "oliwia.ziel@wp.pl", country: "Polska", product: "Tech Cargo Pants", method: "BLIK P24", trend: "up", status: "Opłacone", amount: "299.00 PLN" },
-                          { flag: "🇬🇧", email: "alex.uk@london.co.uk", country: "Wielka Brytania", product: "Drop Special Package", method: "Apple Pay", trend: "down", status: "Opłacone", amount: "389.00 PLN" },
-                        ].map((row, idx) => (
-                          <tr key={idx} className="hover:bg-[#181D2A] transition-colors">
-                            <td className="py-3.5 pr-3">
-                              <div className="flex items-center gap-2.5">
-                                <span className="text-lg">{row.flag}</span>
-                                <div>
-                                  <span className="font-bold text-white block leading-tight">
-                                    {row.email}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-400 block mt-0.5">
-                                    {row.country}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="py-3.5 pr-3 font-semibold text-zinc-200">
-                              {row.product}
-                            </td>
-
-                            <td className="py-3.5 pr-3 text-zinc-400">
-                              {row.method}
-                            </td>
-
-                            <td className="py-3.5 pr-3">
-                              <div className="w-16 h-5">
-                                <svg viewBox="0 0 80 24" className="w-full h-full">
-                                  <path
-                                    d={row.trend === "up" ? "M0,18 Q25,14 45,6 T80,2" : "M0,6 Q25,10 45,18 T80,22"}
-                                    fill="none"
-                                    stroke={row.trend === "up" ? "#FF5A28" : "#EF4444"}
-                                    strokeWidth="2.5"
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              </div>
-                            </td>
-
-                            <td className="py-3.5 pr-3">
-                              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-[#FF5A28]/15 text-[#FF5A28] border border-[#FF5A28]/30">
-                                {row.status}
-                              </span>
-                            </td>
-
-                            <td className="py-3.5 pr-3 font-bold text-white font-mono whitespace-nowrap">
-                              {row.amount}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* PRAWA KARTA: GEOGRAFIA SPRZEDAŻY (MAPA WEKTOROWA) */}
-              <div className="lg:col-span-4 bg-[#121620] text-white rounded-[24px] p-6 border border-[#202738] shadow-xl flex flex-col justify-between relative overflow-hidden">
-                
-                <div className="flex items-center justify-between mb-2 z-10">
-                  <div>
-                    <h2 className="text-base font-bold text-white">
-                      Geografia Zamówień
-                    </h2>
-                    <span className="text-xs text-zinc-400">Polska & Europa</span>
-                  </div>
-
-                  <span className="px-3 py-1 bg-[#1A1F2C] border border-[#263044] text-zinc-200 text-xs font-bold rounded-xl shadow-sm">
-                    Europa Środkowa
-                  </span>
-                </div>
-
-                {/* Wektorowa Mapa SVG */}
-                <div className="relative w-full h-56 flex items-center justify-center my-2">
-                  <svg viewBox="0 0 400 300" className="w-full h-full object-contain filter drop-shadow-md">
-                    {/* Kraje Europy Zachodniej */}
-                    <path
-                      d="M60,140 Q80,100 120,90 Q150,80 180,100 Q190,130 160,160 Q120,180 80,170 Z"
-                      fill="#181D2A"
-                      stroke="#273245"
-                      strokeWidth="1"
-                    />
-                    <path
-                      d="M100,50 Q130,40 160,60 Q150,90 120,90 Q90,80 100,50 Z"
-                      fill="#181D2A"
-                      stroke="#273245"
-                      strokeWidth="1"
-                    />
-                    <path
-                      d="M120,180 Q160,170 190,190 Q180,240 140,230 Q110,210 120,180 Z"
-                      fill="#181D2A"
-                      stroke="#273245"
-                      strokeWidth="1"
-                    />
-                    
-                    {/* Polska - Świecąca pomarańczowa plama (#FF5A28) */}
-                    <path
-                      d="M180,100 Q240,80 290,110 Q320,150 280,200 Q220,210 170,180 Q160,140 180,100 Z"
-                      fill="#FF5A28"
-                      className="opacity-90 shadow-[0_0_20px_#FF5A28]"
-                    />
-                    <path
-                      d="M250,130 Q300,120 340,150 Q330,190 280,190 Z"
-                      fill="#CC4218"
-                      className="opacity-75"
-                    />
-
-                    {/* Pingi zamówień */}
-                    <circle cx="230" cy="140" r="4" fill="#FFFFFF" />
-                    <circle cx="230" cy="140" r="12" fill="none" stroke="#FF5A28" strokeWidth="2" className="animate-ping opacity-90" />
-                  </svg>
-
-                  {/* Dymek ze statystykami Polski */}
-                  {activeMapTooltip && (
-                    <div className="absolute top-8 left-4 bg-[#181E2B]/95 backdrop-blur-md border border-[#FF5A28]/40 rounded-xl px-3.5 py-2 shadow-2xl flex items-center gap-3">
-                      <div>
-                        <span className="text-[11px] font-bold text-white block leading-tight">
-                          Polska
-                        </span>
-                        <span className="text-[10px] text-zinc-400 block">
-                          Główny rynek
-                        </span>
-                      </div>
-                      <span className="text-xs font-extrabold text-[#FF5A28]">
-                        92% sprzedaży ↗
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Przycisk Pomocy ? */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
-                    onClick={() => setActiveMapTooltip(!activeMapTooltip)}
-                    className="absolute bottom-2 left-2 w-7 h-7 rounded-full bg-[#1A1F2C] hover:bg-[#252D3D] border border-[#273245] flex items-center justify-center text-zinc-300 text-xs font-bold transition-colors cursor-pointer"
+                    onClick={() => setActiveTab("pakiety")}
+                    className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(208,255,0,0.25)] flex items-center gap-2 cursor-pointer"
                   >
-                    ?
+                    <span>Wybierz pakiet sklepu</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("kreator")}
+                    className="px-5 py-2.5 bg-[#171B24] hover:bg-[#202532] text-white text-xs font-semibold rounded-xl border border-[#262D3D] transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4 text-zinc-400" />
+                    <span>Dostosuj szablony</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Tło ozdobne */}
+              <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-[#D0FF00]/5 to-transparent pointer-events-none" />
+            </div>
+
+            {/* KROKI STARTOWE DO URUCHOMIENIA SKLEPU (3 KARTY) */}
+            <div>
+              <h3 className="text-base font-bold text-white font-['Sora',sans-serif] mb-4">
+                Kroki do startu sprzedaży
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Krok 1 */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-[#D0FF00]/10 border border-[#D0FF00]/20 flex items-center justify-center text-[#D0FF00]">
+                        <CreditCard className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
+                        Krok 01
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-white">Aktywuj Pakiet</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Wybierz pakiet Creator lub Brand z nielimitowanymi produktami i integracją płatności BLIK.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("pakiety")}
+                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-[#D0FF00] group-hover:text-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-[#D0FF00]"
+                  >
+                    Przejdź do pakietów →
                   </button>
                 </div>
 
+                {/* Krok 2 */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
+                        Krok 02
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-white">Wybierz Szablon</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Dopasuj unikalną oprawę wizualną, baner ogłoszeń oraz motyw graficzny swojego sklepu.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("kreator")}
+                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-purple-500 group-hover:text-white text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-purple-500"
+                  >
+                    Przejdź do szablonów →
+                  </button>
+                </div>
+
+                {/* Krok 3 */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                        <ShoppingBasket className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
+                        Krok 03
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-white">Dodaj Produkty</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      Wystaw ubrania, limitowane dropy, ustal ceny i zarządzaj stanami magazynowymi.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("produkty")}
+                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-blue-500 group-hover:text-white text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-blue-500"
+                  >
+                    Zarządzaj sklepem →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* INFORMACJE O TWOIM SKLEPIE (STATUS I DOMENA) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Subdomena sklepu</span>
+                  <span className="text-xs font-bold text-white block truncate">{storeSubdomain}.iskral.pl</span>
+                </div>
               </div>
 
+              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
+                  <Shield className="w-5 h-5 text-[#D0FF00]" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Certyfikat SSL</span>
+                  <span className="text-xs font-bold text-white block truncate">Aktywny & Bezpieczny</span>
+                </div>
+              </div>
+
+              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Pakiet konta</span>
+                  <span className="text-xs font-bold text-white block truncate">{user?.plan || "Brak aktywnego planu"}</span>
+                </div>
+              </div>
             </div>
 
           </div>

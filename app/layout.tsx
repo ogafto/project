@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Poppins, Sora } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import CookieBanner from "./components/CookieBanner";
@@ -8,6 +8,13 @@ const poppins = Poppins({
   subsets: ["latin", "latin-ext"],
   weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-poppins",
+  display: "swap",
+});
+
+const sora = Sora({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sora",
   display: "swap",
 });
 
@@ -24,9 +31,9 @@ export default function RootLayout({
   return (
     <html
       lang="pl"
-      className={`${poppins.variable} font-sans h-full antialiased`}
+      className={`${poppins.variable} ${sora.variable} font-sans h-full antialiased`}
     >
-      <body className={`${poppins.className} font-sans min-h-full flex flex-col antialiased bg-[#0E0E11] text-[#A1A1AA]`}>
+      <body className={`${poppins.className} font-sans min-h-full flex flex-col antialiased bg-[#0A0B0D] text-[#A1A1AA]`}>
         <Providers>
           {children}
           <CookieBanner />
