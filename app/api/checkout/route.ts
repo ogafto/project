@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       isPlan,
       planType,
       billingCycle,
+      action,
+      packageId,
     } = body;
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
@@ -33,18 +35,28 @@ export async function POST(req: NextRequest) {
       },
     ];
 
+    const successQuery = new URLSearchParams({
+      checkout: "success",
+      action: action || "buy",
+      package_id: packageId || "",
+      plan: planType || "Creator",
+      billing: billingCycle || "miesiac",
+    });
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
       customer_email: customerEmail || undefined,
-      success_url: `${origin}/dashboard?checkout=success&plan=${encodeURIComponent(planType || "Creator")}&billing=${encodeURIComponent(billingCycle || "miesiac")}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/dashboard?${successQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard?checkout=cancelled`,
       metadata: {
         tenant_id: tenantId || "demo-tenant",
         product_id: productId || "demo-product",
         type: isPlan ? "plan" : "product",
         plan_type: planType || "",
+        action: action || "buy",
+        package_id: packageId || "",
         customer_email: customerEmail || "",
         amount_cents: String(priceCents || 1000),
       },
