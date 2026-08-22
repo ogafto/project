@@ -140,6 +140,9 @@ export default function AeuxDashboard({
   const [prodDescription, setProdDescription] = useState("");
   const [prodImage, setProdImage] = useState("");
 
+  // Billing Interval for Packages ("miesiac" | "rok")
+  const [billingInterval, setBillingInterval] = useState<"miesiac" | "rok">("miesiac");
+
   // User Packages State (Pakiety i sklepy użytkownika)
   const [userPackages, setUserPackages] = useState<UserPackage[]>(() => {
     if (typeof window !== "undefined") {
@@ -246,9 +249,18 @@ export default function AeuxDashboard({
   // Handlers for packages
   const handleBuyPackage = (planType: "Start" | "Creator" | "Brand") => {
     const pkgNum = Math.floor(1000 + Math.random() * 9000);
-    const durationDays = planType === "Start" ? 14 : 30;
+    const isYearly = billingInterval === "rok" && planType !== "Start";
+    const durationDays = planType === "Start" ? 14 : isYearly ? 365 : 30;
     const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
-    const priceLabel = planType === "Start" ? "14 dni za darmo" : planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc";
+    const priceLabel = planType === "Start"
+      ? "14 dni za darmo"
+      : isYearly
+      ? planType === "Creator"
+        ? "14.99 zł / msc (Rocznie)"
+        : "29.99 zł / msc (Rocznie)"
+      : planType === "Creator"
+      ? "29.99 zł / msc"
+      : "59.99 zł / msc";
 
     const newPkg: UserPackage = {
       id: `pkg_${Date.now()}_${pkgNum}`,
@@ -660,28 +672,35 @@ export default function AeuxDashboard({
             <div className="flex items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
                 {activeTab === "pulpit" && "Strona główna"}
-                {activeTab === "produkty" && "Sklep i Produkty"}
-                {activeTab === "zamowienia" && "Zamówienia Klientów"}
-                {activeTab === "pakiety" && "Pakiety i Ważność Usług"}
+                {activeTab === "produkty" && "Sklep"}
+                {activeTab === "zamowienia" && "Zamówienia"}
+                {activeTab === "pakiety" && "Pakiety"}
                 {activeTab === "kreator" && "Kreator i Szablony"}
-                {activeTab === "drop" && "Konfiguracja Trybu Dropu"}
-                {activeTab === "ustawienia" && "Ustawienia Konta i Wypłat"}
-                {activeTab === "profil" && "Twój Profil i Ustawienia"}
+                {activeTab === "drop" && "Tryb Dropu"}
+                {activeTab === "ustawienia" && "Ustawienia Konta"}
+                {activeTab === "profil" && "Twój Profil"}
               </h1>
               {hasActiveStore && (
                 <a
                   href={liveStoreUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#0D0E12] border border-[#17181F] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#0D0E12] border border-[#17181F] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all font-['Poppins',sans-serif]"
                 >
                   <span>{activeSubdomain}.iskral.pl</span>
                   <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
                 </a>
               )}
             </div>
-            <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif]">
-              Zarządzaj swoim sklepem internetowym w jednym miejscu.
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-['Poppins',sans-serif]">
+              {activeTab === "pulpit" && "Zarządzaj swoim sklepem internetowym w jednym miejscu."}
+              {activeTab === "produkty" && "Wybierz pakiet dla swojej marki lub zarządzaj aktywnymi subskrypcjami."}
+              {activeTab === "zamowienia" && "Historia zamówień i płatności Twoich klientów."}
+              {activeTab === "pakiety" && "Przegląd ważności i przedłużanie subskrypcji."}
+              {activeTab === "kreator" && "Dopasuj unikalny motyw i wygląd swojego sklepu."}
+              {activeTab === "drop" && "Konfiguruj premiery i tryb odliczania do dropu."}
+              {activeTab === "ustawienia" && "Zarządzaj danymi konta, podepnij domenę i skonfiguruj wypłaty."}
+              {activeTab === "profil" && "Szczegóły profilu użytkownika i dane kontaktowe."}
             </p>
           </div>
 
@@ -690,7 +709,7 @@ export default function AeuxDashboard({
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="w-[54px] h-[54px] rounded-[18px] bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] shadow-sm flex items-center justify-center text-zinc-300 hover:text-white relative transition-all cursor-pointer group"
+                className="w-[54px] h-[54px] rounded-[18px] bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] flex items-center justify-center text-zinc-300 hover:text-white relative transition-all cursor-pointer group"
                 title="Powiadomienia"
               >
                 <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
@@ -719,7 +738,7 @@ export default function AeuxDashboard({
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all shadow-sm group select-none"
+                className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all group select-none"
               >
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 shrink-0 flex items-center justify-center">
                   {user?.avatarUrl ? (
@@ -815,7 +834,7 @@ export default function AeuxDashboard({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* KARTA 1 (LEWA): BRAK PAKIETU */}
-              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                 <div className="space-y-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
                     <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
@@ -831,7 +850,7 @@ export default function AeuxDashboard({
                 <div className="pt-7">
                   <button
                     onClick={() => setActiveTab("produkty")}
-                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Przejdź dalej</span>
                     <ArrowUpRight className="w-4 h-4" />
@@ -840,7 +859,7 @@ export default function AeuxDashboard({
               </div>
 
               {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
-              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                 <div className="space-y-3.5">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-['Poppins',sans-serif]">
                     <Sparkles className="w-3.5 h-3.5" />
@@ -874,28 +893,18 @@ export default function AeuxDashboard({
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 2: SKLEP (ZARZĄDZANIE PAKIETAMI & SKLEPAMI) */}
+        {/* WIDOK 2: SKLEP (ZARZĄDZANIE PAKIETAMI & CENNIK) */}
         {/* ========================================================================= */}
         {activeTab === "produkty" && (
           <div className="space-y-8 max-w-6xl">
             
-            {/* NAGŁÓWEK ZAKŁADKI SKLEP */}
-            <div>
-              <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif] tracking-tight">
-                Twoje Pakiety i Sklepy
-              </h2>
-              <p className="text-sm text-zinc-400 mt-1 font-['Poppins',sans-serif]">
-                Zarządzaj swoimi sklepami, twórz nowe pakiety i kontroluj czas trwania subskrypcji.
-              </p>
-            </div>
-
-            {/* SEKCJA 1: LISTA TWOICH ZAKUPIONYCH PAKIETÓW */}
+            {/* SEKCJA 1: LISTA TWOICH ZAKUPIONYCH PAKIETÓW (JEŚLI UŻYTKOWNIK JAKIEŚ POSIADA) */}
             {userPackages.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-['Poppins',sans-serif]">
-                    Aktywne pakiety ({userPackages.length})
-                  </span>
+                  <h2 className="text-lg font-bold text-white font-['Sora',sans-serif]">
+                    Twoje Aktywne Pakiety ({userPackages.length})
+                  </h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -906,7 +915,7 @@ export default function AeuxDashboard({
                     return (
                       <div
                         key={pkg.id}
-                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all"
                       >
                         <div className="space-y-4">
                           {/* GÓRA KARTY: LOGO I TYP PAKIETU */}
@@ -1012,52 +1021,86 @@ export default function AeuxDashboard({
               </div>
             )}
 
-            {/* SEKCJA 2: DOSTĘPNE PAKIETY DO ZAKUPU (CENNIK PLATFORMY) */}
-            <div className="space-y-4 pt-2">
-              <div>
-                <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
-                  {userPackages.length > 0 ? "Kup kolejny pakiet lub stwórz nowy sklep" : "Wybierz pakiet dla swojego sklepu"}
-                </h3>
-                <p className="text-sm text-zinc-400 mt-0.5 font-['Poppins',sans-serif]">
-                  Wybierz plan odpowiadający skali Twojego biznesu. Każdy pakiet pozwala utworzyć osobny sklep.
-                </p>
+            {/* SEKCJA 2: WYBÓR PAKIETU (CENNIK Z PRZEŁĄCZNIKIEM MIESIĄC / ROK -50%) */}
+            <div className="space-y-6 pt-2">
+              
+              {/* PRZEŁĄCZNIK MIESIĄC / ROK (-50%) - WYŚRODKOWANY JAK NA SCREENIE */}
+              <div className="flex justify-center items-center">
+                <div className="bg-[#0D0E12] border border-[#181A22] p-1 rounded-full inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval("miesiac")}
+                    className={`px-6 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer ${
+                      billingInterval === "miesiac"
+                        ? "bg-[#181B24] text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    Miesiąc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval("rok")}
+                    className={`px-6 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer flex items-center gap-2 ${
+                      billingInterval === "rok"
+                        ? "bg-[#181B24] text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    <span>Rok</span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#FF5A28] text-white text-[10px] font-bold">
+                      -50%
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* SIATKA 3 KAFELKÓW PAKIETÓW */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
                 
                 {/* 1. PAKIET START */}
-                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+                <div className="bg-[#0D0E12] border border-[#181A22] hover:border-[#242836] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Start</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-medium text-zinc-400 font-['Poppins',sans-serif]">
-                        14 dni za darmo
+                    <div>
+                      <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif]">Pakiet Start</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif] leading-relaxed">
+                        Dla osoby, która chce stworzyć pierwszy sklep i sprawdzić swój pomysł.
+                      </p>
+                    </div>
+
+                    <div className="py-2 border-y border-[#17181F] flex items-baseline justify-between">
+                      <div className="text-2xl font-bold text-white font-['Poppins',sans-serif]">
+                        0.00 PLN
+                      </div>
+                      <span className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
+                        Za darmo na 14 dni
                       </span>
                     </div>
 
-                    <div>
-                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
-                        0.00 zł
-                      </div>
-                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">przez pierwsze 14 dni</span>
-                    </div>
-
-                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>1 sklep internetowy</span>
+                        <span>1 gotowy szablon</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Darmowa subdomena .iskral.pl</span>
+                        <span>do 5 produktów</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Podstawowy szablon i koszyk</span>
+                        <span>produkty fizyczne i cyfrowe</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Płatności online BLIK i karta</span>
+                        <span>2,5% prowizji od sprzedaży</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>podstawowe statystyki</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>subdomena .iskral.pl</span>
                       </li>
                     </ul>
                   </div>
@@ -1066,43 +1109,69 @@ export default function AeuxDashboard({
                     onClick={() => handleBuyPackage("Start")}
                     className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center"
                   >
-                    Aktywuj Pakiet Start (14 dni)
+                    Zacznij za darmo
                   </button>
                 </div>
 
-                {/* 2. PAKIET CREATOR */}
-                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#D0FF00]/40 rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+                {/* 2. PAKIET CREATOR (WYRÓŻNIONY - NAJBARDZIEJ WYBIERANY) */}
+                <div className="bg-[#0D0E12] border-2 border-[#D0FF00]/50 hover:border-[#D0FF00] rounded-[24px] p-7 flex flex-col justify-between transition-all relative">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Creator</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[10px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
-                        Polecany
-                      </span>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] text-[11px] font-semibold font-['Poppins',sans-serif] w-fit">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Najbardziej wybierany</span>
                     </div>
 
                     <div>
-                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
-                        29.99 zł <span className="text-xs font-normal text-zinc-400 font-['Poppins',sans-serif]">/ msc</span>
-                      </div>
-                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">dla twórców i marek odzieżowych</span>
+                      <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif]">Pakiet Creator</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif] leading-relaxed">
+                        Dla twórców i marek, które zaczynają regularnie sprzedawać.
+                      </p>
                     </div>
 
-                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
+                    <div className="py-2 border-y border-[#17181F] flex items-baseline justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-white font-['Poppins',sans-serif]">
+                          {billingInterval === "miesiac" ? "29.99 PLN" : "14.99 PLN"}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-['Poppins',sans-serif] ml-1">
+                          / miesięcznie
+                        </span>
+                      </div>
+                      {billingInterval === "rok" && (
+                        <span className="text-[11px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
+                          -50% taniej
+                        </span>
+                      )}
+                    </div>
+
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Wszystko z pakietu Start</span>
+                        <span>wszystko ze Start</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Nielimitowane produkty i warianty</span>
+                        <span>nielimitowane produkty</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Zaawansowany kreator szablonów</span>
+                        <span>wszystkie szablony</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Wypłaty na konto bankowe IBAN</span>
+                        <span>własna domena</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>dropy i countdown</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>kody rabatowe</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>1,0% prowizji od sprzedaży</span>
                       </li>
                     </ul>
                   </div>
@@ -1111,43 +1180,60 @@ export default function AeuxDashboard({
                     onClick={() => handleBuyPackage("Creator")}
                     className="mt-7 w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center text-center"
                   >
-                    Kup Pakiet Creator (29.99 zł)
+                    Kup Pakiet Creator ({billingInterval === "miesiac" ? "29.99 zł" : "14.99 zł/msc"})
                   </button>
                 </div>
 
                 {/* 3. PAKIET BRAND */}
-                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+                <div className="bg-[#0D0E12] border border-[#181A22] hover:border-[#242836] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Brand</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-medium text-zinc-400 font-['Poppins',sans-serif]">
-                        Dla profesjonalistów
-                      </span>
-                    </div>
-
                     <div>
-                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
-                        59.99 zł <span className="text-xs font-normal text-zinc-400 font-['Poppins',sans-serif]">/ msc</span>
-                      </div>
-                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">pełna niezależność i własna domena</span>
+                      <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif]">Pakiet Brand</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif] leading-relaxed">
+                        Dla marek, które chcą mocniej rozwijać sprzedaż.
+                      </p>
                     </div>
 
-                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
+                    <div className="py-2 border-y border-[#17181F] flex items-baseline justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-white font-['Poppins',sans-serif]">
+                          {billingInterval === "miesiac" ? "59.99 PLN" : "29.99 PLN"}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-['Poppins',sans-serif] ml-1">
+                          / miesięcznie
+                        </span>
+                      </div>
+                      {billingInterval === "rok" && (
+                        <span className="text-[11px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
+                          -50% taniej
+                        </span>
+                      )}
+                    </div>
+
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Wszystko z pakietu Creator</span>
+                        <span>wszystko z Creator</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Własna domena .pl / .com z SSL</span>
+                        <span>3 konta zespołowe</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Tryb dropu i odliczania do premiery</span>
+                        <span>automatyczne kampanie e-mail</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                        <span>Priorytetowe wypłaty i 0% prowizji</span>
+                        <span>0,5% prowizji od sprzedaży</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>priorytetowe wsparcie</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>zaawansowane statystyki sprzedaży</span>
                       </li>
                     </ul>
                   </div>
@@ -1156,7 +1242,7 @@ export default function AeuxDashboard({
                     onClick={() => handleBuyPackage("Brand")}
                     className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center"
                   >
-                    Kup Pakiet Brand (59.99 zł)
+                    Kup Pakiet Brand ({billingInterval === "miesiac" ? "59.99 zł" : "29.99 zł/msc"})
                   </button>
                 </div>
 
