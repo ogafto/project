@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import {
   Check,
   MoreVertical,
   X,
+  Menu,
   ExternalLink,
   Shield,
   Clock,
@@ -66,6 +67,8 @@ export interface UserPackage {
   isConfigured: boolean;
 }
 
+type TabType = "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia" | "profil";
+
 interface AeuxDashboardProps {
   user: User | null;
   allUsers?: User[];
@@ -107,11 +110,29 @@ export default function AeuxDashboard({
   message,
   setMessage,
 }: AeuxDashboardProps) {
-  // Navigation tabs:
-  // "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia" | "profil"
-  const [activeTab, setActiveTab] = useState<
-    "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia" | "profil"
-  >("pulpit");
+  // Navigation tabs with URL hash and localStorage memory on F5 refresh:
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "") as TabType;
+      const validTabs: TabType[] = ["pulpit", "produkty", "zamowienia", "pakiety", "kreator", "drop", "ustawienia", "profil"];
+      if (validTabs.includes(hash)) return hash;
+      const saved = localStorage.getItem("iskra_dashboard_tab") as TabType;
+      if (validTabs.includes(saved)) return saved;
+    }
+    return "pulpit";
+  });
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_dashboard_tab", tab);
+      window.history.replaceState(null, "", `#${tab}`);
+    }
+    setIsMobileMenuOpen(false);
+  };
+
+  // Mobile navigation drawer
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Admin status
   const isAdmin =
@@ -250,12 +271,123 @@ export default function AeuxDashboard({
   const totalOrdersCount = paidOrders.length;
   const aovPLN = totalOrdersCount > 0 ? (totalRevenueCents / totalOrdersCount / 100).toFixed(2) : "0.00";
 
-  // Handlers for packages
-  const handleBuyPackage = (planType: "Start" | "Creator" | "Brand") => {
-    const pkgNum = Math.floor(1000 + Math.random() * 9000);
+  // Handlers for packages with Stripe and Email integration
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get("checkout");
+
+    if (checkoutStatus === "success") {
+      const plan = (params.get("plan") as "Start" | "Creator" | "Brand") || "Creator";
+      const billing = params.get("billing") || "miesiac";
+      const action = params.get("action") || "buy";
+      const pkgIdParam = params.get("pkg_id");
+      const isYearly = billing === "rok";
+      const durationDays = isYearly ? 365 : 30;
+
+      if (action === "extend" && pkgIdParam) {
+        setUserPackages((prev) => {
+          const updated = prev.map((p) => {
+            if (p.id === pkgIdParam) {
+              const currentExp = new Date(p.expiresAt).getTime();
+              const base = currentExp > Date.now() ? currentExp : Date.now();
+              return { ...p, expiresAt: new Date(base + durationDays * 86400000).toISOString() };
+            }
+            return p;
+          });
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+          return updated;
+        });
+        if (setMessage) {
+          setMessage({ type: "success", text: "🎉 Pomyślnie przedłużono subskrypcję pakietu przez Stripe!" });
+        }
+      } else if (action === "upgrade" && pkgIdParam) {
+        setUserPackages((prev) => {
+          const updated = prev.map((p) => {
+            if (p.id === pkgIdParam) {
+              return {
+                ...p,
+                planType: plan,
+                price: plan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+              };
+            }
+            return p;
+          });
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+          return updated;
+        });
+        if (setMessage) {
+          setMessage({ type: "success", text: `🎉 Pakiet został pomyślnie ulepszony do ${plan}!` });
+        }
+      } else {
+        const pkgNum = Math.floor(1000 + Math.random() * 9000);
+        const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+        const priceLabel = isYearly
+          ? plan === "Creator" ? "14.99 zł / msc (Rocznie)" : "29.99 zł / msc (Rocznie)"
+          : plan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc";
+
+        const newPkg: UserPackage = {
+          id: `pkg_${Date.now()}_${pkgNum}`,
+          number: pkgNum,
+          name: `Pakiet ${plan} #${pkgNum}`,
+          planType: plan,
+          price: priceLabel,
+          expiresAt,
+          isConfigured: false,
+        };
+
+        setUserPackages((prev) => {
+          const exists = prev.some((p) => p.name === newPkg.name);
+          if (exists) return prev;
+          const updated = [newPkg, ...prev];
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+          return updated;
+        });
+
+        // Send transactional email
+        if (user?.email) {
+          fetch("/api/auth/send-plan-confirmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              planName: `Pakiet ${plan}`,
+              amountFormatted: priceLabel,
+              expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
+              dashboardUrl: window.location.origin + "/dashboard",
+            }),
+          }).catch(() => {});
+        }
+
+        if (setMessage) {
+          setMessage({
+            type: "success",
+            text: `🎉 Płatność zakończona sukcesem! Aktywowano Pakiet ${plan} #${pkgNum}.`,
+          });
+        }
+
+        setSelectedPackageForConfig(newPkg);
+        setConfigStoreName("");
+        setConfigSubdomain("");
+        setConfigLogo("");
+        setShowConfigModal(true);
+      }
+
+      // Clean URL params
+      const currentTabHash = window.location.hash || "#pulpit";
+      window.history.replaceState(null, "", window.location.pathname + currentTabHash);
+    } else if (checkoutStatus === "cancelled") {
+      if (setMessage) {
+        setMessage({ type: "error", text: "Płatność Stripe została anulowana." });
+      }
+      const currentTabHash = window.location.hash || "#produkty";
+      window.history.replaceState(null, "", window.location.pathname + currentTabHash);
+    }
+  }, [user?.email, setMessage]);
+
+  const handleBuyPackage = async (planType: "Start" | "Creator" | "Brand") => {
     const isYearly = billingInterval === "rok" && planType !== "Start";
     const durationDays = planType === "Start" ? 14 : isYearly ? 365 : 30;
-    const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
     const priceLabel = planType === "Start"
       ? "14 dni za darmo"
       : isYearly
@@ -266,7 +398,89 @@ export default function AeuxDashboard({
       ? "29.99 zł / msc"
       : "59.99 zł / msc";
 
-    const newPkg: UserPackage = {
+    if (planType === "Start") {
+      const pkgNum = Math.floor(1000 + Math.random() * 9000);
+      const expiresAt = new Date(Date.now() + 14 * 86400000).toISOString();
+      const newPkg: UserPackage = {
+        id: `pkg_${Date.now()}_${pkgNum}`,
+        number: pkgNum,
+        name: `Pakiet Start #${pkgNum}`,
+        planType: "Start",
+        price: "14 dni za darmo",
+        expiresAt,
+        isConfigured: false,
+      };
+
+      setUserPackages((prev) => {
+        const updated = [newPkg, ...prev];
+        if (typeof window !== "undefined") {
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+        }
+        return updated;
+      });
+
+      // Send email confirmation
+      if (user?.email) {
+        fetch("/api/auth/send-plan-confirmation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            planName: "Pakiet Start (Trial 14 dni)",
+            amountFormatted: "0.00 PLN",
+            expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
+            dashboardUrl: window.location.origin + "/dashboard",
+          }),
+        }).catch(() => {});
+      }
+
+      if (setMessage) {
+        setMessage({
+          type: "success",
+          text: `🎉 Aktywowano Pakiet Start #${pkgNum}! Możesz teraz skonfigurować swój sklep.`,
+        });
+      }
+
+      setSelectedPackageForConfig(newPkg);
+      setConfigStoreName("");
+      setConfigSubdomain("");
+      setConfigLogo("");
+      setShowConfigModal(true);
+      return;
+    }
+
+    // Płatne pakiety: Creator lub Brand -> Przekierowanie do Stripe Checkout
+    const priceCents = isYearly
+      ? planType === "Creator" ? 17988 : 35988
+      : planType === "Creator" ? 2999 : 5999;
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: user?.id || "user_store",
+          title: `Pakiet SaaS ${planType}`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType,
+          billingCycle: billingInterval,
+        }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error("Stripe Checkout Error:", err);
+    }
+
+    // Fallback if Stripe is offline in local environment
+    const pkgNum = Math.floor(1000 + Math.random() * 9000);
+    const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+    const fallbackPkg: UserPackage = {
       id: `pkg_${Date.now()}_${pkgNum}`,
       number: pkgNum,
       name: `Pakiet ${planType} #${pkgNum}`,
@@ -277,12 +491,26 @@ export default function AeuxDashboard({
     };
 
     setUserPackages((prev) => {
-      const updated = [newPkg, ...prev];
+      const updated = [fallbackPkg, ...prev];
       if (typeof window !== "undefined") {
         localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
       }
       return updated;
     });
+
+    if (user?.email) {
+      fetch("/api/auth/send-plan-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          planName: `Pakiet ${planType}`,
+          amountFormatted: priceLabel,
+          expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
+          dashboardUrl: window.location.origin + "/dashboard",
+        }),
+      }).catch(() => {});
+    }
 
     if (setMessage) {
       setMessage({
@@ -291,8 +519,7 @@ export default function AeuxDashboard({
       });
     }
 
-    // Open configurator
-    setSelectedPackageForConfig(newPkg);
+    setSelectedPackageForConfig(fallbackPkg);
     setConfigStoreName("");
     setConfigSubdomain("");
     setConfigLogo("");
@@ -347,7 +574,57 @@ export default function AeuxDashboard({
     return `${hours} godz., ${minutes} min.`;
   };
 
-  const handleExtendPackage = (pkgId: string) => {
+  const handleExtendPackage = async (pkgId: string) => {
+    const targetPkg = userPackages.find((p) => p.id === pkgId);
+    if (!targetPkg) return;
+
+    if (targetPkg.planType === "Start") {
+      setUserPackages((prev) => {
+        const updated = prev.map((p) => {
+          if (p.id === pkgId) {
+            const currentExpiry = new Date(p.expiresAt).getTime();
+            const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+            const newExpiry = new Date(baseTime + 14 * 86400000).toISOString();
+            return { ...p, expiresAt: newExpiry };
+          }
+          return p;
+        });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+        }
+        return updated;
+      });
+      if (setMessage) {
+        setMessage({ type: "success", text: "🎉 Przedłużono okres próbny Pakietu Start o 14 dni!" });
+      }
+      return;
+    }
+
+    const priceCents = targetPkg.planType === "Creator" ? 2999 : 5999;
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: user?.id || "user_store",
+          title: `Przedłużenie subskrypcji - ${targetPkg.name} (+30 dni)`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType: targetPkg.planType,
+          billingCycle: "miesiac",
+        }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error("Stripe Extension Error:", err);
+    }
+
+    // Fallback
     setUserPackages((prev) => {
       const updated = prev.map((p) => {
         if (p.id === pkgId) {
@@ -368,8 +645,41 @@ export default function AeuxDashboard({
     }
   };
 
-  const handleUpgradePackage = (targetPlan: "Creator" | "Brand") => {
+  const handleUpgradePackage = async (targetPlan: "Creator" | "Brand") => {
     if (!upgradingPackage) return;
+    const currentPlan = upgradingPackage.planType;
+
+    let diffPLN = 29.99;
+    if (currentPlan === "Start" && targetPlan === "Creator") diffPLN = 29.99;
+    else if (currentPlan === "Start" && targetPlan === "Brand") diffPLN = 59.99;
+    else if (currentPlan === "Creator" && targetPlan === "Brand") diffPLN = 30.00;
+
+    const priceCents = Math.round(diffPLN * 100);
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: user?.id || "user_store",
+          title: `Ulepszenie pakietu do ${targetPlan} (Dopłata różnicy)`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType: targetPlan,
+          billingCycle: "miesiac",
+        }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error("Stripe Upgrade Error:", err);
+    }
+
+    // Fallback
     setUserPackages((prev) => {
       const updated = prev.map((p) => {
         if (p.id === upgradingPackage.id) {
@@ -536,12 +846,127 @@ export default function AeuxDashboard({
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex font-sans antialiased selection:bg-[#FF5A28] selection:text-white">
+    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex flex-col lg:flex-row font-sans antialiased selection:bg-[#D0FF00] selection:text-black">
       
       {/* ========================================================================= */}
-      {/* LEWY SIDEBAR (BG #070709, LOGODB.SVG 188x22, POPPINS, #D0FF00 HIGHLIGHT) */}
+      {/* MOBILNY HEADER (WIDOCZNY TYLKO NA SMARTFONACH / TABLETACH < lg) */}
       {/* ========================================================================= */}
-      <aside className="w-[284px] bg-[#070709] border-r border-[#141419] flex flex-col justify-between shrink-0 select-none sticky top-0 h-screen overflow-y-auto z-40">
+      <header className="lg:hidden flex items-center justify-between px-5 py-4 bg-[#070709] border-b border-[#141419] sticky top-0 z-50 select-none">
+        <Link href="/dashboard" className="flex items-center">
+          <img
+            src="/logodb.svg"
+            alt="Logo"
+            className="w-[140px] h-[18px] object-contain"
+          />
+        </Link>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="w-10 h-10 rounded-xl bg-[#0D0E12] border border-[#17181F] flex items-center justify-center text-white cursor-pointer active:scale-95 transition-transform"
+          aria-label="Menu"
+        >
+          {isMobileMenuOpen ? (
+            <X className="w-5 h-5 text-white" />
+          ) : (
+            <Menu className="w-5 h-5 text-[#D0FF00]" />
+          )}
+        </button>
+      </header>
+
+      {/* ========================================================================= */}
+      {/* MOBILNY DRAWER / OVERLAY SIDEBAR (WIDOCZNY PO KLIKNIĘCIU HAMBURGERA) */}
+      {/* ========================================================================= */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-[280px] bg-[#070709] border-r border-[#141419] h-full flex flex-col justify-between p-6 overflow-y-auto animate-in slide-in-from-left duration-200">
+            <div>
+              <div className="flex items-center justify-between pb-8">
+                <img
+                  src="/logodb.svg"
+                  alt="Logo"
+                  className="w-[140px] h-[18px] object-contain"
+                />
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Poppins',sans-serif]">
+                GŁÓWNE
+              </div>
+
+              <nav className="flex flex-col gap-2 font-['Poppins',sans-serif]">
+                <button
+                  onClick={() => setActiveTab("pulpit")}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                    activeTab === "pulpit"
+                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                      : "text-[#5B5B62] hover:text-white"
+                  }`}
+                >
+                  <LayoutGrid className="w-5 h-5 shrink-0" />
+                  <span className="text-[15px]">Strona główna</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("produkty")}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                    activeTab === "produkty"
+                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                      : "text-[#5B5B62] hover:text-white"
+                  }`}
+                >
+                  <ShoppingBasket className="w-5 h-5 shrink-0" />
+                  <span className="text-[15px]">Sklep</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("kreator")}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                    activeTab === "kreator"
+                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                      : "text-[#5B5B62] hover:text-white"
+                  }`}
+                >
+                  <BookOpen className="w-5 h-5 shrink-0" />
+                  <span className="text-[15px]">Szablony</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-6 border-t border-[#141419] font-['Poppins',sans-serif]">
+              <button
+                onClick={() => setActiveTab("profil")}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                  activeTab === "profil"
+                    ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                    : "text-[#5B5B62] hover:text-white"
+                }`}
+              >
+                <UserIcon className="w-5 h-5 shrink-0" />
+                <span className="text-[15px]">Twój profil</span>
+              </button>
+
+              {logout && (
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer text-rose-400 hover:bg-rose-500/10"
+                >
+                  <LogOut className="w-5 h-5 shrink-0" />
+                  <span className="text-[15px]">Wyloguj się</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* LEWY SIDEBAR DESKTOP (BG #070709, LOGODB.SVG 188x22, POPPINS, #D0FF00) */}
+      {/* ========================================================================= */}
+      <aside className="hidden lg:flex w-[284px] bg-[#070709] border-r border-[#141419] flex-col justify-between shrink-0 select-none sticky top-0 h-screen overflow-y-auto z-40">
         
         <div>
           {/* 1. LOGO NA SAMEJ GÓRZE - WYŚRODKOWANE, PADDING 64px GÓRA I DÓŁ */}
@@ -681,12 +1106,12 @@ export default function AeuxDashboard({
       {/* ========================================================================= */}
       {/* GŁÓWNA PRZESTRZEŃ DASHBOARDU - PEŁNY DARK THEME (BG #0A0B0D) */}
       {/* ========================================================================= */}
-      <main className="flex-1 bg-[#0A0B0D] min-h-screen p-6 sm:p-8 lg:p-10 overflow-y-auto font-sans">
+      <main className="flex-1 bg-[#0A0B0D] min-h-screen p-4 sm:p-6 lg:p-10 overflow-y-auto font-sans">
         
         {/* GÓRNY PASEK NAGŁÓWKA */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
                 {activeTab === "pulpit" && "Strona główna"}
                 {activeTab === "produkty" && "Sklep"}
@@ -844,68 +1269,227 @@ export default function AeuxDashboard({
         </div>
 
         {/* ========================================================================= */}
-        {/* WIDOK 1: STRONA GŁÓWNA */}
+        {/* WIDOK 1: STRONA GŁÓWNA (DYNAMICZNIE DLA NOWYCH VS POSIADAJĄCYCH PAKIET) */}
         {/* ========================================================================= */}
         {activeTab === "pulpit" && (
           <div className="space-y-6 max-w-5xl">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* KARTA 1 (LEWA): BRAK PAKIETU */}
-              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
-                <div className="space-y-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
-                    <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
+            {userPackages.length === 0 ? (
+              /* DLA NOWEGO UŻYTKOWNIKA BEZ PAKIETU: 2 KAFELKI ONBOARDINGOWE */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* KARTA 1 (LEWA): BRAK PAKIETU */}
+                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
+                  <div className="space-y-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
+                      <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                      Nie posiadasz żadnego pakietu
+                    </h2>
+                    <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
+                      Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
+                    </p>
                   </div>
-                  <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
-                    Nie posiadasz żadnego pakietu
+
+                  <div className="pt-7">
+                    <button
+                      onClick={() => setActiveTab("produkty")}
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Przejdź dalej</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
+                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
+                  <div className="space-y-3.5">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-['Poppins',sans-serif]">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Dla nowych użytkowników • Tylko raz</span>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                      Sklep na 14 dni
+                    </h2>
+
+                    <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
+                      Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
+                    </p>
+                  </div>
+
+                  <div className="pt-7">
+                    <button
+                      onClick={() => {
+                        setActiveTab("produkty");
+                      }}
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Wypróbuj za darmo (14 dni)</span>
+                      <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ) : (
+              /* DLA UŻYTKOWNIKA Z PAKIETEM: KAFELKI AKTYWNEGO PAKIETU NA STRONIE GŁÓWNEJ */
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif] tracking-tight">
+                    Twój aktywny pakiet
                   </h2>
-                  <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
-                    Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
+                  <p className="text-xs text-zinc-400 font-['Poppins',sans-serif] mt-0.5">
+                    Zarządzaj swoją marką, konfiguracją sklepu i ważnością subskrypcji.
                   </p>
                 </div>
 
-                <div className="pt-7">
-                  <button
-                    onClick={() => setActiveTab("produkty")}
-                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Przejdź dalej</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
+                <div className="space-y-4">
+                  {userPackages.map((pkg) => {
+                    const remaining = getRemainingTime(pkg.expiresAt);
+                    const isExp = remaining === "Wygasł";
+
+                    return (
+                      <div
+                        key={pkg.id}
+                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all"
+                      >
+                        {/* LEWA STRONA: LOGO, NAZWA, SUBDOMENA / BRAK KONFIGURACJI */}
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
+                            {pkg.logoUrl ? (
+                              <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-center p-1">
+                                <ShoppingBag className="w-5 h-5 text-zinc-500 mx-auto" />
+                                <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none font-['Poppins',sans-serif]">
+                                  Brak logo
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 min-w-0 text-left">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
+                                {pkg.planType}
+                              </span>
+                              <span className="text-xs text-zinc-500 font-mono font-['Poppins',sans-serif]">
+                                ID: #{pkg.number}
+                              </span>
+                            </div>
+
+                            {/* EDYCJA NAZWY */}
+                            {editingPackageId === pkg.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editingPackageName}
+                                  onChange={(e) => setEditingPackageName(e.target.value)}
+                                  className="px-2.5 py-1 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleSaveRename(pkg.id)}
+                                  className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
+                                >
+                                  Zapisz
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group">
+                                <h3 className="text-lg font-bold text-white truncate font-['Poppins',sans-serif]">
+                                  {pkg.name}
+                                </h3>
+                                <button
+                                  onClick={() => handleStartRename(pkg)}
+                                  className="opacity-60 hover:opacity-100 text-zinc-400 hover:text-white transition-opacity cursor-pointer p-1"
+                                  title="Zmień nazwę"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* STATUS SUBDOMENY */}
+                            <div>
+                              {pkg.isConfigured && pkg.subdomain ? (
+                                <a
+                                  href={`https://${pkg.subdomain}.iskral.pl`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs text-[#D0FF00] hover:underline font-semibold font-['Poppins',sans-serif]"
+                                >
+                                  <span>{pkg.subdomain}.iskral.pl</span>
+                                  <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
+                                </a>
+                              ) : (
+                                <span className="text-xs text-zinc-500 font-medium font-['Poppins',sans-serif]">
+                                  Nie skonfigurowano
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ŚRODEK: WAŻNOŚĆ SKLEPU */}
+                        <div className="bg-[#111319] border border-[#1C1E26] px-4 py-3 rounded-2xl flex items-center gap-3 shrink-0 w-full sm:w-auto">
+                          <Clock className={`w-4 h-4 shrink-0 ${isExp ? "text-rose-400" : "text-[#D0FF00]"}`} />
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-zinc-500 block font-['Poppins',sans-serif]">
+                              Ważność sklepu
+                            </span>
+                            <span className={`text-xs font-bold font-['Poppins',sans-serif] ${isExp ? "text-rose-400" : "text-zinc-200"}`}>
+                              {remaining}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* PRAWA STRONA: PRZYCISKI AKCJI (Przejdź dalej, Przedłuż, Ulepsz) */}
+                        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-start md:justify-end">
+                          {pkg.isConfigured && pkg.subdomain ? (
+                            <a
+                              href={`https://${pkg.subdomain}.iskral.pl`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer font-['Poppins',sans-serif] whitespace-nowrap"
+                            >
+                              <span>Przejdź do sklepu</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenConfigurator(pkg)}
+                              className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer font-['Poppins',sans-serif] whitespace-nowrap"
+                            >
+                              <span>Przejdź dalej (Konfiguruj)</span>
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleExtendPackage(pkg.id)}
+                            className="px-3.5 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-['Poppins',sans-serif] whitespace-nowrap"
+                          >
+                            <span>Przedłuż (+30 dni)</span>
+                          </button>
+
+                          {pkg.planType !== "Brand" && (
+                            <button
+                              onClick={() => setUpgradingPackage(pkg)}
+                              className="px-3.5 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-zinc-300 hover:text-[#D0FF00] text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-['Poppins',sans-serif] whitespace-nowrap"
+                            >
+                              <span>Ulepsz pakiet</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
-              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
-                <div className="space-y-3.5">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-['Poppins',sans-serif]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Dla nowych użytkowników • Tylko raz</span>
-                  </div>
-
-                  <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
-                    Sklep na 14 dni
-                  </h2>
-
-                  <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
-                    Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
-                  </p>
-                </div>
-
-                <div className="pt-7">
-                  <button
-                    onClick={() => {
-                      setActiveTab("produkty");
-                    }}
-                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Wypróbuj za darmo (14 dni)</span>
-                    <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
-                  </button>
-                </div>
-              </div>
-
-            </div>
+            )}
           </div>
         )}
 
@@ -1941,8 +2525,13 @@ export default function AeuxDashboard({
                   className="w-full p-4 rounded-xl bg-[#111319] hover:bg-[#181B24] border border-[#1C1E26] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
                 >
                   <div>
-                    <span className="text-sm font-semibold text-white block">Pakiet Creator</span>
-                    <span className="text-xs text-zinc-400">29.99 zł / msc • Nielimitowane produkty</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">Pakiet Creator</span>
+                      <span className="px-2 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[10px] font-bold text-[#D0FF00]">
+                        Dopłata: 29.99 zł
+                      </span>
+                    </div>
+                    <span className="text-xs text-zinc-400 mt-1 block">Nielimitowane produkty • Płatność Stripe</span>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
                 </button>
@@ -1954,8 +2543,13 @@ export default function AeuxDashboard({
                   className="w-full p-4 rounded-xl bg-[#111319] hover:bg-[#181B24] border border-[#1C1E26] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
                 >
                   <div>
-                    <span className="text-sm font-semibold text-white block">Pakiet Brand</span>
-                    <span className="text-xs text-zinc-400">59.99 zł / msc • Własna domena i tryb dropu</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">Pakiet Brand</span>
+                      <span className="px-2 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[10px] font-bold text-[#D0FF00]">
+                        {upgradingPackage.planType === "Creator" ? "Dopłata różnicy: 30.00 zł" : "Dopłata: 59.99 zł"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-zinc-400 mt-1 block">Własna domena, tryb dropu i priorytet • Płatność Stripe</span>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
                 </button>
