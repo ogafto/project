@@ -129,6 +129,7 @@ export interface StoreConfig {
   campaigns: Campaign[];
   team: TeamMember[];
   announcement: string;
+  showSocials?: boolean;
   socials: {
     instagram?: string;
     tiktok?: string;
@@ -150,6 +151,19 @@ export interface StoreConfig {
     privacyPolicy?: string;
     updatedAt?: string;
   };
+}
+
+export interface ServicePackage {
+  id: string;
+  number: number;
+  title: string;
+  planType: PlanType;
+  status: "Nieprzypisany" | "Przypisany";
+  assignedStoreId?: string;
+  assignedStoreName?: string;
+  assignedSubdomain?: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface SaaSSubscriptionRecord {
@@ -211,6 +225,15 @@ export interface User {
   is2FAEnabled: boolean;
   isEmailVerified: boolean;
   createdAt: string;
+  avatarUrl?: string;
+  phone?: string;
+  address?: {
+    street?: string;
+    zip?: string;
+    city?: string;
+    country?: string;
+  };
+  services?: ServicePackage[];
   activeStoreId?: string;
   stores?: StoreConfig[];
   store?: StoreConfig;
@@ -259,6 +282,7 @@ interface AuthContextType {
   resetPassword: (code: string, newPassword: string) => boolean;
   logout: () => void;
   buyPlan: (plan: PlanType, billingCycle: "miesiac" | "rok") => Promise<void>;
+  updateUserProfile: (data: Partial<User>) => void;
   toggle2FA: () => void;
   updateUserRole: (userId: string, newRole: Role) => void;
   updateUserPlan: (userId: string, newPlan: PlanType) => void;
@@ -1060,34 +1084,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const priceCents = isTrial ? 0 : plan === "Creator" || plan === "starter" ? (billingCycle === "rok" ? 29900 : 4990) : (billingCycle === "rok" ? 59900 : 9990);
 
-    const targetStore = getOrCreateActiveStore();
-
-    const updatedStore: StoreConfig = {
-      ...targetStore,
+    const packageNumber = Math.floor(100 + Math.random() * 900);
+    const newService: ServicePackage = {
+      id: `srv_${Date.now()}`,
+      number: packageNumber,
+      title: `Pakiet ${plan} #${packageNumber}`,
       planType: plan,
-      planStatus: "active",
-      planExpiresAt: expiresAt,
+      status: "Nieprzypisany",
+      expiresAt: `${new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toLocaleDateString("pl-PL")}, godz. 00:02`,
+      createdAt: new Date().toISOString(),
     };
+
+    const updatedServices = [...(user.services || []), newService];
 
     const updatedUser: User = {
       ...user,
       plan,
-      hasStore: true,
+      services: updatedServices,
       planExpiresAt: expiresAt,
     };
 
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
 
-    applyStoreMutation(
-      updatedStore,
-      isTrial
-        ? `🎉 Aktywowano 14-dniowy bezpłatny okres próbny! Pakiet ważny do: ${new Date(expiresAt).toLocaleString("pl-PL")}`
-        : `🎉 Pomyślnie aktywowano pakiet ${plan} (${billingCycle})! Sklep aktywowany.`
-    );
+    setMessage({
+      type: "success",
+      text: isTrial
+        ? `🎉 Aktywowano 14-dniowy bezpłatny okres próbny (${newService.title})! Przejdź do konfiguracji sklepu.`
+        : `🎉 Pomyślnie zakupiono ${newService.title}! Przejdź do konfiguracji sklepu.`,
+    });
 
     if (priceCents > 0) {
-      recordSaaSSubscription(updatedStore.id, user.id, user.email, plan, priceCents);
+      recordSaaSSubscription(newService.id, user.id, user.email, plan, priceCents);
     }
 
     // Wysyłka potwierdzenia pakietu na e-mail
@@ -1108,6 +1136,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       }).catch(console.warn);
     }
+  };
+
+  const updateUserProfile = (data: Partial<User>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...data };
+    setUser(updatedUser);
+    setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
+    setMessage({ type: "success", text: "Zaktualizowano profil i dane konta!" });
   };
 
   const createStripeCheckout = async (params: {
@@ -1487,11 +1523,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ? currentStores.map((s) => (s.id === updatedStore.id ? updatedStore : s))
       : [...currentStores, updatedStore];
 
+    const updatedServices = (user.services || []).map((s) => {
+      if (s.status === "Nieprzypisany") {
+        return {
+          ...s,
+          status: "Przypisany" as const,
+          assignedStoreId: updatedStore.id,
+          assignedStoreName: updatedStore.name,
+          assignedSubdomain: updatedStore.subdomain,
+        };
+      }
+      return s;
+    });
+
     const updatedUser: User = {
       ...user,
       role: user.role === "superadmin" ? "superadmin" : "client",
       plan: params.plan,
       hasStore: true,
+      services: updatedServices.length > 0 ? updatedServices : user.services,
       activeStoreId: updatedStore.id,
       stores: updatedStores,
       store: updatedStores[0],
@@ -1773,6 +1823,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         logout,
         buyPlan,
+        updateUserProfile,
         toggle2FA,
         updateUserRole,
         updateUserPlan,
