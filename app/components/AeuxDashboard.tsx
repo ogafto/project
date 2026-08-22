@@ -1451,8 +1451,8 @@ export default function AeuxDashboard({
               </div>
             </div>
 
-            {/* SIATKA SZABLONÓW */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            {/* LISTA POZIOMYCH KAFELKÓW SZABLONÓW */}
+            <div className="space-y-4 max-w-5xl">
               {(templateFilter === "Darmowe" ? [
                 {
                   id: "dark-vibe",
@@ -1462,7 +1462,6 @@ export default function AeuxDashboard({
                   tag: "Streetwear Dark",
                   desc: "Mroczny, minimalistyczny streetwear z mocnymi kontrastami i akcentami.",
                   image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80",
-                  features: ["Responsywny layout", "Szybki koszyk boczny", "Warianty rozmiarów", "Pasek ogłoszeń"],
                 },
                 {
                   id: "minimal-clean",
@@ -1472,7 +1471,6 @@ export default function AeuxDashboard({
                   tag: "Aesthetic Minimal",
                   desc: "Czysty minimalizm nastawiony na ekspozycję dużych zdjęć produktów.",
                   image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80",
-                  features: ["Duża siatka zdjęć", "Minimalistyczna nawigacja", "Lekki i szybki kod", "Podstawowe filtry"],
                 },
                 {
                   id: "street-essential",
@@ -1482,7 +1480,6 @@ export default function AeuxDashboard({
                   tag: "Urban Classics",
                   desc: "Klasyczny i przejrzysty układ dla debiutujących marek odzieżowych.",
                   image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80",
-                  features: ["Kafelki kolekcji", "Szybki zakup BLIK & karta", "Sekcja nowości", "Subdomena .iskral.pl"],
                 },
               ] : [
                 {
@@ -1493,7 +1490,6 @@ export default function AeuxDashboard({
                   tag: "Drop & Countdown",
                   desc: "Futurystyczny szablon z zaawansowanym zegarem odliczania do dropu.",
                   image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80",
-                  features: ["Zegar odliczania na żywo", "Tryb blokady hasłem (Password)", "Dynamiczne animacje", "Efekt neon glow"],
                 },
                 {
                   id: "oversize-club",
@@ -1503,7 +1499,6 @@ export default function AeuxDashboard({
                   tag: "Lookbook & Fit",
                   desc: "Dedykowany motyw dla marek oversize z lookbookiem i tabelą dopasowania.",
                   image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80",
-                  features: ["Interaktywna tabela fitu", "Lookbook wideo / galeria", "Kody rabatowe popup", "Powiadomienia o dropie"],
                 },
                 {
                   id: "monochrome-luxury",
@@ -1513,7 +1508,6 @@ export default function AeuxDashboard({
                   tag: "High Fashion",
                   desc: "Ekskluzywny design z typografią high-fashion i unikalną estetyką.",
                   image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
-                  features: ["Typografia High-Fashion", "Customowa paleta barw", "Wielowalutowość", "Priorytetowe ładowanie"],
                 },
               ]).map((tpl) => {
                 const isActive = (selectedTemplateName || currentStore.template) === tpl.name;
@@ -1523,75 +1517,68 @@ export default function AeuxDashboard({
                     key={tpl.id}
                     className={`bg-[#0D0E12] border ${
                       isActive ? "border-2 border-[#D0FF00]/50" : "border-[#181A22] hover:border-[#242836]"
-                    } rounded-[24px] p-7 flex flex-col justify-between transition-all relative`}
+                    } rounded-[24px] p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all`}
                   >
-                    <div className="space-y-4">
-                      {/* GÓRNY BADGE */}
-                      <div className="flex items-center justify-between">
-                        <div
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Poppins',sans-serif] w-fit ${
-                            isActive
-                              ? "bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] font-semibold"
-                              : "bg-[#111319] border border-[#1C1E26] text-zinc-400"
-                          }`}
-                        >
-                          {isActive && <Sparkles className="w-3.5 h-3.5 text-[#D0FF00]" />}
-                          <span>{isActive ? "Aktualny szablon" : tpl.badgeText}</span>
-                        </div>
-                      </div>
+                    {/* LEWA STRONA: MINIATURKA ZDJĘCIA */}
+                    <div className="w-full md:w-64 lg:w-72 h-44 md:h-36 rounded-2xl overflow-hidden border border-[#1C1E26] bg-[#111319] shrink-0 relative group">
+                      <img
+                        src={tpl.image}
+                        alt={tpl.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                      <span className="absolute bottom-2.5 left-2.5 text-[10px] font-bold text-white bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 font-['Poppins',sans-serif]">
+                        {tpl.tag}
+                      </span>
+                    </div>
 
-                      {/* NAZWA I OPIS */}
-                      <div>
-                        <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif]">
-                          {tpl.name}
-                        </h3>
-                        <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif] leading-relaxed min-h-[36px]">
-                          {tpl.desc}
-                        </p>
-                      </div>
-
-                      {/* PODGLĄD GRAFICZNY SZABLONU */}
-                      <div className="my-3 rounded-2xl overflow-hidden border border-[#1C1E26] bg-[#111319] aspect-[16/10] relative group">
-                        <img
-                          src={tpl.image}
-                          alt={tpl.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0E12] via-transparent to-transparent opacity-80" />
-                        <span className="absolute bottom-3 left-3 text-[11px] font-bold text-white bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 font-['Poppins',sans-serif]">
-                          {tpl.tag}
+                    {/* ŚRODEK: BADGE, NAZWA SZABLONU, OPIS */}
+                    <div className="flex-1 min-w-0 space-y-2 text-left w-full">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-['Poppins',sans-serif] w-fit">
+                        {isActive && <Sparkles className="w-3.5 h-3.5 text-[#D0FF00]" />}
+                        <span className={isActive ? "text-[#D0FF00] font-semibold" : ""}>
+                          {isActive ? "Aktualny szablon" : tpl.badgeText}
                         </span>
                       </div>
 
-                      {/* CECHY SZABLONU */}
-                      <ul className="space-y-2.5 text-xs text-zinc-300 font-['Poppins',sans-serif]">
-                        {tpl.features.map((feat) => (
-                          <li key={feat} className="flex items-center gap-2">
-                            <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
-                            <span>{feat}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif] tracking-tight">
+                        {tpl.name}
+                      </h3>
+
+                      <p className="text-xs text-zinc-400 font-['Poppins',sans-serif] leading-relaxed max-w-xl">
+                        {tpl.desc}
+                      </p>
                     </div>
 
-                    {/* PRZYCISK WYBORU */}
-                    <div className="pt-4 mt-4">
-                      {isActive ? (
-                        <button
-                          disabled
-                          className="w-full px-[24px] py-[12px] bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/40 text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl flex items-center justify-center gap-2 cursor-default whitespace-nowrap"
-                        >
-                          <Check className="w-4 h-4" />
-                          <span>Aktywny szablon</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSelectTemplate(tpl.name)}
-                          className="w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
-                        >
-                          Wybierz szablon
-                        </button>
-                      )}
+                    {/* PRAWA STRONA: PRZYCISKI ZOBACZ DEMO I WYBIERZ */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto">
+                      <a
+                        href={liveStoreUrl || "https://demo.iskral.pl"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors inline-flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+                      >
+                        <span>Zobacz demo</span>
+                        <ExternalLink className="w-4 h-4 text-[#D0FF00]" />
+                      </a>
+
+                      <button
+                        onClick={() => handleSelectTemplate(tpl.name)}
+                        className={`w-full sm:w-auto px-[24px] py-[12px] text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap ${
+                          isActive
+                            ? "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/40"
+                            : "bg-[#D0FF00] hover:bg-[#bce600] text-black shadow-sm"
+                        }`}
+                      >
+                        {isActive ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Wybrany</span>
+                          </>
+                        ) : (
+                          <span>Wybierz</span>
+                        )}
+                      </button>
                     </div>
                   </div>
                 );
