@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import BackgroundVideo from "../components/BackgroundVideo";
 import { useAuth, Product, Category, PlanType, StoreConfig, TeamMember, Campaign, ServicePackage, User } from "../context/AuthContext";
 import { getStoreUrl } from "@/lib/cookies";
 import { checkSubdomainAvailability } from "@/lib/supabase";
@@ -46,6 +47,8 @@ import {
   Crown,
   Share2,
   CheckCircle2,
+  ArrowLeft,
+  Zap,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -55,10 +58,6 @@ export default function DashboardPage() {
     activeStore,
     userStores,
     setActiveStoreId,
-    isImpersonating,
-    isEditUnlocked,
-    exitImpersonation,
-    toggleImpersonationEdit,
     logout,
     buyPlan,
     updateUserProfile,
@@ -81,16 +80,22 @@ export default function DashboardPage() {
 
   const router = useRouter();
 
-  // Navigation state:
-  // "home" (Strona główna)
-  // "shop" (Sklep - kupno pakietu)
-  // "templates" (Szablony)
-  // "settings" (Ustawienia konta)
-  // Store tabs: "editor", "stats", "products", "orders", "domain", "balance", "newsletter", "team", "drop", "seo"
-  const [activeNav, setActiveNav] = useState<string>("home");
+  // Navigation mode:
+  // "main" -> shows "GŁÓWNE" sidebar
+  // "package" -> shows "PAKIET" sidebar (only when inside Usługi / a specific package)
+  const [navMode, setNavMode] = useState<"main" | "package">("main");
 
-  // Selected Service / Store
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  // Active tab within "main" mode: "home" | "shop" | "templates" | "services" | "settings"
+  const [mainTab, setMainTab] = useState<"home" | "shop" | "templates" | "services" | "settings">("home");
+
+  // Active tab within "package" mode:
+  // "editor" | "stats" | "products" | "orders" | "domain" | "balance" | "newsletter" | "team" | "drop" | "seo"
+  const [packageTab, setPackageTab] = useState<
+    "editor" | "stats" | "products" | "orders" | "domain" | "balance" | "newsletter" | "team" | "drop" | "seo"
+  >("editor");
+
+  // Selected Service Package
+  const [selectedService, setSelectedService] = useState<ServicePackage | null>(null);
 
   // Configuration Modal state (Kreator Konfiguracji Sklepu)
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -140,9 +145,6 @@ export default function DashboardPage() {
   const [profCity, setProfCity] = useState(user?.address?.city || "Warszawa");
   const [profCountry, setProfCountry] = useState(user?.address?.country || "Polska");
   const [profAvatar, setProfAvatar] = useState(user?.avatarUrl || "");
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   // 2FA state
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -158,13 +160,11 @@ export default function DashboardPage() {
   const [dropTemplate, setDropTemplate] = useState<"Cyberpunk Launch" | "Minimalist Timer" | "Hypebeast Countdown">("Cyberpunk Launch");
 
   // Payout State
-  const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutIban, setPayoutIban] = useState("PL 12 1020 4900 0000 1234 5678 9012");
 
   // Team & Newsletter State
   const [teamEmail, setTeamEmail] = useState("");
   const [campaignTitle, setCampaignTitle] = useState("");
-  const [campaignSubject, setCampaignSubject] = useState("");
 
   // Top User Pill Menu
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -180,7 +180,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Sync state with activeStore & user
+  // Sync state with user
   useEffect(() => {
     if (user) {
       setProfName(user.name || "");
@@ -196,15 +196,15 @@ export default function DashboardPage() {
 
   const currentStore: StoreConfig = activeStore || userStores[0] || {
     id: "default",
-    name: "Mój Sklep",
-    subdomain: "mojsklep",
+    name: "Dropwear Club",
+    subdomain: "dropwear",
     customDomain: "",
     domainVerified: false,
     template: "Dark Vibe",
     accentColor: "#FF5B28",
     stripeStatus: "connected",
     balanceCents: 0,
-    planType: user?.plan || "Start",
+    planType: user?.plan || "Brand",
     planStatus: "active",
     announcement: "",
     socials: { instagram: "", tiktok: "", youtube: "", x: "" },
@@ -248,21 +248,23 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen w-full bg-[#F4F5F7] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#3B82F6]/20 border-t-[#3B82F6] rounded-full animate-spin" />
+      <main className="min-h-screen w-full bg-[#090A0C] text-white flex items-center justify-center">
+        <BackgroundVideo />
+        <div className="w-8 h-8 border-4 border-[#FF5B28]/20 border-t-[#FF5B28] rounded-full animate-spin" />
       </main>
     );
   }
 
   if (!user) {
     return (
-      <main className="min-h-screen w-full bg-[#F4F5F7] flex flex-col items-center justify-center p-6 font-sans">
-        <div className="bg-white border border-zinc-200/80 rounded-2xl p-8 text-center max-w-md shadow-lg space-y-4">
-          <h2 className="text-2xl font-bold text-zinc-900">Brak Dostępu</h2>
-          <p className="text-xs text-zinc-500">Zaloguj się, aby uzyskać dostęp do panelu klienta.</p>
+      <main className="min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-6 font-sans">
+        <BackgroundVideo />
+        <div className="bg-[#121318] border border-white/10 rounded-3xl p-8 text-center max-w-md shadow-2xl space-y-4">
+          <h2 className="text-2xl font-black text-white">Brak Dostępu</h2>
+          <p className="text-xs text-zinc-400">Zaloguj się, aby uzyskać dostęp do swojego panelu klienta.</p>
           <Link
             href="/logowanie"
-            className="inline-block px-6 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold rounded-xl text-xs shadow-md transition-all"
+            className="inline-block px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black rounded-xl text-xs shadow-lg shadow-[#FF5B28]/25 transition-all"
           >
             Przejdź do logowania →
           </Link>
@@ -271,15 +273,11 @@ export default function DashboardPage() {
     );
   }
 
-  // Determine user packages & stores:
+  // Derive user services/packages
   const userServices: ServicePackage[] = user.services || [];
   const hasPurchasedPackages = userServices.length > 0 || (user.plan && user.plan !== "Brak");
   const hasConfiguredStore = userStores.length > 0 && user.hasStore;
 
-  // Derive unassigned packages
-  const unassignedServices = userServices.filter((s) => s.status === "Nieprzypisany");
-
-  // Fallback synthetic service if user has plan but no services array yet
   const displayServices: ServicePackage[] = userServices.length > 0
     ? userServices
     : user.plan && user.plan !== "Brak"
@@ -303,12 +301,18 @@ export default function DashboardPage() {
     setConfigService(service);
     setCfgName(user?.name ? `Sklep ${user.name}` : "Dropwear Club");
     setCfgSubdomain((user?.name || "sklep").toLowerCase().replace(/[^a-z0-9]/g, "") || "dropwear");
-    setCfgDescription("Oficjalny sklep z unikalnymi dropami i kolekcjami.");
+    setCfgDescription("Oficjalny sklep streetwear z limitowanymi kolekcjami.");
     setCfgLogo("");
     setCfgTemplate("Dark Vibe");
     setCfgColor("#FF5B28");
     setCfgShowSocials(true);
     setShowConfigModal(true);
+  };
+
+  const handleOpenPackageManagement = (service: ServicePackage) => {
+    setSelectedService(service);
+    setNavMode("package");
+    setPackageTab("editor");
   };
 
   const handleLogoFileUpload = (file: File) => {
@@ -368,7 +372,6 @@ export default function DashboardPage() {
       billingCycle: "miesiac",
     });
 
-    // Update store with socials & showSocials
     updateStoreConfig({
       showSocials: cfgShowSocials,
       socials: {
@@ -382,7 +385,8 @@ export default function DashboardPage() {
     });
 
     setShowConfigModal(false);
-    setActiveNav("editor");
+    setNavMode("package");
+    setPackageTab("editor");
     setMessage({
       type: "success",
       text: `🎉 Sklep ${cfgName} został pomyślnie utworzony pod adresem: https://${cfgSubdomain}.iskral.pl`,
@@ -543,213 +547,225 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#F4F5F7] text-zinc-900 flex font-sans antialiased selection:bg-[#3B82F6] selection:text-white">
-      
+    <div className="min-h-screen w-full bg-[#090A0C] text-white flex font-sans antialiased selection:bg-[#FF5B28] selection:text-white relative">
+      <BackgroundVideo />
+
       {/* ========================================================================= */}
-      {/* 1. LEFT SIDEBAR (SIDEBAR PO LEWEJ STRONIE JAK NA MAKIECIE) */}
+      {/* 1. LEFT SIDEBAR (DARK MODE SLEEK LINEAR / VERCEL AESTHETIC) */}
       {/* ========================================================================= */}
-      <aside className="w-64 bg-white border-r border-zinc-200/80 min-h-screen flex flex-col justify-between shrink-0 sticky top-0 h-screen overflow-y-auto">
+      <aside className="w-64 bg-[#0E0F14]/90 backdrop-blur-xl border-r border-white/10 min-h-screen flex flex-col justify-between shrink-0 sticky top-0 h-screen overflow-y-auto z-20 shadow-2xl">
         <div className="p-6">
           
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 mb-8">
-            <img src="/logo.svg" alt="iskral" className="h-7 w-auto object-contain" />
+            <img src="/logo.svg" alt="iskral" className="h-8 w-auto object-contain" />
           </Link>
 
-          {/* SEKDOM: GŁÓWNE */}
-          <div className="space-y-1 mb-8">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-3 mb-2 block">
-              GŁÓWNE
-            </span>
-
-            <button
-              onClick={() => setActiveNav("home")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2.5 cursor-pointer ${
-                activeNav === "home"
-                  ? "bg-zinc-100 text-zinc-900 font-bold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
-            >
-              <span>Strona główna</span>
-            </button>
-
-            {/* Sklep / Zakup Pakietu */}
-            <button
-              onClick={() => setActiveNav("shop")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2.5 cursor-pointer ${
-                activeNav === "shop"
-                  ? "bg-zinc-100 text-zinc-900 font-bold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
-            >
-              <span>Sklep</span>
-            </button>
-
-            {/* Szablony */}
-            <button
-              onClick={() => setActiveNav("templates")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2.5 cursor-pointer ${
-                activeNav === "templates"
-                  ? "bg-zinc-100 text-zinc-900 font-bold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
-            >
-              <span>Szablony</span>
-            </button>
-
-            {/* Usługi */}
-            <div className="pt-1">
-              <button
-                onClick={() => setActiveNav("home")}
-                className="w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 flex items-center justify-between cursor-pointer"
-              >
-                <span>Usługi</span>
-                <ChevronRight className="w-4 h-4 text-zinc-400" />
-              </button>
-
-              {/* Sub-item: Show active assigned package if store is configured */}
-              {hasConfiguredStore && (
-                <div className="pl-6 pt-1">
-                  <button
-                    onClick={() => setActiveNav("editor")}
-                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer truncate ${
-                      activeNav === "editor" ? "text-[#3B82F6] font-bold" : "text-zinc-500 hover:text-zinc-900"
-                    }`}
-                  >
-                    Pakiet {currentStore.planType || user.plan || "Brand"} #{displayServices[0]?.number || 442}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Ustawienia Konta */}
-            <button
-              onClick={() => setActiveNav("settings")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2.5 cursor-pointer ${
-                activeNav === "settings"
-                  ? "bg-zinc-100 text-zinc-900 font-bold"
-                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
-              }`}
-            >
-              <span>Ustawienia</span>
-            </button>
-          </div>
-
-          {/* SEKDOM: PAKIET / ZARZĄDZANIE SKLEPEM (WIDOCZNE GDY SKLEP JEST SKONFIGUROWANY) */}
-          {hasConfiguredStore && (
-            <div className="space-y-1 pt-2 border-t border-zinc-100">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-3 mb-2 block">
-                PAKIET
+          {/* ========================================== */}
+          {/* SIDEBAR VIEW A: GŁÓWNE MENU (DEFAULT) */}
+          {/* ========================================== */}
+          {navMode === "main" ? (
+            <div className="space-y-1.5 animate-in fade-in duration-150">
+              <span className="text-[11px] font-extrabold text-zinc-500 uppercase tracking-widest px-3 mb-2 block">
+                GŁÓWNE
               </span>
 
               <button
-                onClick={() => setActiveNav("editor")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "editor"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setMainTab("home")}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  mainTab === "home"
+                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Edytor strony
+                <Home className="w-4 h-4" />
+                <span>Strona główna</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("stats")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "stats"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setMainTab("shop")}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  mainTab === "shop"
+                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Statystyki
+                <ShoppingBag className="w-4 h-4" />
+                <span>Sklep</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("products")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "products"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setMainTab("templates")}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  mainTab === "templates"
+                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Dodaj produkt
+                <Layers className="w-4 h-4" />
+                <span>Szablony</span>
+              </button>
+
+              {/* Usługi Tab - expands into package view */}
+              <button
+                onClick={() => {
+                  setMainTab("services");
+                  if (hasConfiguredStore || displayServices.length > 0) {
+                    // Enter package mode directly
+                    setNavMode("package");
+                    setPackageTab("editor");
+                  }
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                  mainTab === "services"
+                    ? "bg-white/10 text-white font-black"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Package className="w-4 h-4 text-cyan-400" />
+                  <span>Usługi</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 bg-white/10 text-white text-[10px] rounded-md font-mono">
+                    {displayServices.length}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                </div>
               </button>
 
               <button
-                onClick={() => setActiveNav("orders")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "orders"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setMainTab("settings")}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  mainTab === "settings"
+                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
+                    : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Zamówienia
+                <SettingsIcon className="w-4 h-4" />
+                <span>Ustawienia</span>
+              </button>
+            </div>
+          ) : (
+            /* ========================================== */
+            /* SIDEBAR VIEW B: PAKIET / ZARZĄDZANIE SKLEPEM (PO WEJŚCIU W USŁUGI) */
+            /* ========================================== */
+            <div className="space-y-1 animate-in fade-in duration-150">
+              
+              {/* Back button to Main Menu */}
+              <button
+                onClick={() => {
+                  setNavMode("main");
+                  setMainTab("home");
+                }}
+                className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 mb-4 cursor-pointer border border-white/5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-[#FF5B28]" />
+                <span>← Wróć do menu</span>
+              </button>
+
+              <span className="text-[11px] font-extrabold text-[#FF5B28] uppercase tracking-widest px-3 mb-2 block">
+                PAKIET: {(currentStore.planType || user.plan || "Brand").toUpperCase()}
+              </span>
+
+              <button
+                onClick={() => setPackageTab("editor")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "editor" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Edytor strony</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("domain")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "domain"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("stats")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "stats" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Domena
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Statystyki</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("balance")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "balance"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("products")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "products" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Saldo
+                <Package className="w-3.5 h-3.5" />
+                <span>Dodaj produkt</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("newsletter")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "newsletter"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("orders")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "orders" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Newsletter
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Zamówienia</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("team")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "team"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("domain")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "domain" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Team Collaboration
+                <Globe className="w-3.5 h-3.5" />
+                <span>Domena</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("drop")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "drop"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("balance")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "balance" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                Drop
+                <Wallet className="w-3.5 h-3.5" />
+                <span>Saldo</span>
               </button>
 
               <button
-                onClick={() => setActiveNav("seo")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                  activeNav === "seo"
-                    ? "bg-zinc-100 text-zinc-900 font-bold"
-                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                onClick={() => setPackageTab("newsletter")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "newsletter" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                SEO
+                <Mail className="w-3.5 h-3.5" />
+                <span>Newsletter</span>
+              </button>
+
+              <button
+                onClick={() => setPackageTab("team")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "team" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Team Collaboration</span>
+              </button>
+
+              <button
+                onClick={() => setPackageTab("drop")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "drop" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Flame className="w-3.5 h-3.5 text-orange-400" />
+                <span>Drop</span>
+              </button>
+
+              <button
+                onClick={() => setPackageTab("seo")}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "seo" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>SEO</span>
               </button>
             </div>
           )}
@@ -757,13 +773,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom User Area */}
-        <div className="p-4 border-t border-zinc-100">
+        <div className="p-4 border-t border-white/5">
           <button
             onClick={() => {
               logout();
               router.push("/logowanie");
             }}
-            className="w-full px-3.5 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+            className="w-full px-3.5 py-2.5 text-xs font-extrabold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Wyloguj się</span>
@@ -772,17 +788,23 @@ export default function DashboardPage() {
       </aside>
 
       {/* ========================================================================= */}
-      {/* 2. MAIN CONTENT AREA */}
+      {/* 2. MAIN CONTENT AREA (DARK PREMIUM CANVAS) */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 z-10">
         
         {/* TOP HEADER BAR */}
-        <header className="w-full px-8 py-5 flex items-center justify-between bg-transparent">
+        <header className="w-full px-8 py-5 flex items-center justify-between border-b border-white/[0.08] bg-[#0E0F14]/70 backdrop-blur-md sticky top-0 z-30">
           <div>
-            <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-              {hasConfiguredStore && activeNav !== "home" && activeNav !== "shop" && activeNav !== "templates" && activeNav !== "settings"
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              {navMode === "package"
                 ? currentStore.name
-                : "Strona główna"}
+                : mainTab === "home"
+                ? "Strona główna"
+                : mainTab === "shop"
+                ? "Sklep z Pakietami"
+                : mainTab === "templates"
+                ? "Dostępne Szablony"
+                : "Ustawienia Konta"}
             </h1>
           </div>
 
@@ -790,43 +812,44 @@ export default function DashboardPage() {
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-3 p-1.5 pl-2 pr-4 bg-white hover:bg-zinc-50 rounded-full border border-zinc-200/80 shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-3 p-1.5 pl-2 pr-4 bg-[#14151B] hover:bg-white/10 rounded-full border border-white/10 shadow-lg transition-all cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-zinc-200 text-zinc-700 font-black text-xs flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#FF5B28]/20 border border-[#FF5B28]/40 text-[#FF5B28] font-black text-xs flex items-center justify-center overflow-hidden shrink-0">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{user.name ? user.name.slice(0, 2).toUpperCase() : "JK"}</span>
                 )}
               </div>
-              <span className="text-xs font-bold text-zinc-800">{user.name || user.email}</span>
+              <span className="text-xs font-bold text-white">{user.name || user.email}</span>
               <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
             </button>
 
             {/* Dropdown Menu */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-zinc-200 rounded-2xl p-2 shadow-xl z-50 animate-in fade-in duration-100">
-                <div className="p-3 border-b border-zinc-100 mb-1">
-                  <span className="text-[10px] font-extrabold uppercase text-[#3B82F6] block">Zalogowano jako</span>
-                  <span className="text-xs font-bold text-zinc-900 truncate block">{user.email}</span>
+              <div className="absolute right-0 mt-2 w-56 bg-[#14151B] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in duration-100">
+                <div className="p-3 border-b border-white/5 mb-1 bg-[#090A0C] rounded-xl">
+                  <span className="text-[10px] font-extrabold uppercase text-[#FF5B28] block">Zalogowano jako</span>
+                  <span className="text-xs font-bold text-white truncate block">{user.email}</span>
                 </div>
                 <button
                   onClick={() => {
-                    setActiveNav("settings");
+                    setNavMode("main");
+                    setMainTab("settings");
                     setIsUserMenuOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 rounded-lg flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
                 >
                   <SettingsIcon className="w-4 h-4 text-zinc-400" />
                   <span>Ustawienia Konta</span>
                 </button>
-                <div className="border-t border-zinc-100 pt-1 mt-1">
+                <div className="border-t border-white/5 pt-1 mt-1">
                   <button
                     onClick={() => {
                       logout();
                       router.push("/logowanie");
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2 cursor-pointer"
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-lg flex items-center gap-2 cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Wyloguj się</span>
@@ -837,18 +860,18 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Global Alert Notification */}
+        {/* Global Toast Message */}
         {message && (
-          <div className="px-8 mt-2">
+          <div className="px-8 mt-4">
             <div
-              className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border shadow-sm ${
+              className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border shadow-xl backdrop-blur-xl ${
                 message.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-red-50 text-red-800 border-red-200"
+                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
+                  : "bg-red-500/15 text-red-300 border-red-500/40"
               }`}
             >
               <span>{message.text}</span>
-              <button onClick={() => setMessage(null)} className="p-1 hover:bg-black/5 rounded-lg cursor-pointer">
+              <button onClick={() => setMessage(null)} className="p-1 hover:bg-white/10 rounded-lg cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -856,31 +879,37 @@ export default function DashboardPage() {
         )}
 
         {/* MAIN BODY CONTAINER */}
-        <main className="flex-1 p-8 pt-4">
+        <main className="flex-1 p-8 pt-6">
 
           {/* ========================================================================= */}
-          {/* TAB 1: STRONA GŁÓWNA */}
+          {/* 1. STRONA GŁÓWNA (DOKŁADNIE STAN 1 LUB STAN 2 W CIEMNYM WYDANIU) */}
           {/* ========================================================================= */}
-          {activeNav === "home" && (
-            <div className="w-full space-y-6">
+          {navMode === "main" && mainTab === "home" && (
+            <div className="w-full space-y-8 animate-in fade-in duration-200">
 
               {/* STAN 1: BRAK PAKIETU (SCREEN 1) */}
               {!hasPurchasedPackages && displayServices.length === 0 ? (
-                <div className="w-full max-w-xl mx-auto mt-12 p-12 bg-white rounded-3xl border border-zinc-200/80 shadow-sm text-center flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-200">
-                  <h2 className="text-xl sm:text-2xl font-bold text-zinc-900">
+                <div className="w-full max-w-xl mx-auto mt-16 p-12 bg-[#121318] border border-white/10 rounded-3xl shadow-2xl text-center flex flex-col items-center justify-center space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-2xl text-[#FF5B28]">
+                    🚀
+                  </div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">
                     Nie posiadasz żadnego pakietu
                   </h2>
+                  <p className="text-xs text-zinc-400 max-w-sm">
+                    Aby uruchomić swój sklep i rozpocząć sprzedaż dropów, wybierz pakiet w sklepie platformy.
+                  </p>
                   <button
-                    onClick={() => setActiveNav("shop")}
-                    className="px-8 py-3.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                    onClick={() => setMainTab("shop")}
+                    className="px-8 py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-xl shadow-lg shadow-[#FF5B28]/30 transition-all cursor-pointer transform hover:scale-105"
                   >
-                    Przejdź do sklepu
+                    Przejdź do sklepu →
                   </button>
                 </div>
               ) : (
-                /* STAN 2 & 3: ZAKUPIONE USŁUGI / PAKIETY (SCREEN 2) */
+                /* STAN 2: ZAKUPIONE USŁUGI / PAKIETY (SCREEN 2) */
                 <div className="space-y-4">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
+                  <span className="text-xs font-black text-zinc-400 uppercase tracking-widest block">
                     USŁUGI
                   </span>
 
@@ -888,64 +917,64 @@ export default function DashboardPage() {
                     {displayServices.map((srv) => (
                       <div
                         key={srv.id}
-                        className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-6 hover:border-zinc-300 transition-all"
+                        className="bg-[#121318] border border-white/10 hover:border-[#FF5B28]/40 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6 transition-all group"
                       >
                         <div>
                           {/* Top Row: Title & Placeholder Box */}
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <h3 className="text-lg font-black text-zinc-900">{srv.title}</h3>
-                              <span className="text-xs text-zinc-400 font-medium">
-                                {srv.status}
+                              <h3 className="text-lg font-black text-white">{srv.title}</h3>
+                              <span className="text-xs text-zinc-500 font-bold block mt-0.5">
+                                {srv.status === "Nieprzypisany" ? "🟡 Nieprzypisany" : "🟢 Przypisany"}
                               </span>
                             </div>
-                            <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 shrink-0">
-                              <Package className="w-6 h-6 text-zinc-400" />
+                            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
+                              <Package className="w-6 h-6" />
                             </div>
                           </div>
 
                           {/* Info Lines */}
-                          <div className="mt-6 space-y-1.5 text-xs text-zinc-600">
+                          <div className="mt-6 p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-2 text-xs text-zinc-400">
                             <div className="flex items-center justify-between">
                               <span>Nazwa pakietu:</span>
-                              <strong className="text-zinc-900 font-bold">Pakiet {srv.planType}</strong>
+                              <strong className="text-white font-bold">Pakiet {srv.planType}</strong>
                             </div>
                             <div className="flex items-center justify-between">
                               <span>Ważność pakietu:</span>
-                              <strong className="text-zinc-900 font-bold">{srv.expiresAt}</strong>
+                              <strong className="text-emerald-400 font-mono font-bold">{srv.expiresAt}</strong>
                             </div>
                           </div>
 
-                          {/* Gray Sub-Buttons */}
+                          {/* Sub-Buttons */}
                           <div className="grid grid-cols-2 gap-2.5 mt-6">
                             <button
-                              onClick={() => setActiveNav("shop")}
-                              className="py-2.5 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer text-center"
+                              onClick={() => setMainTab("shop")}
+                              className="py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl border border-white/5 transition-colors cursor-pointer text-center"
                             >
                               przedłuż pakiet
                             </button>
                             <button
-                              onClick={() => setActiveNav("orders")}
-                              className="py-2.5 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer text-center"
+                              onClick={() => handleOpenPackageManagement(srv)}
+                              className="py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl border border-white/5 transition-colors cursor-pointer text-center"
                             >
                               zamówienia
                             </button>
                           </div>
                         </div>
 
-                        {/* Blue Main Action Button */}
+                        {/* Main Action Button */}
                         <div>
                           {srv.status === "Nieprzypisany" ? (
                             <button
                               onClick={() => handleStartConfiguration(srv)}
-                              className="w-full py-3.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                              className="w-full py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all cursor-pointer"
                             >
                               Przejdź dalej
                             </button>
                           ) : (
                             <button
-                              onClick={() => setActiveNav("editor")}
-                              className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+                              onClick={() => handleOpenPackageManagement(srv)}
+                              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
                             >
                               Zarządzaj Sklepem →
                             </button>
@@ -961,24 +990,24 @@ export default function DashboardPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 2: SKLEP (ZAKUP PAKIETÓW) */}
+          {/* TAB 2: SKLEP (ZAKUP PAKIETÓW W CIEMNYM DESIGNIE) */}
           {/* ========================================================================= */}
-          {activeNav === "shop" && (
+          {navMode === "main" && mainTab === "shop" && (
             <div className="space-y-6 max-w-5xl animate-in fade-in duration-150">
               <div>
-                <h2 className="text-xl font-black text-zinc-900">Sklep z Pakietami Platformy</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Wybierz pakiet dla swojego sklepu. Usługa pojawi się natychmiast na stronie głównej w stanie "Nieprzypisany".</p>
+                <h2 className="text-2xl font-black text-white">Sklep z Pakietami SaaS</h2>
+                <p className="text-xs text-zinc-400 mt-1">Wybierz pakiet dla swojego sklepu. Usługa pojawi się natychmiast na Twoim koncie ze statusem "Nieprzypisany".</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                 {/* Pakiet Start */}
-                <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6">
                   <div>
-                    <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-full text-[10px] font-bold uppercase">14 Dni Gratis</span>
-                    <h3 className="text-xl font-black text-zinc-900 mt-2">Pakiet Start</h3>
-                    <p className="text-xs text-zinc-500 mt-1">Sprawdź swój pomysł bez opłat.</p>
-                    <div className="text-3xl font-black text-zinc-900 mt-4">0 PLN <span className="text-xs font-normal text-zinc-400">/ 14 dni</span></div>
-                    <ul className="mt-6 space-y-2 text-xs text-zinc-600">
+                    <span className="px-3 py-1 bg-white/5 text-zinc-300 border border-white/10 rounded-full text-[10px] font-black uppercase">14 Dni Gratis</span>
+                    <h3 className="text-xl font-black text-white mt-3">Pakiet Start</h3>
+                    <p className="text-xs text-zinc-400 mt-1">Sprawdź swój pomysł bez opłat.</p>
+                    <div className="text-3xl font-black text-white font-mono mt-4">0 PLN <span className="text-xs font-normal text-zinc-500">/ 14 dni</span></div>
+                    <ul className="mt-6 space-y-2 text-xs text-zinc-400">
                       <li>✓ Subdomena .iskral.pl</li>
                       <li>✓ Do 5 produktów</li>
                       <li>✓ Płatności testowe Stripe</li>
@@ -987,50 +1016,50 @@ export default function DashboardPage() {
                   <button
                     onClick={() => {
                       buyPlan("Start", "miesiac");
-                      setActiveNav("home");
+                      setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                    className="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     Wybierz Pakiet Start (0 PLN)
                   </button>
                 </div>
 
                 {/* Pakiet Creator */}
-                <div className="bg-white border-2 border-[#3B82F6] rounded-3xl p-6 shadow-md flex flex-col justify-between space-y-6 relative">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3B82F6] text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase">
-                    Polecany
+                <div className="bg-[#121318] border-2 border-[#FF5B28] rounded-3xl p-6 shadow-2xl flex flex-col justify-between space-y-6 relative ring-2 ring-[#FF5B28]/30">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF5B28] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                    Najpopularniejszy
                   </div>
                   <div>
-                    <span className="px-2.5 py-1 bg-blue-50 text-[#3B82F6] rounded-full text-[10px] font-bold uppercase">Popularny</span>
-                    <h3 className="text-xl font-black text-zinc-900 mt-2">Pakiet Creator</h3>
-                    <p className="text-xs text-zinc-500 mt-1">Dla twórców odzieży i dropów.</p>
-                    <div className="text-3xl font-black text-zinc-900 mt-4">49.90 PLN <span className="text-xs font-normal text-zinc-400">/ mc</span></div>
-                    <ul className="mt-6 space-y-2 text-xs text-zinc-600">
-                      <li>✓ Nielimitowane produkty</li>
-                      <li>✓ Dynamiczny licznik dropu</li>
-                      <li>✓ Prowizja tylko 1.0%</li>
+                    <span className="px-3 py-1 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded-full text-[10px] font-black uppercase">Bestseller</span>
+                    <h3 className="text-xl font-black text-white mt-3">Pakiet Creator</h3>
+                    <p className="text-xs text-zinc-400 mt-1">Dla twórców odzieży i dropów.</p>
+                    <div className="text-3xl font-black text-white font-mono mt-4">49.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
+                    <ul className="mt-6 space-y-2 text-xs text-zinc-300">
+                      <li className="text-white font-bold">✓ Nielimitowane produkty</li>
+                      <li className="text-white font-bold">✓ Dynamiczny licznik dropu</li>
+                      <li className="text-emerald-400">✓ Prowizja tylko 1.0%</li>
                     </ul>
                   </div>
                   <button
                     onClick={() => {
                       buyPlan("Creator", "miesiac");
-                      setActiveNav("home");
+                      setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                    className="w-full py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/30 transition-all cursor-pointer"
                   >
                     Kup Pakiet Creator
                   </button>
                 </div>
 
                 {/* Pakiet Brand */}
-                <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6">
                   <div>
-                    <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-full text-[10px] font-bold uppercase">Bez Prowizji</span>
-                    <h3 className="text-xl font-black text-zinc-900 mt-2">Pakiet Brand</h3>
-                    <p className="text-xs text-zinc-500 mt-1">Dla rosnących marek streetwear.</p>
-                    <div className="text-3xl font-black text-zinc-900 mt-4">99.90 PLN <span className="text-xs font-normal text-zinc-400">/ mc</span></div>
-                    <ul className="mt-6 space-y-2 text-xs text-zinc-600">
-                      <li className="font-bold text-emerald-600">✓ 0% prowizji platformy</li>
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase">0% Prowizji</span>
+                    <h3 className="text-xl font-black text-white mt-3">Pakiet Brand</h3>
+                    <p className="text-xs text-zinc-400 mt-1">Dla rosnących marek streetwear.</p>
+                    <div className="text-3xl font-black text-white font-mono mt-4">99.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
+                    <ul className="mt-6 space-y-2 text-xs text-zinc-400">
+                      <li className="font-bold text-emerald-400">✓ 0% prowizji platformy</li>
                       <li>✓ Własna domena .pl / .com</li>
                       <li>✓ Priorytetowy support 24/7</li>
                     </ul>
@@ -1038,9 +1067,9 @@ export default function DashboardPage() {
                   <button
                     onClick={() => {
                       buyPlan("Brand", "miesiac");
-                      setActiveNav("home");
+                      setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                    className="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     Kup Pakiet Brand
                   </button>
@@ -1052,21 +1081,23 @@ export default function DashboardPage() {
           {/* ========================================================================= */}
           {/* TAB 3: SZABLONY */}
           {/* ========================================================================= */}
-          {activeNav === "templates" && (
+          {navMode === "main" && mainTab === "templates" && (
             <div className="space-y-6 max-w-4xl animate-in fade-in duration-150">
               <div>
-                <h2 className="text-xl font-black text-zinc-900">Dostępne Szablony Sklepu</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Platforma oferuje zoptymalizowany pod kątem konwersji i prędkości szablon streetwear.</p>
+                <h2 className="text-2xl font-black text-white">Dostępne Szablony Sklepu</h2>
+                <p className="text-xs text-zinc-400 mt-1">Platforma oferuje zoptymalizowany pod kątem konwersji i prędkości szablon streetwear.</p>
               </div>
 
-              <div className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm flex flex-col md:flex-row items-center gap-6">
-                <div className="w-full md:w-64 h-40 bg-zinc-900 rounded-2xl flex items-center justify-center text-white font-bold shrink-0 shadow-inner">
+              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col md:flex-row items-center gap-6">
+                <div className="w-full md:w-64 h-40 bg-[#090A0C] border border-white/10 rounded-2xl flex items-center justify-center text-white font-black shrink-0 text-lg shadow-inner">
                   🔥 Dark Vibe / Streetwear
                 </div>
                 <div className="space-y-2">
-                  <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-full uppercase">Domyślny Szablon</span>
-                  <h3 className="text-lg font-bold text-zinc-900">Dark Vibe (Hype & Streetwear)</h3>
-                  <p className="text-xs text-zinc-600">
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-[10px] rounded-full uppercase">
+                    Domyślny Szablon Platformy
+                  </span>
+                  <h3 className="text-xl font-black text-white">Dark Vibe (Hype & Streetwear)</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
                     Ciemna estetyka z wyrazistym akcentem kolorystycznym, dynamicznym licznikiem odliczania dropów oraz zoptymalizowanym koszykiem mobilnym.
                   </p>
                 </div>
@@ -1077,28 +1108,28 @@ export default function DashboardPage() {
           {/* ========================================================================= */}
           {/* TAB 4: USTAWIENIA KONTA (DANE, 2FA, AVATAR, ADRES) */}
           {/* ========================================================================= */}
-          {activeNav === "settings" && (
+          {navMode === "main" && mainTab === "settings" && (
             <div className="max-w-3xl space-y-6 animate-in fade-in duration-150">
               <div>
-                <h2 className="text-xl font-black text-zinc-900">Ustawienia Konta i Profilu</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Uzupełnij swoje pełne dane osobowe, adres oraz zabezpiecz konto aplikacją Authenticator 2FA.</p>
+                <h2 className="text-2xl font-black text-white">Ustawienia Konta i Profilu</h2>
+                <p className="text-xs text-zinc-400 mt-1">Uzupełnij swoje pełne dane osobowe, adres oraz zabezpiecz konto aplikacją Authenticator 2FA.</p>
               </div>
 
-              <form onSubmit={handleSaveProfile} className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm space-y-6">
+              <form onSubmit={handleSaveProfile} className="p-8 bg-[#121318] border border-white/10 rounded-3xl shadow-2xl space-y-6">
                 
                 {/* Avatar Photo Upload */}
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-2">Zdjęcie Profilowe Konta</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-2">Zdjęcie Profilowe Konta</label>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-[#090A0C] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                       {profAvatar ? (
                         <img src={profAvatar} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <Camera className="w-6 h-6 text-zinc-400" />
+                        <Camera className="w-6 h-6 text-zinc-500" />
                       )}
                     </div>
                     <div>
-                      <label className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5">
+                      <label className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5">
                         <Upload className="w-3.5 h-3.5" />
                         <span>Wgraj zdjęcie z komputera</span>
                         <input
@@ -1108,7 +1139,7 @@ export default function DashboardPage() {
                           className="hidden"
                         />
                       </label>
-                      <p className="text-[10px] text-zinc-400 mt-1">Obsługiwane formaty: PNG, JPG, WEBP (maks. 5MB).</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Formaty: PNG, JPG, WEBP.</p>
                     </div>
                   </div>
                 </div>
@@ -1116,64 +1147,64 @@ export default function DashboardPage() {
                 {/* Personal Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">Imię i Nazwisko</label>
+                    <label className="block text-xs font-bold text-zinc-300 mb-1">Imię i Nazwisko</label>
                     <input
                       type="text"
                       value={profName}
                       onChange={(e) => setProfName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-medium outline-none focus:border-[#3B82F6]"
+                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">Adres E-mail</label>
+                    <label className="block text-xs font-bold text-zinc-300 mb-1">Adres E-mail</label>
                     <input
                       type="email"
                       value={profEmail}
                       disabled
-                      className="w-full px-4 py-2.5 bg-zinc-100 border border-zinc-200 rounded-xl text-xs text-zinc-500 font-mono"
+                      className="w-full px-4 py-2.5 bg-[#090A0C]/50 border border-white/5 rounded-xl text-xs text-zinc-500 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">Numer Telefonu</label>
+                    <label className="block text-xs font-bold text-zinc-300 mb-1">Numer Telefonu</label>
                     <input
                       type="text"
                       value={profPhone}
                       onChange={(e) => setProfPhone(e.target.value)}
                       placeholder="+48 500 000 000"
-                      className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-medium outline-none focus:border-[#3B82F6]"
+                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                     />
                   </div>
                 </div>
 
                 {/* Full Address */}
-                <div className="pt-4 border-t border-zinc-100 space-y-4">
-                  <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Adres Zamieszkania / Siedziba Firmy</h4>
+                <div className="pt-4 border-t border-white/5 space-y-4">
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider">Adres Zamieszkania / Siedziba Firmy</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-zinc-700 mb-1">Ulica i numer lokalu</label>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Ulica i numer lokalu</label>
                       <input
                         type="text"
                         value={profStreet}
                         onChange={(e) => setProfStreet(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 outline-none focus:border-[#3B82F6]"
+                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-700 mb-1">Kod Pocztowy</label>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Kod Pocztowy</label>
                       <input
                         type="text"
                         value={profZip}
                         onChange={(e) => setProfZip(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 outline-none focus:border-[#3B82F6]"
+                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-700 mb-1">Miejscowość</label>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Miejscowość</label>
                       <input
                         type="text"
                         value={profCity}
                         onChange={(e) => setProfCity(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 outline-none focus:border-[#3B82F6]"
+                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                       />
                     </div>
                   </div>
@@ -1181,38 +1212,38 @@ export default function DashboardPage() {
 
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+                  className="px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 cursor-pointer"
                 >
                   Zapisz Dane Profilowe
                 </button>
               </form>
 
               {/* 2FA Authenticator Card */}
-              <div className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-[#3B82F6]" />
-                    <h3 className="text-sm font-bold text-zinc-900">Dwuskładnikowa Autoryzacja 2FA (Google Authenticator)</h3>
+                    <Smartphone className="w-5 h-5 text-[#FF5B28]" />
+                    <h3 className="text-sm font-bold text-white">Dwuskładnikowa Autoryzacja 2FA (Google Authenticator)</h3>
                     {user.is2FAEnabled && (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold rounded-full">
+                      <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-[10px] font-extrabold rounded-full border border-emerald-500/30">
                         Aktywne ✓
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500 mt-1">Zabezpiecz logowanie jednorazowymi 6-cyfrowymi kodami z telefonu.</p>
+                  <p className="text-xs text-zinc-400 mt-1">Zabezpiecz konto jednorazowymi 6-cyfrowymi kodami z telefonu.</p>
                 </div>
 
                 {user.is2FAEnabled ? (
                   <button
                     onClick={toggle2FA}
-                    className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl cursor-pointer"
+                    className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs rounded-xl border border-red-500/30 cursor-pointer"
                   >
                     Wyłącz 2FA
                   </button>
                 ) : (
                   <button
                     onClick={() => setShow2FAModal(true)}
-                    className="px-5 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
                   >
                     <QrCode className="w-4 h-4" />
                     <span>Skonfiguruj 2FA</span>
@@ -1223,93 +1254,93 @@ export default function DashboardPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB: EDYTOR STRONY / STATYSTYKI / ZARZĄDZANIE SKLEPEM (SCREEN 3) */}
+          {/* PAKIET / ZARZĄDZANIE SKLEPEM (SCREEN 3 W CIEMNYM WYDANIU) */}
           {/* ========================================================================= */}
-          {(activeNav === "editor" || activeNav === "stats") && (
+          {navMode === "package" && (
             <div className="space-y-8 animate-in fade-in duration-150">
               
-              {/* 4 STATS CARDS ROW (DOKŁADNIE JAK NA SCREENIE 3) */}
+              {/* 4 STATS CARDS ROW (DOKŁADNIE JAK NA SCREENIE 3 Z BADGE +29% TYGODNIOWO) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 
                 {/* Stat 1: Przychód całkowity */}
-                <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-[#FF5B28]/40 transition-all">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-900">Przychód całkowity</h4>
+                      <h4 className="text-sm font-bold text-white">Przychód całkowity</h4>
                       <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
                       <Layers className="w-5 h-5" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-zinc-900 font-mono">{totalRevenuePLN || "102"}</span>
-                    <span className="text-xs font-bold text-emerald-500 font-mono">+29%</span>
+                    <span className="text-3xl font-black text-white font-mono">{totalRevenuePLN || "102"}</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
                 {/* Stat 2: Liczba zamówień */}
-                <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-blue-500/40 transition-all">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-900">Liczba zamówień</h4>
+                      <h4 className="text-sm font-bold text-white">Liczba zamówień</h4>
                       <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
                       <Layers className="w-5 h-5" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-zinc-900 font-mono">{totalOrdersCount || "102"}</span>
-                    <span className="text-xs font-bold text-emerald-500 font-mono">+29%</span>
+                    <span className="text-3xl font-black text-white font-mono">{totalOrdersCount || "102"}</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
                 {/* Stat 3: Panel Sklepu (Odsłony) */}
-                <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-purple-500/40 transition-all">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-900">Panel Sklepu</h4>
+                      <h4 className="text-sm font-bold text-white">Panel Sklepu</h4>
                       <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
                       <Layers className="w-5 h-5" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-zinc-900 font-mono">{visitsCount || "102"}</span>
-                    <span className="text-xs font-bold text-emerald-500 font-mono">+29%</span>
+                    <span className="text-3xl font-black text-white font-mono">{visitsCount || "102"}</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
                 {/* Stat 4: Panel Sklepu (Średni Koszyk) */}
-                <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-amber-500/40 transition-all">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-900">Panel Sklepu</h4>
+                      <h4 className="text-sm font-bold text-white">Panel Sklepu</h4>
                       <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#3B82F6] flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
                       <Layers className="w-5 h-5" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-zinc-900 font-mono">{aovPLN || "102"}</span>
-                    <span className="text-xs font-bold text-emerald-500 font-mono">+29%</span>
+                    <span className="text-3xl font-black text-white font-mono">{aovPLN || "102"}</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
               </div>
 
               {/* Subdomain Live Quick Bar */}
-              <div className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-extrabold uppercase text-[#3B82F6] block">Adres Twojego Sklepu</span>
+                  <span className="text-[10px] font-black uppercase text-[#FF5B28] block tracking-wider">Adres Twojego Sklepu</span>
                   <a
                     href={liveStoreUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-lg font-bold text-zinc-900 hover:text-[#3B82F6] flex items-center gap-1.5 mt-0.5"
+                    className="text-lg font-black text-white hover:text-cyan-400 flex items-center gap-1.5 mt-0.5 transition-colors"
                   >
                     <span>https://{currentStore.subdomain}.iskral.pl</span>
                     <ExternalLink className="w-4 h-4 text-zinc-400" />
@@ -1319,9 +1350,9 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleCopyLink}
-                    className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    {linkCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     <span>{linkCopied ? "Skopiowano!" : "Kopiuj Link"}</span>
                   </button>
 
@@ -1329,356 +1360,236 @@ export default function DashboardPage() {
                     href={liveStoreUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-5 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Odwiedź Sklep ↗</span>
                   </a>
                 </div>
               </div>
 
-            </div>
-          )}
+              {/* Package Sub-tab Content */}
+              {packageTab === "products" && (
+                <div className="space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h2 className="text-xl font-black text-white">Katalog Produktów ({storeProducts.length})</h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">Zarządzaj ofertą, stanem magazynowym i wariantami rozmiarów.</p>
+                    </div>
 
-          {/* ========================================================================= */}
-          {/* TAB: DODAJ PRODUKT / PRODUKTY */}
-          {/* ========================================================================= */}
-          {activeNav === "products" && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h2 className="text-xl font-black text-zinc-900">Katalog Produktów ({storeProducts.length})</h2>
-                  <p className="text-xs text-zinc-500 mt-0.5">Zarządzaj ofertą, stanem magazynowym i wariantami rozmiarów.</p>
-                </div>
-
-                <button
-                  onClick={handleOpenAddProduct}
-                  className="px-5 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Dodaj Nowy Produkt</span>
-                </button>
-              </div>
-
-              {filteredProducts.length === 0 ? (
-                <div className="p-12 bg-white border border-zinc-200/80 rounded-3xl text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto text-xl">
-                    📦
+                    <button
+                      onClick={handleOpenAddProduct}
+                      className="px-5 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Dodaj Nowy Produkt</span>
+                    </button>
                   </div>
-                  <h4 className="text-sm font-bold text-zinc-900">Brak produktów w sklepie</h4>
-                  <p className="text-xs text-zinc-500 max-w-sm mx-auto">Dodaj pierwszy produkt klikając przycisk powyżej.</p>
-                </div>
-              ) : (
-                <div className="bg-white border border-zinc-200/80 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-zinc-50 text-zinc-500 uppercase font-bold text-[10px] border-b border-zinc-200">
-                      <tr>
-                        <th className="p-4">PRODUKT</th>
-                        <th className="p-4">TYP</th>
-                        <th className="p-4">CENA (PLN)</th>
-                        <th className="p-4">MAGAZYN</th>
-                        <th className="p-4">ROZMIARY</th>
-                        <th className="p-4">STATUS</th>
-                        <th className="p-4 text-right">AKCJE</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100 text-zinc-900">
-                      {filteredProducts.map((p) => (
-                        <tr key={p.id} className="hover:bg-zinc-50/60 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={p.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"}
-                                alt={p.name}
-                                className="w-10 h-10 rounded-lg object-cover border border-zinc-200 shrink-0"
-                              />
-                              <div>
-                                <span className="font-bold text-zinc-900 block">{p.name}</span>
-                                <span className="text-[10px] text-zinc-400 line-clamp-1">{p.description}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded-md text-[10px] font-bold">
-                              {p.type}
-                            </span>
-                          </td>
-                          <td className="p-4 font-mono font-bold text-zinc-900">
-                            {p.price}
-                          </td>
-                          <td className="p-4 font-mono text-zinc-600">
-                            {p.stock} szt.
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {(p.variants || ["S", "M", "L"]).map((v) => (
-                                <span key={v} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded text-[10px] font-mono">
-                                  {v}
+
+                  {filteredProducts.length === 0 ? (
+                    <div className="p-12 bg-[#090A0C] border border-white/5 rounded-2xl text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 text-zinc-500 flex items-center justify-center mx-auto text-xl">
+                        📦
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Brak produktów w sklepie</h4>
+                      <p className="text-xs text-zinc-500 max-w-sm mx-auto">Dodaj pierwszy produkt klikając przycisk powyżej.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-[#090A0C] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#181920] text-zinc-400 uppercase font-bold text-[10px] border-b border-white/5">
+                          <tr>
+                            <th className="p-4">PRODUKT</th>
+                            <th className="p-4">TYP</th>
+                            <th className="p-4">CENA (PLN)</th>
+                            <th className="p-4">MAGAZYN</th>
+                            <th className="p-4">ROZMIARY</th>
+                            <th className="p-4">STATUS</th>
+                            <th className="p-4 text-right">AKCJE</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-white">
+                          {filteredProducts.map((p) => (
+                            <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={p.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"}
+                                    alt={p.name}
+                                    className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0"
+                                  />
+                                  <div>
+                                    <span className="font-bold text-white block">{p.name}</span>
+                                    <span className="text-[10px] text-zinc-500 line-clamp-1">{p.description}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="px-2 py-0.5 bg-white/10 text-white rounded-md text-[10px] font-bold">
+                                  {p.type}
                                 </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <button
-                              onClick={() => toggleProductStatus(p.id)}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer ${
-                                p.status === "Zawieszony" ? "bg-zinc-100 text-zinc-500" : "bg-emerald-50 text-emerald-700"
-                              }`}
-                            >
-                              {p.status === "Zawieszony" ? "Szkic" : "Aktywny"}
-                            </button>
-                          </td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => handleEditProduct(p)} className="p-1.5 hover:bg-zinc-100 rounded-lg text-blue-600">
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => deleteProduct(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-600">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td className="p-4 font-mono font-bold text-[#FF5B28]">
+                                {p.price}
+                              </td>
+                              <td className="p-4 font-mono text-zinc-400">
+                                {p.stock} szt.
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {(p.variants || ["S", "M", "L"]).map((v) => (
+                                    <span key={v} className="px-1.5 py-0.5 bg-white/5 border border-white/10 text-zinc-300 rounded text-[10px] font-mono">
+                                      {v}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <button
+                                  onClick={() => toggleProductStatus(p.id)}
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer ${
+                                    p.status === "Zawieszony" ? "bg-zinc-500/20 text-zinc-400" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                  }`}
+                                >
+                                  {p.status === "Zawieszony" ? "Szkic" : "Aktywny"}
+                                </button>
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button onClick={() => handleEditProduct(p)} className="p-1.5 hover:bg-white/10 rounded-lg text-cyan-400">
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => deleteProduct(p.id)} className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* ========================================================================= */}
-          {/* TAB: ZAMÓWIENIA */}
-          {/* ========================================================================= */}
-          {activeNav === "orders" && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              <div>
-                <h2 className="text-xl font-black text-zinc-900">Historia Zamówień ({paidOrders.length})</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Lista opłaconych transakcji w Twoim sklepie.</p>
-              </div>
-
-              {paidOrders.length === 0 ? (
-                <div className="p-12 bg-white border border-zinc-200/80 rounded-3xl text-center space-y-2">
-                  <p className="text-sm font-bold text-zinc-800">Brak zamówień</p>
-                  <p className="text-xs text-zinc-400">Gdy klienci opłacą zamówienia na stronie, pojawią się one w tym miejscu.</p>
-                </div>
-              ) : (
-                <div className="bg-white border border-zinc-200/80 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-zinc-50 text-zinc-500 uppercase font-bold text-[10px] border-b border-zinc-200">
-                      <tr>
-                        <th className="p-4">ID</th>
-                        <th className="p-4">KLIENT</th>
-                        <th className="p-4">KWOTA</th>
-                        <th className="p-4">STATUS</th>
-                        <th className="p-4 text-right">DATA</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                      {paidOrders.map((o) => (
-                        <tr key={o.id}>
-                          <td className="p-4 font-mono font-bold">#{o.id.slice(-6).toUpperCase()}</td>
-                          <td className="p-4">{o.customerEmail}</td>
-                          <td className="p-4 font-bold text-emerald-600">{(o.amountTotalCents / 100).toFixed(2)} PLN</td>
-                          <td className="p-4"><span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-bold">Opłacone</span></td>
-                          <td className="p-4 text-right font-mono text-zinc-400">{new Date(o.createdAt || Date.now()).toLocaleDateString("pl-PL")}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {packageTab === "orders" && (
+                <div className="space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Historia Zamówień ({paidOrders.length})</h2>
+                  {paidOrders.length === 0 ? (
+                    <p className="text-xs text-zinc-500">Brak opłaconych zamówień.</p>
+                  ) : (
+                    <div className="bg-[#090A0C] border border-white/5 rounded-2xl overflow-hidden">
+                      <table className="w-full text-left text-xs text-white">
+                        <thead className="bg-[#181920] text-zinc-400 uppercase text-[10px]">
+                          <tr>
+                            <th className="p-4">ID</th>
+                            <th className="p-4">KLIENT</th>
+                            <th className="p-4">KWOTA</th>
+                            <th className="p-4">STATUS</th>
+                            <th className="p-4 text-right">DATA</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {paidOrders.map((o) => (
+                            <tr key={o.id}>
+                              <td className="p-4 font-mono font-bold text-white">#{o.id.slice(-6).toUpperCase()}</td>
+                              <td className="p-4 text-zinc-300">{o.customerEmail}</td>
+                              <td className="p-4 font-bold text-emerald-400">{(o.amountTotalCents / 100).toFixed(2)} PLN</td>
+                              <td className="p-4"><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-bold">Opłacone</span></td>
+                              <td className="p-4 text-right font-mono text-zinc-500">{new Date(o.createdAt || Date.now()).toLocaleDateString("pl-PL")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* ========================================================================= */}
-          {/* TAB: DOMENA */}
-          {/* ========================================================================= */}
-          {activeNav === "domain" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <div>
-                <h2 className="text-xl font-black text-zinc-900">Ustawienia Domeny</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Zarządzaj subdomeną `.iskral.pl` oraz podepnij własną domenę .pl / .com.</p>
-              </div>
-
-              <div className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm space-y-4">
-                <label className="block text-xs font-bold text-zinc-700">Subdomena w platformie</label>
-                <div className="flex items-center">
-                  <input
-                    type="text"
-                    value={currentStore.subdomain}
-                    disabled
-                    className="w-full px-4 py-2.5 bg-zinc-100 border border-zinc-200 rounded-l-xl text-xs font-bold font-mono"
-                  />
-                  <span className="px-4 py-2.5 bg-zinc-200/70 border border-l-0 border-zinc-200 rounded-r-xl text-xs font-mono text-zinc-600">
-                    .iskral.pl
-                  </span>
+              {packageTab === "drop" && (
+                <div className="max-w-2xl space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Konfiguracja Dropu</h2>
+                  <form onSubmit={handleSaveDropSettings} className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-[#090A0C] border border-white/5 rounded-2xl">
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Włącz Odliczanie do Dropu</h4>
+                        <p className="text-xs text-zinc-400">Blokuje stronę sklepu dynamicznym zegarem.</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={dropEnabled}
+                        onChange={(e) => setDropEnabled(e.target.checked)}
+                        className="w-5 h-5 accent-[#FF5B28]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Data i Godzina Najbliższego Dropu</label>
+                      <input
+                        type="datetime-local"
+                        value={dropDate}
+                        onChange={(e) => setDropDate(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold font-mono text-white"
+                      />
+                    </div>
+                    <button type="submit" className="px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-bold text-xs rounded-xl shadow-md">
+                      Zapisz Ustawienia Dropu
+                    </button>
+                  </form>
                 </div>
-                <p className="text-[11px] text-emerald-600 font-bold">🟢 Subdomena aktywna z certyfikatem SSL.</p>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* ========================================================================= */}
-          {/* TAB: SALDO */}
-          {/* ========================================================================= */}
-          {activeNav === "balance" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <div>
-                <h2 className="text-xl font-black text-zinc-900">Saldo i Wypłaty Środków</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Zarządzaj zarobionymi środkami ze sprzedaży Stripe i zlecaj wypłaty IBAN.</p>
-              </div>
+              {packageTab === "domain" && (
+                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Ustawienia Domeny</h2>
+                  <div className="flex items-center">
+                    <input type="text" value={currentStore.subdomain} disabled className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs font-bold font-mono text-cyan-400" />
+                    <span className="px-4 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs font-mono text-zinc-400">.iskral.pl</span>
+                  </div>
+                  <p className="text-xs text-emerald-400 font-bold">🟢 Subdomena aktywna z darmowym certyfikatem SSL.</p>
+                </div>
+              )}
 
-              <div className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm space-y-4">
-                <span className="text-xs font-bold text-zinc-500 uppercase">Dostępne Saldo do Wypłaty</span>
-                <div className="text-3xl font-black text-emerald-600 font-mono">{totalRevenuePLN} PLN</div>
-                
-                <div className="pt-4 border-t border-zinc-100 space-y-3">
-                  <label className="block text-xs font-bold text-zinc-700">Numer Rachunku Bankowego (IBAN)</label>
-                  <input
-                    type="text"
-                    value={payoutIban}
-                    onChange={(e) => setPayoutIban(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono font-bold"
-                  />
+              {packageTab === "balance" && (
+                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Saldo i Wypłaty</h2>
+                  <div className="text-3xl font-black text-emerald-400 font-mono">{totalRevenuePLN} PLN</div>
+                  <input type="text" value={payoutIban} onChange={(e) => setPayoutIban(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white" />
                   <button
                     onClick={() => {
-                      if (parseFloat(totalRevenuePLN) <= 0) {
-                        alert("Brak dostępnych środków do wypłaty.");
-                        return;
-                      }
+                      if (parseFloat(totalRevenuePLN) <= 0) return alert("Brak środków do wypłaty.");
                       requestPayoutWithIBAN(parseFloat(totalRevenuePLN), payoutIban);
                     }}
-                    className="px-6 py-3 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
+                    className="px-6 py-3 bg-[#FF5B28] text-white font-bold text-xs rounded-xl"
                   >
-                    Zleć Wypłatę na Rachunek Bankowy
+                    Zleć Wypłatę na Konto
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* ========================================================================= */}
-          {/* TAB: DROP (ODLICZANIE DROP MODE) */}
-          {/* ========================================================================= */}
-          {activeNav === "drop" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <div>
-                <h2 className="text-xl font-black text-zinc-900">Konfiguracja Odliczania do Dropu</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Ustaw datę premiery kolekcji — na stronie pojawi się licznik na żywo, a sprzedaż odblokuje się automatycznie.</p>
-              </div>
-
-              <form onSubmit={handleSaveDropSettings} className="p-6 bg-white border border-zinc-200/80 rounded-3xl shadow-sm space-y-6">
-                <div className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
-                  <div>
-                    <h4 className="text-sm font-bold text-zinc-900">Włącz Tryb Dropu (Countdown Timer)</h4>
-                    <p className="text-xs text-zinc-500">Blokuje stronę sklepu dynamicznym zegarem przed premierą.</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={dropEnabled}
-                    onChange={(e) => setDropEnabled(e.target.checked)}
-                    className="w-5 h-5 accent-[#3B82F6] cursor-pointer"
-                  />
+              {packageTab === "newsletter" && (
+                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Newsletter</h2>
+                  <input type="text" placeholder="Tytuł Kampanii..." value={campaignTitle} onChange={(e) => setCampaignTitle(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
+                  <button onClick={() => { alert("Kampania wysłana!"); setCampaignTitle(""); }} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Wyślij do subskrybentów</button>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1.5">Data i Godzina Najbliższego Dropu</label>
-                  <input
-                    type="datetime-local"
-                    value={dropDate}
-                    onChange={(e) => setDropDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold font-mono"
-                  />
+              {packageTab === "team" && (
+                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">Team Collaboration</h2>
+                  <input type="email" placeholder="E-mail członka zespołu..." value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
+                  <button onClick={() => { alert("Zaproszenie wysłane!"); setTeamEmail(""); }} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Zaproś do sklepu</button>
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md cursor-pointer"
-                >
-                  Zapisz Ustawienia Dropu
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB: NEWSLETTER / TEAM / SEO */}
-          {/* ========================================================================= */}
-          {activeNav === "newsletter" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <h2 className="text-xl font-black text-zinc-900">Kampanie Newsletter</h2>
-              <div className="p-6 bg-white border border-zinc-200 rounded-3xl shadow-sm space-y-4">
-                <input
-                  type="text"
-                  placeholder="Tytuł Kampanii..."
-                  value={campaignTitle}
-                  onChange={(e) => setCampaignTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
-                />
-                <button
-                  onClick={() => {
-                    alert("Kampania e-mail wysłana do subskrybentów!");
-                    setCampaignTitle("");
-                  }}
-                  className="px-6 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl"
-                >
-                  Wyślij Kampanię
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeNav === "team" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <h2 className="text-xl font-black text-zinc-900">Team Collaboration</h2>
-              <div className="p-6 bg-white border border-zinc-200 rounded-3xl shadow-sm space-y-4">
-                <input
-                  type="email"
-                  placeholder="E-mail członka zespołu..."
-                  value={teamEmail}
-                  onChange={(e) => setTeamEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
-                />
-                <button
-                  onClick={() => {
-                    alert("Wysłano zaproszenie do zespołu!");
-                    setTeamEmail("");
-                  }}
-                  className="px-6 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl"
-                >
-                  Zaproś do sklepu
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeNav === "seo" && (
-            <div className="max-w-2xl space-y-6 animate-in fade-in duration-150">
-              <h2 className="text-xl font-black text-zinc-900">SEO & Pozycjonowanie</h2>
-              <div className="p-6 bg-white border border-zinc-200 rounded-3xl shadow-sm space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Tytuł Meta (Title)</label>
-                  <input
-                    type="text"
-                    defaultValue={`${currentStore.name} | Oficjalny Sklep`}
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
-                  />
+              {packageTab === "seo" && (
+                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                  <h2 className="text-xl font-black text-white">SEO & Pozycjonowanie</h2>
+                  <input type="text" defaultValue={`${currentStore.name} | Oficjalny Sklep`} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
+                  <button onClick={() => setMessage({ type: "success", text: "Zapisano SEO!" })} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Zapisz SEO</button>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Opis Meta (Description)</label>
-                  <textarea
-                    rows={3}
-                    defaultValue="Kupuj najnowsze limitowane dropy odzieży i akcesoriów."
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
-                  />
-                </div>
-                <button
-                  onClick={() => setMessage({ type: "success", text: "Zapisano ustawienia SEO sklepu!" })}
-                  className="px-6 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl"
-                >
-                  Zapisz SEO
-                </button>
-              </div>
+              )}
+
             </div>
           )}
 
@@ -1689,14 +1600,14 @@ export default function DashboardPage() {
       {/* 3. KREATOR KONFIGURACJI SKLEPU (MODAL PO KLIKNIĘCIU "PRZEJDŹ DALEJ") */}
       {/* ========================================================================= */}
       {showConfigModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white border border-zinc-200 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div>
-                <span className="text-[10px] font-black uppercase text-[#3B82F6] tracking-wider">Krok 2: Konfiguracja Sklepu</span>
-                <h3 className="text-xl font-black text-zinc-900 mt-0.5">Konfigurator Nowego Sklepu</h3>
+                <span className="text-[10px] font-black uppercase text-[#FF5B28] tracking-widest">Krok 2: Konfiguracja Sklepu</span>
+                <h3 className="text-xl font-black text-white mt-0.5">Konfigurator Nowego Sklepu</h3>
               </div>
-              <button onClick={() => setShowConfigModal(false)} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-400">
+              <button onClick={() => setShowConfigModal(false)} className="p-1 hover:bg-white/10 rounded-lg text-zinc-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1706,34 +1617,34 @@ export default function DashboardPage() {
               {/* Nazwa i Subdomena */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Nazwa Sklepu</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Nazwa Sklepu</label>
                   <input
                     type="text"
                     value={cfgName}
                     onChange={(e) => setCfgName(e.target.value)}
                     placeholder="np. Dropwear Club"
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none focus:border-[#3B82F6]"
+                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-[#FF5B28]"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Subdomena Sklepu</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Subdomena Sklepu</label>
                   <div className="flex items-center">
                     <input
                       type="text"
                       value={cfgSubdomain}
                       onChange={(e) => setCfgSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
                       placeholder="twojanazwa"
-                      className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-l-xl text-xs font-mono font-bold text-zinc-900 outline-none focus:border-[#3B82F6]"
+                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs font-mono font-bold text-cyan-400 outline-none focus:border-[#FF5B28]"
                       required
                     />
-                    <span className="px-3 py-2.5 bg-zinc-100 border border-l-0 border-zinc-200 rounded-r-xl text-xs font-mono text-zinc-500">
+                    <span className="px-3 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs font-mono text-zinc-400">
                       .iskral.pl
                     </span>
                   </div>
                   {cfgSubdomain && (
-                    <span className={`text-[10px] font-bold mt-1 block ${cfgSubdomainAvailable ? "text-emerald-600" : "text-red-500"}`}>
+                    <span className={`text-[10px] font-bold mt-1 block ${cfgSubdomainAvailable ? "text-emerald-400" : "text-red-400"}`}>
                       {cfgCheckingSubdomain ? "Sprawdzanie..." : cfgSubdomainAvailable ? "🟢 Subdomena jest wolna!" : "🔴 Zajęta lub niedostępna"}
                     </span>
                   )}
@@ -1742,19 +1653,19 @@ export default function DashboardPage() {
 
               {/* Krótki opis */}
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Krótki Opis Sklepu / Bio Marki</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">Krótki Opis Sklepu / Bio Marki</label>
                 <textarea
                   rows={2}
                   value={cfgDescription}
                   onChange={(e) => setCfgDescription(e.target.value)}
                   placeholder="Oficjalny sklep streetwear z limitowanymi kolekcjami..."
-                  className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 outline-none focus:border-[#3B82F6]"
+                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                 />
               </div>
 
               {/* Logo Upload - KLIK LUB DRAG & DROP Z KOMPUTERA */}
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1.5">Logo Sklepu (Wgraj z Komputera lub Przeciągnij)</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1.5">Logo Sklepu (Wgraj z Komputera lub Przeciągnij)</label>
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
@@ -1763,25 +1674,25 @@ export default function DashboardPage() {
                       handleLogoFileUpload(e.dataTransfer.files[0]);
                     }
                   }}
-                  className="border-2 border-dashed border-zinc-200 hover:border-[#3B82F6] rounded-2xl p-4 flex items-center justify-between gap-4 bg-zinc-50/50 transition-colors"
+                  className="border-2 border-dashed border-white/10 hover:border-[#FF5B28] rounded-2xl p-4 flex items-center justify-between gap-4 bg-[#090A0C] transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-white border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                       {cfgLogo ? (
                         <img src={cfgLogo} alt="Logo" className="w-full h-full object-contain p-1" />
                       ) : (
-                        <Camera className="w-6 h-6 text-zinc-400" />
+                        <Camera className="w-6 h-6 text-zinc-500" />
                       )}
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-zinc-800 block">
+                      <span className="text-xs font-bold text-white block">
                         {cfgLogo ? "Logo załadowane z pliku ✓" : "Kliknij lub przeciągnij plik logo"}
                       </span>
-                      <span className="text-[10px] text-zinc-400">Formaty: PNG, JPG, SVG, WEBP</span>
+                      <span className="text-[10px] text-zinc-500">Formaty: PNG, JPG, SVG, WEBP</span>
                     </div>
                   </div>
 
-                  <label className="px-4 py-2 bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 font-bold text-xs rounded-xl cursor-pointer transition-colors shrink-0">
+                  <label className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shrink-0">
                     <span>{cfgLogo ? "Zmień plik" : "Wybierz plik"}</span>
                     <input
                       type="file"
@@ -1796,19 +1707,19 @@ export default function DashboardPage() {
               {/* Szablon i Kolorystyka */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Szablon Sklepu</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Szablon Sklepu</label>
                   <select
                     value={cfgTemplate}
                     onChange={(e) => setCfgTemplate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none cursor-pointer"
                   >
                     <option value="Dark Vibe">🔥 Dark Vibe (Hype & Streetwear)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Kolorystyka Akcentu</label>
-                  <div className="flex items-center gap-2">
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Kolorystyka Akcentu</label>
+                  <div className="flex items-center gap-2 pt-1">
                     {[
                       { name: "Orange", hex: "#FF5B28" },
                       { name: "Blue", hex: "#3B82F6" },
@@ -1822,7 +1733,7 @@ export default function DashboardPage() {
                         onClick={() => setCfgColor(col.hex)}
                         style={{ backgroundColor: col.hex }}
                         className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
-                          cfgColor === col.hex ? "ring-2 ring-offset-2 ring-zinc-900 scale-110" : "opacity-80 hover:opacity-100"
+                          cfgColor === col.hex ? "ring-2 ring-offset-2 ring-white scale-110" : "opacity-70 hover:opacity-100"
                         }`}
                       />
                     ))}
@@ -1831,19 +1742,19 @@ export default function DashboardPage() {
               </div>
 
               {/* Social Media & Toggle */}
-              <div className="pt-3 border-t border-zinc-100 space-y-3">
+              <div className="pt-3 border-t border-white/10 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-zinc-900">Social Media Sklepu</h4>
-                    <p className="text-[10px] text-zinc-400">Podaj linki do mediów społecznościowych Twojej marki.</p>
+                    <h4 className="text-xs font-bold text-white">Social Media Sklepu</h4>
+                    <p className="text-[10px] text-zinc-500">Podaj linki do mediów społecznościowych Twojej marki.</p>
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-700">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-300">
                     <input
                       type="checkbox"
                       checked={cfgShowSocials}
                       onChange={(e) => setCfgShowSocials(e.target.checked)}
-                      className="w-4 h-4 accent-[#3B82F6]"
+                      className="w-4 h-4 accent-[#FF5B28]"
                     />
                     <span>Pokaż na stronie sklepu</span>
                   </label>
@@ -1856,44 +1767,44 @@ export default function DashboardPage() {
                       placeholder="Instagram (np. https://instagram.com/...)"
                       value={cfgInstagram}
                       onChange={(e) => setCfgInstagram(e.target.value)}
-                      className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
+                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
                       placeholder="TikTok (np. https://tiktok.com/@...)"
                       value={cfgTiktok}
                       onChange={(e) => setCfgTiktok(e.target.value)}
-                      className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
+                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
                       placeholder="YouTube..."
                       value={cfgYoutube}
                       onChange={(e) => setCfgYoutube(e.target.value)}
-                      className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
+                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
                       placeholder="Discord / Telegram..."
                       value={cfgDiscord}
                       onChange={(e) => setCfgDiscord(e.target.value)}
-                      className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs"
+                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
                     />
                   </div>
                 )}
               </div>
 
-              <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowConfigModal(false)}
-                  className="px-5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl cursor-pointer"
+                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-7 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                  className="px-7 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all cursor-pointer"
                 >
                   Uruchom Sklep i Przypisz Pakiet →
                 </button>
@@ -1907,60 +1818,60 @@ export default function DashboardPage() {
       {/* 4. MODAL: DODAWANIE PRODUKTU (Z UPLOADEM ZDJĘCIA Z KOMPUTERA) */}
       {/* ========================================================================= */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white border border-zinc-200 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
-              <h3 className="text-lg font-black text-zinc-900 flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#3B82F6]" />
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#FF5B28]" />
                 <span>{editingProductId ? "Edycja Produktu" : "Dodaj Nowy Produkt"}</span>
               </h3>
-              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-400">
+              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-white/10 rounded-lg text-zinc-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveProductSubmit} className="mt-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Nazwa Produktu</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">Nazwa Produktu</label>
                 <input
                   type="text"
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
                   placeholder="np. Bluza Heavyweight Oversize 'Noir'"
-                  className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none focus:border-[#3B82F6]"
+                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-[#FF5B28]"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Cena (PLN)</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Cena (PLN)</label>
                   <input
                     type="text"
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
                     placeholder="149.00"
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-bold font-mono outline-none focus:border-[#3B82F6]"
+                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold font-mono text-white outline-none focus:border-[#FF5B28]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Cena Porównawcza (PLN)</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Cena Porównawcza (PLN)</label>
                   <input
                     type="text"
                     value={prodComparePrice}
                     onChange={(e) => setProdComparePrice(e.target.value)}
                     placeholder="199.00"
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono outline-none"
+                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-zinc-400 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Stan Magazynowy (Szt.)</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-1">Stan Magazynowy (Szt.)</label>
                   <input
                     type="number"
                     value={prodStock}
                     onChange={(e) => setProdStock(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono outline-none"
+                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white outline-none"
                     min={0}
                   />
                 </div>
@@ -1968,12 +1879,12 @@ export default function DashboardPage() {
 
               {/* Rozmiary / Warianty */}
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Warianty / Rozmiary</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">Warianty / Rozmiary</label>
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                   {prodVariants.map((v) => (
-                    <span key={v} className="px-2.5 py-1 bg-zinc-100 border border-zinc-200 rounded-lg text-xs font-mono font-bold text-zinc-800 flex items-center gap-1">
+                    <span key={v} className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-mono font-bold text-white flex items-center gap-1">
                       <span>{v}</span>
-                      <button type="button" onClick={() => handleRemoveVariant(v)} className="text-zinc-400 hover:text-red-500 font-bold ml-1">✕</button>
+                      <button type="button" onClick={() => handleRemoveVariant(v)} className="text-zinc-500 hover:text-red-400 font-bold ml-1">✕</button>
                     </span>
                   ))}
                 </div>
@@ -1983,9 +1894,9 @@ export default function DashboardPage() {
                     placeholder="Dodaj rozmiar (np. XXL)..."
                     value={prodVariantInput}
                     onChange={(e) => setProdVariantInput(e.target.value)}
-                    className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono flex-1 outline-none"
+                    className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white flex-1 outline-none"
                   />
-                  <button type="button" onClick={handleAddVariant} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold rounded-xl cursor-pointer">
+                  <button type="button" onClick={handleAddVariant} className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-xl cursor-pointer">
                     + Dodaj
                   </button>
                 </div>
@@ -1993,21 +1904,21 @@ export default function DashboardPage() {
 
               {/* Zdjęcie Produktu (Upload z Komputera) */}
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1.5">Zdjęcie Produktu (Wgraj z Komputera)</label>
-                <div className="border-2 border-dashed border-zinc-200 rounded-2xl p-4 flex items-center justify-between gap-4 bg-zinc-50/50">
+                <label className="block text-xs font-bold text-zinc-300 mb-1.5">Zdjęcie Produktu (Wgraj z Komputera)</label>
+                <div className="border-2 border-dashed border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4 bg-[#090A0C]">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                       {prodImage ? (
                         <img src={prodImage} alt="Produkt" className="w-full h-full object-cover" />
                       ) : (
-                        <Camera className="w-5 h-5 text-zinc-400" />
+                        <Camera className="w-5 h-5 text-zinc-500" />
                       )}
                     </div>
-                    <span className="text-xs text-zinc-600 font-medium">
+                    <span className="text-xs text-zinc-400 font-medium">
                       {prodImage ? "Zdjęcie załadowane ✓" : "Wybierz zdjęcie produktu"}
                     </span>
                   </div>
-                  <label className="px-4 py-2 bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 font-bold text-xs rounded-xl cursor-pointer shrink-0">
+                  <label className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs rounded-xl cursor-pointer shrink-0">
                     <span>Wgraj z komputera</span>
                     <input
                       type="file"
@@ -2020,27 +1931,27 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Opis Produktu</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">Opis Produktu</label>
                 <textarea
                   rows={2}
                   value={prodDescription}
                   onChange={(e) => setProdDescription(e.target.value)}
                   placeholder="Krótki opis materiałów, kroju..."
-                  className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 outline-none focus:border-[#3B82F6]"
+                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
                 />
               </div>
 
-              <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowProductModal(false)}
-                  className="px-5 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                  className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white rounded-xl text-xs font-black shadow-lg shadow-[#FF5B28]/25 cursor-pointer"
                 >
                   {editingProductId ? "Zapisz Zmiany" : "Utwórz Produkt"}
                 </button>
@@ -2054,13 +1965,13 @@ export default function DashboardPage() {
       {/* 5. MODAL: 2FA AUTHENTICATOR SETUP */}
       {/* ========================================================================= */}
       {show2FAModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <h3 className="text-lg font-black text-zinc-900">Skonfiguruj Google Authenticator</h3>
-            <p className="text-xs text-zinc-500">Zeskanuj poniższy kod QR w aplikacji Authenticator lub Authy na telefonie:</p>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-black text-white">Skonfiguruj Google Authenticator</h3>
+            <p className="text-xs text-zinc-400">Zeskanuj poniższy kod QR w aplikacji Authenticator lub Authy na telefonie:</p>
 
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-2xl inline-block mx-auto">
-              <img src={totpQrUrl} alt="2FA QR Code" className="w-44 h-44 mx-auto rounded-lg" />
+            <div className="p-3 bg-white rounded-2xl inline-block mx-auto">
+              <img src={totpQrUrl} alt="2FA QR Code" className="w-44 h-44 mx-auto" />
             </div>
 
             <form
@@ -2082,20 +1993,20 @@ export default function DashboardPage() {
                 maxLength={6}
                 value={totpInput}
                 onChange={(e) => setTotpInput(e.target.value)}
-                className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-center text-base font-mono font-bold tracking-widest outline-none focus:border-[#3B82F6]"
+                className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-center text-base font-mono font-bold tracking-widest text-white outline-none focus:border-[#FF5B28]"
                 required
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShow2FAModal(false)}
-                  className="w-1/2 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold rounded-xl"
+                  className="w-1/2 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold rounded-xl shadow-md"
+                  className="w-1/2 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white text-xs font-black rounded-xl shadow-md cursor-pointer"
                 >
                   Aktywuj 2FA
                 </button>
