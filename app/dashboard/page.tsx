@@ -727,8 +727,8 @@ export default function DashboardPage() {
         <div className="p-6">
           
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2 mb-8">
-            <img src="/logo.svg" alt="iskral" className="h-7 w-auto object-contain" />
+          <Link href="/dashboard" className="flex items-center gap-2 mb-8 group">
+            <img src="/logo.svg" alt="iskral" className="h-7 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
           {/* ========================================== */}
@@ -736,43 +736,46 @@ export default function DashboardPage() {
           {/* ========================================== */}
           {navMode === "main" ? (
             <div className="space-y-1">
-              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2 block">
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider px-3 mb-2 block">
                 GŁÓWNE
               </span>
 
+              {/* Strona główna */}
               <button
                 onClick={() => setMainTab("home")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
                   mainTab === "home"
-                    ? "bg-[#1E2025] text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                    ? "text-white font-semibold"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Home className="w-4 h-4" />
+                <Home className={`w-4 h-4 transition-colors ${mainTab === "home" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Strona główna</span>
               </button>
 
+              {/* Sklep */}
               <button
                 onClick={() => setMainTab("shop")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
                   mainTab === "shop"
-                    ? "bg-[#1E2025] text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                    ? "text-white font-semibold"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <ShoppingBag className="w-4 h-4" />
+                <ShoppingBag className={`w-4 h-4 transition-colors ${mainTab === "shop" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Sklep</span>
               </button>
 
+              {/* Szablony */}
               <button
                 onClick={() => setMainTab("templates")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
                   mainTab === "templates"
-                    ? "bg-[#1E2025] text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                    ? "text-white font-semibold"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Layers className="w-4 h-4" />
+                <Layers className={`w-4 h-4 transition-colors ${mainTab === "templates" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Szablony</span>
               </button>
 
@@ -780,18 +783,18 @@ export default function DashboardPage() {
               <div className="pt-1">
                 <button
                   onClick={() => setIsServicesAccordionOpen(!isServicesAccordionOpen)}
-                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-between text-zinc-400 hover:text-white hover:bg-[#1E2025]/50 cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between text-zinc-400 hover:text-white cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Package className="w-4 h-4 text-[#3B82F6]" />
+                    <Package className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
                     <span>Usługi</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 bg-[#0A0B0D] border border-[#1E2025] text-zinc-300 text-[10px] rounded-md font-mono">
+                    <span className="px-1.5 py-0.2 bg-[#0A0B0D] border border-[#1E2025] text-zinc-400 text-[10px] rounded font-mono group-hover:text-zinc-200">
                       {displayServices.length}
                     </span>
                     <ChevronDown
-                      className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${
+                      className={`w-3.5 h-3.5 text-zinc-500 transition-transform group-hover:text-white ${
                         isServicesAccordionOpen ? "rotate-180" : ""
                       }`}
                     />
@@ -800,11 +803,11 @@ export default function DashboardPage() {
 
                 {/* Rozwinięte usługi */}
                 {isServicesAccordionOpen && (
-                  <div className="pl-4 pt-1 space-y-1">
+                  <div className="ml-5 pl-3 border-l border-[#1E2025] my-1 space-y-1">
                     {displayServices.length === 0 ? (
                       <button
                         onClick={() => setMainTab("shop")}
-                        className="w-full text-left px-3 py-1.5 text-[11px] font-medium text-zinc-500 hover:text-[#3B82F6] cursor-pointer"
+                        className="w-full text-left py-1.5 text-[11px] font-medium text-zinc-500 hover:text-white transition-colors cursor-pointer"
                       >
                         + Kup pierwszy pakiet
                       </button>
@@ -819,12 +822,12 @@ export default function DashboardPage() {
                               handleOpenPackageManagement(srv);
                             }
                           }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-between text-zinc-300 hover:text-white hover:bg-[#1E2025] cursor-pointer group"
+                          className="w-full text-left py-1.5 text-xs font-medium transition-colors flex items-center justify-between text-zinc-400 hover:text-white cursor-pointer group"
                         >
                           <span className="truncate">
                             {srv.assignedStoreName || srv.title}
                           </span>
-                          <span className="text-[9px] px-1.5 py-0.2 bg-[#0A0B0D] border border-[#1E2025] rounded text-zinc-400 group-hover:text-cyan-400">
+                          <span className="text-[9px] px-1.5 py-0.2 bg-[#0A0B0D] border border-[#1E2025] rounded text-zinc-500 group-hover:text-zinc-300">
                             #{srv.number}
                           </span>
                         </button>
@@ -834,15 +837,16 @@ export default function DashboardPage() {
                 )}
               </div>
 
+              {/* Ustawienia */}
               <button
                 onClick={() => setMainTab("settings")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
                   mainTab === "settings"
-                    ? "bg-[#1E2025] text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                    ? "text-white font-semibold"
+                    : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <SettingsIcon className="w-4 h-4" />
+                <SettingsIcon className={`w-4 h-4 transition-colors ${mainTab === "settings" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Ustawienia</span>
               </button>
             </div>
@@ -858,113 +862,113 @@ export default function DashboardPage() {
                   setNavMode("main");
                   setMainTab("home");
                 }}
-                className="w-full text-left px-3 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 mb-4 cursor-pointer border border-[#1E2025]"
+                className="w-full text-left px-3 py-2 text-zinc-400 hover:text-white text-xs font-medium transition-colors flex items-center gap-2 mb-3 cursor-pointer group"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#3B82F6]" />
+                <ArrowLeft className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                 <span>← Wróć do menu</span>
               </button>
 
-              <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-wider px-3 mb-2 block">
+              <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider px-3 mb-2 block">
                 PAKIET: {(currentStore.planType || user.plan || "Brand").toUpperCase()}
               </span>
 
               <button
                 onClick={() => setPackageTab("editor")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "editor" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "editor" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className={`w-3.5 h-3.5 transition-colors ${packageTab === "editor" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Edytor strony</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("stats")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "stats" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "stats" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <BarChart3 className="w-3.5 h-3.5" />
+                <BarChart3 className={`w-3.5 h-3.5 transition-colors ${packageTab === "stats" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Statystyki</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("products")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "products" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "products" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Package className="w-3.5 h-3.5" />
+                <Package className={`w-3.5 h-3.5 transition-colors ${packageTab === "products" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Dodaj produkt</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("orders")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "orders" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "orders" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className={`w-3.5 h-3.5 transition-colors ${packageTab === "orders" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Zamówienia</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("domain")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "domain" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "domain" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Globe className="w-3.5 h-3.5" />
+                <Globe className={`w-3.5 h-3.5 transition-colors ${packageTab === "domain" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Domena</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("balance")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "balance" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "balance" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Wallet className="w-3.5 h-3.5" />
+                <Wallet className={`w-3.5 h-3.5 transition-colors ${packageTab === "balance" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Saldo</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("newsletter")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "newsletter" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "newsletter" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Mail className="w-3.5 h-3.5" />
+                <Mail className={`w-3.5 h-3.5 transition-colors ${packageTab === "newsletter" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Newsletter</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("team")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "team" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "team" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className={`w-3.5 h-3.5 transition-colors ${packageTab === "team" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>Team Collaboration</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("drop")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "drop" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "drop" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
+                <Flame className={`w-3.5 h-3.5 transition-colors ${packageTab === "drop" ? "text-orange-400" : "text-zinc-500 group-hover:text-orange-400"}`} />
                 <span>Drop</span>
               </button>
 
               <button
                 onClick={() => setPackageTab("seo")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "seo" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2.5 cursor-pointer group ${
+                  packageTab === "seo" ? "text-white font-semibold" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <Search className="w-3.5 h-3.5" />
+                <Search className={`w-3.5 h-3.5 transition-colors ${packageTab === "seo" ? "text-white" : "text-zinc-500 group-hover:text-white"}`} />
                 <span>SEO</span>
               </button>
             </div>
@@ -979,9 +983,9 @@ export default function DashboardPage() {
               logout();
               router.push("/logowanie");
             }}
-            className="w-full px-3.5 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors flex items-center gap-2 cursor-pointer group"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
             <span>Wyloguj się</span>
           </button>
         </div>

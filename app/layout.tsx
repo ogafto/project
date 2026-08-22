@@ -1,12 +1,51 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import CookieBanner from "./components/CookieBanner";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
-  subsets: ["latin"],
+const soehne = localFont({
+  src: [
+    {
+      path: "../public/fonts/soehne-buch.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/soehne-kraftig.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/soehne-halbfett.woff2",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/soehne-halbfett.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-soehne",
+  display: "swap",
+});
+
+const soehneMono = localFont({
+  src: [
+    {
+      path: "../public/fonts/soehne-mono-buch.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/soehne-mono-halbfett.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-soehne-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -22,9 +61,9 @@ export default function RootLayout({
   return (
     <html
       lang="pl"
-      className={`${plusJakartaSans.variable} h-full antialiased`}
+      className={`${soehne.variable} ${soehneMono.variable} h-full antialiased`}
     >
-      <body className={`${plusJakartaSans.className} min-h-full flex flex-col antialiased bg-[#0E0E11] text-[#A1A1AA]`}>
+      <body className={`${soehne.className} min-h-full flex flex-col antialiased bg-[#0E0E11] text-[#A1A1AA]`}>
         <Providers>
           {children}
           <CookieBanner />
@@ -33,5 +72,6 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
