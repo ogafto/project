@@ -373,17 +373,17 @@ export default function AeuxDashboard({
             </Link>
           </div>
 
-          {/* 2. SEKCJA GŁÓWNE (Poppins medium 12, #333333, padding 48px lewo/prawo) */}
-          <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-0 pb-0">
+          {/* 2. SEKCJA GŁÓWNE (Poppins medium 12, #333333, padding 48px lewo/prawo, 16px odstępu poniżej) */}
+          <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px]">
             GŁÓWNE
           </div>
 
-          {/* 3. MENU GŁÓWNE - BEZ ODSTĘPU OD GŁÓWNE (padding 48px lewo/prawo, 4px góra/dół, gap 8px) */}
-          <nav className="flex flex-col mt-0 pt-0">
+          {/* 3. MENU GŁÓWNE (Strona główna -> 8px -> Sklep -> 8px -> Szablony) */}
+          <nav className="flex flex-col">
             {/* Strona główna */}
             <button
               onClick={() => setActiveTab("pulpit")}
-              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
                 activeTab === "pulpit"
                   ? "text-[#D0FF00]"
                   : "text-[#5B5B62] hover:text-[#8E8E98]"
@@ -404,27 +404,27 @@ export default function AeuxDashboard({
               </span>
             </button>
 
-            {/* Kup pakiet */}
+            {/* Sklep */}
             <button
-              onClick={() => setActiveTab("pakiety")}
-              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
-                activeTab === "pakiety"
+              onClick={() => setActiveTab("produkty")}
+              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
+                activeTab === "produkty"
                   ? "text-[#D0FF00]"
                   : "text-[#5B5B62] hover:text-[#8E8E98]"
               }`}
             >
-              {activeTab === "pakiety" && (
+              {activeTab === "produkty" && (
                 <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
               )}
               <ShoppingBasket
                 className={`w-5 h-5 shrink-0 transition-colors ${
-                  activeTab === "pakiety"
+                  activeTab === "produkty"
                     ? "text-[#D0FF00]"
                     : "text-[#22222A] group-hover:text-[#5B5B62]"
                 }`}
               />
               <span className="text-[15px] font-medium tracking-tight">
-                Kup pakiet
+                Sklep
               </span>
             </button>
 
@@ -454,36 +454,12 @@ export default function AeuxDashboard({
           </nav>
         </div>
 
-        {/* 4. DOLNA SEKCJA SIDEBARU (SPACING PASUJĄCY DO GÓRY, USTAWIENIA, TWÓJ PROFIL, WYLOGUJ SIĘ) */}
-        <div className="flex flex-col pb-[64px]">
-          {/* Ustawienia */}
-          <button
-            onClick={() => setActiveTab("ustawienia")}
-            className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
-              activeTab === "ustawienia"
-                ? "text-[#D0FF00]"
-                : "text-[#5B5B62] hover:text-[#8E8E98]"
-            }`}
-          >
-            {activeTab === "ustawienia" && (
-              <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
-            )}
-            <Settings
-              className={`w-5 h-5 shrink-0 transition-colors ${
-                activeTab === "ustawienia"
-                  ? "text-[#D0FF00]"
-                  : "text-[#22222A] group-hover:text-[#5B5B62]"
-              }`}
-            />
-            <span className="text-[15px] font-medium tracking-tight">
-              Ustawienia
-            </span>
-          </button>
-
+        {/* 4. DOLNA SEKCJA SIDEBARU (TYLKO TWÓJ PROFIL I WYLOGUJ SIĘ, ZMNIEJSZONY SPACING OD DOŁU) */}
+        <div className="flex flex-col pb-[24px]">
           {/* Twój profil */}
           <button
             onClick={() => setActiveTab("profil")}
-            className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+            className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
               activeTab === "profil"
                 ? "text-[#D0FF00]"
                 : "text-[#5B5B62] hover:text-[#8E8E98]"
@@ -515,19 +491,6 @@ export default function AeuxDashboard({
                 Wyloguj się
               </span>
             </button>
-          )}
-
-          {/* Panel Administratora (jeśli admin) */}
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group text-[#5B5B62] hover:text-[#D0FF00] mt-1"
-            >
-              <Shield className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#D0FF00]" />
-              <span className="text-[14px] font-medium tracking-tight">
-                Panel Admina
-              </span>
-            </Link>
           )}
         </div>
 
