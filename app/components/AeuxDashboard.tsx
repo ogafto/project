@@ -673,14 +673,14 @@ export default function AeuxDashboard({
                   href={liveStoreUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#12141A] border border-[#1E222D] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#0D0E12] border border-[#17181F] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
                 >
                   <span>{activeSubdomain}.iskral.pl</span>
                   <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
                 </a>
               )}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif]">
               Zarządzaj swoim sklepem internetowym w jednym miejscu.
             </p>
           </div>
@@ -690,22 +690,23 @@ export default function AeuxDashboard({
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="w-10 h-10 rounded-2xl bg-[#12141A] hover:bg-[#181B23] border border-[#1E222D] shadow-sm flex items-center justify-center text-zinc-300 relative transition-colors cursor-pointer"
+                className="w-[54px] h-[54px] rounded-[18px] bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] shadow-sm flex items-center justify-center text-zinc-300 hover:text-white relative transition-all cursor-pointer group"
+                title="Powiadomienia"
               >
-                <Bell className="w-4 h-4" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A28] absolute top-2.5 right-2.5 ring-2 ring-[#0A0B0D] shadow-[0_0_8px_#FF5A28]" />
+                <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
+                <span className="w-2 h-2 rounded-full bg-[#D0FF00] absolute top-4 right-4 ring-2 ring-[#0D0E12]" />
               </button>
 
               {/* Dropdown powiadomień */}
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-[#12141A] border border-[#1E222D] rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in">
-                  <span className="text-[11px] font-bold uppercase text-zinc-400 block mb-2 px-1 tracking-wider">
+                <div className="absolute right-0 mt-2 w-72 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-3 shadow-2xl z-50 animate-in fade-in">
+                  <span className="text-[11px] font-bold uppercase text-zinc-400 block mb-2 px-1 tracking-wider font-['Poppins',sans-serif]">
                     Powiadomienia
                   </span>
                   <div className="space-y-2 text-xs">
-                    <div className="p-2.5 bg-[#181B23] rounded-xl border border-[#242A38] text-white">
-                      <span className="font-bold block text-[#D0FF00]">🟢 System IskraL</span>
-                      <span className="text-[11px] text-zinc-400">
+                    <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] text-white">
+                      <span className="font-bold block text-[#D0FF00] font-['Poppins',sans-serif]">🟢 System IskraL</span>
+                      <span className="text-[11px] text-zinc-400 font-['Poppins',sans-serif] mt-0.5 block">
                         {userPackages.length > 0 ? "Twój pakiet jest aktywny." : "Wybierz pakiet w zakładce Sklep, aby rozpocząć."}
                       </span>
                     </div>
@@ -714,11 +715,11 @@ export default function AeuxDashboard({
               )}
             </div>
 
-            {/* Karta Konta Użytkownika z Dropdownem (ze screena) */}
+            {/* Karta Konta Użytkownika z Dropdownem */}
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 bg-[#12141A] hover:bg-[#181B23] border border-[#1E222D] rounded-2xl p-1.5 pr-3.5 cursor-pointer transition-all shadow-sm group select-none"
+                className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all shadow-sm group select-none"
               >
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 shrink-0 flex items-center justify-center">
                   {user?.avatarUrl ? (
@@ -732,10 +733,10 @@ export default function AeuxDashboard({
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate">
+                  <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate font-['Poppins',sans-serif]">
                     {user?.name || "Jan Kowalski"}
                   </span>
-                  <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5">
+                  <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5 font-['Poppins',sans-serif]">
                     {user?.email || "jan.kowalski@gmail.com"}
                   </span>
                 </div>
@@ -744,13 +745,13 @@ export default function AeuxDashboard({
 
               {/* Dropdown menu konta */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-[#12141A] border border-[#1E222D] rounded-2xl p-1.5 z-50 shadow-2xl animate-in fade-in">
-                  <div className="px-3 py-2 border-b border-[#1E222D] mb-1">
-                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-1.5 z-50 shadow-2xl animate-in fade-in">
+                  <div className="px-3 py-2.5 border-b border-[#17181F] mb-1">
+                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-['Poppins',sans-serif]">
                       {isAdmin ? "Administrator" : "Konto Klienta"}
                     </span>
-                    <span className="text-xs font-semibold text-white block truncate">{user?.name || "Jan Kowalski"}</span>
-                    <span className="text-[10px] text-zinc-500 block truncate">{user?.email || "jan.kowalski@gmail.com"}</span>
+                    <span className="text-xs font-semibold text-white block truncate font-['Poppins',sans-serif]">{user?.name || "Jan Kowalski"}</span>
+                    <span className="text-[10px] text-zinc-500 block truncate font-['Poppins',sans-serif]">{user?.email || "jan.kowalski@gmail.com"}</span>
                   </div>
 
                   <button
@@ -758,7 +759,7 @@ export default function AeuxDashboard({
                       setActiveTab("profil");
                       setIsUserMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#1A1E28] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Poppins',sans-serif]"
                   >
                     <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Twój profil</span>
@@ -769,7 +770,7 @@ export default function AeuxDashboard({
                       setActiveTab("ustawienia");
                       setIsUserMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#1A1E28] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Poppins',sans-serif]"
                   >
                     <Settings className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Ustawienia konta</span>
@@ -779,14 +780,14 @@ export default function AeuxDashboard({
                     <Link
                       href="/admin"
                       onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full text-left px-3 py-2 text-xs font-medium text-[#D0FF00] hover:bg-[#D0FF00]/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-medium text-[#D0FF00] hover:bg-[#D0FF00]/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Poppins',sans-serif]"
                     >
                       <Shield className="w-3.5 h-3.5 text-[#D0FF00]" />
                       <span>Panel Administratora</span>
                     </Link>
                   )}
 
-                  <div className="border-t border-[#1E222D] my-1" />
+                  <div className="border-t border-[#17181F] my-1" />
 
                   {logout && (
                     <button
@@ -794,7 +795,7 @@ export default function AeuxDashboard({
                         logout();
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Poppins',sans-serif]"
                     >
                       <LogOut className="w-3.5 h-3.5 text-rose-400" />
                       <span>Wyloguj się</span>
@@ -814,23 +815,23 @@ export default function AeuxDashboard({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* KARTA 1 (LEWA): BRAK PAKIETU */}
-              <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-7 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#171A22] border border-[#242A38] flex items-center justify-center text-zinc-400">
+              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+                <div className="space-y-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
                     <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
                   </div>
                   <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
                     Nie posiadasz żadnego pakietu
                   </h2>
-                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
                     Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
                   </p>
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-7">
                   <button
                     onClick={() => setActiveTab("produkty")}
-                    className="w-full sm:w-auto px-6 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Przejdź dalej</span>
                     <ArrowUpRight className="w-4 h-4" />
@@ -839,9 +840,9 @@ export default function AeuxDashboard({
               </div>
 
               {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
-              <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-7 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-semibold">
+              <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+                <div className="space-y-3.5">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-['Poppins',sans-serif]">
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Dla nowych użytkowników • Tylko raz</span>
                   </div>
@@ -850,17 +851,17 @@ export default function AeuxDashboard({
                     Sklep na 14 dni
                   </h2>
 
-                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-sm text-zinc-400 leading-relaxed font-['Poppins',sans-serif]">
                     Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
                   </p>
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-7">
                   <button
                     onClick={() => {
                       setActiveTab("produkty");
                     }}
-                    className="w-full sm:w-auto px-6 py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs sm:text-sm font-bold rounded-xl border border-[#262E3E] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Wypróbuj za darmo (14 dni)</span>
                     <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
@@ -883,7 +884,7 @@ export default function AeuxDashboard({
               <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif] tracking-tight">
                 Twoje Pakiety i Sklepy
               </h2>
-              <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+              <p className="text-sm text-zinc-400 mt-1 font-['Poppins',sans-serif]">
                 Zarządzaj swoimi sklepami, twórz nowe pakiety i kontroluj czas trwania subskrypcji.
               </p>
             </div>
@@ -892,7 +893,7 @@ export default function AeuxDashboard({
             {userPackages.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-['Poppins',sans-serif]">
                     Aktywne pakiety ({userPackages.length})
                   </span>
                 </div>
@@ -905,25 +906,25 @@ export default function AeuxDashboard({
                     return (
                       <div
                         key={pkg.id}
-                        className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#2C3242] transition-all shadow-sm"
+                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
                       >
                         <div className="space-y-4">
                           {/* GÓRA KARTY: LOGO I TYP PAKIETU */}
                           <div className="flex items-start justify-between gap-3">
-                            <div className="w-14 h-14 rounded-2xl bg-[#181B23] border border-[#242A38] overflow-hidden flex items-center justify-center shrink-0">
+                            <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
                               {pkg.logoUrl ? (
                                 <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="text-center p-1">
                                   <ShoppingBag className="w-5 h-5 text-zinc-500 mx-auto" />
-                                  <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none">
+                                  <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none font-['Poppins',sans-serif]">
                                     Brak logo
                                   </span>
                                 </div>
                               )}
                             </div>
 
-                            <span className="px-2.5 py-1 rounded-full bg-[#181B23] border border-[#242A38] text-[11px] font-semibold text-[#D0FF00]">
+                            <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-[11px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
                               {pkg.planType}
                             </span>
                           </div>
@@ -936,19 +937,19 @@ export default function AeuxDashboard({
                                   type="text"
                                   value={editingPackageName}
                                   onChange={(e) => setEditingPackageName(e.target.value)}
-                                  className="w-full px-2.5 py-1 bg-[#181B23] border border-[#2E3648] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00]"
+                                  className="w-full px-2.5 py-1.5 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
                                   autoFocus
                                 />
                                 <button
                                   onClick={() => handleSaveRename(pkg.id)}
-                                  className="px-2 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0"
+                                  className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
                                 >
                                   Zapisz
                                 </button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 group">
-                                <h3 className="text-base font-bold text-white truncate">
+                                <h3 className="text-base font-bold text-white truncate font-['Poppins',sans-serif]">
                                   {pkg.name}
                                 </h3>
                                 <button
@@ -961,13 +962,13 @@ export default function AeuxDashboard({
                               </div>
                             )}
 
-                            <span className="text-[11px] text-zinc-500 block mt-0.5">
+                            <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
                               ID: #{pkg.number} • {pkg.isConfigured && pkg.subdomain ? `${pkg.subdomain}.iskral.pl` : "Nie skonfigurowano"}
                             </span>
                           </div>
 
                           {/* WAŻNOŚĆ SUBSKRYPCJI / ODLICZANIE */}
-                          <div className="p-3 bg-[#181B23] rounded-xl border border-[#202636] flex items-center justify-between text-xs">
+                          <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between text-xs font-['Poppins',sans-serif]">
                             <span className="text-zinc-400 flex items-center gap-1.5 font-medium">
                               <Clock className="w-3.5 h-3.5 text-zinc-500" />
                               Ważność:
@@ -979,10 +980,10 @@ export default function AeuxDashboard({
                         </div>
 
                         {/* PRZYCISKI AKCJI KARTY PAKIETU */}
-                        <div className="pt-4 border-t border-[#1C202B] space-y-2 mt-4">
+                        <div className="pt-4 border-t border-[#17181F] space-y-2 mt-4">
                           <button
                             onClick={() => handleOpenConfigurator(pkg)}
-                            className="w-full py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
                           >
                             <span>{pkg.isConfigured ? "Przejdź do sklepu" : "Przejdź dalej (Konfiguruj)"}</span>
                             <ArrowUpRight className="w-4 h-4" />
@@ -991,13 +992,13 @@ export default function AeuxDashboard({
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               onClick={() => handleExtendPackage(pkg.id)}
-                              className="py-2 bg-[#181B23] hover:bg-[#202532] text-zinc-300 hover:text-white text-[11px] font-semibold rounded-lg border border-[#242A38] transition-colors cursor-pointer"
+                              className="py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-white text-xs font-medium rounded-xl border border-[#1C1E26] transition-colors cursor-pointer font-['Poppins',sans-serif]"
                             >
                               Przedłuż (+30 dni)
                             </button>
                             <button
                               onClick={() => setUpgradingPackage(pkg)}
-                              className="py-2 bg-[#181B23] hover:bg-[#202532] text-zinc-300 hover:text-[#D0FF00] text-[11px] font-semibold rounded-lg border border-[#242A38] transition-colors cursor-pointer"
+                              className="py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-[#D0FF00] text-xs font-medium rounded-xl border border-[#1C1E26] transition-colors cursor-pointer font-['Poppins',sans-serif]"
                             >
                               Ulepsz pakiet
                             </button>
@@ -1017,7 +1018,7 @@ export default function AeuxDashboard({
                 <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
                   {userPackages.length > 0 ? "Kup kolejny pakiet lub stwórz nowy sklep" : "Wybierz pakiet dla swojego sklepu"}
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-sm text-zinc-400 mt-0.5 font-['Poppins',sans-serif]">
                   Wybierz plan odpowiadający skali Twojego biznesu. Każdy pakiet pozwala utworzyć osobny sklep.
                 </p>
               </div>
@@ -1025,23 +1026,23 @@ export default function AeuxDashboard({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* 1. PAKIET START */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#2A3040] transition-all">
+                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">Pakiet Start</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#181B23] border border-[#242A38] text-[10px] font-semibold text-zinc-400">
+                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Start</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-medium text-zinc-400 font-['Poppins',sans-serif]">
                         14 dni za darmo
                       </span>
                     </div>
 
                     <div>
-                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
+                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
                         0.00 zł
                       </div>
-                      <span className="text-xs text-zinc-400 block mt-0.5">przez pierwsze 14 dni</span>
+                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">przez pierwsze 14 dni</span>
                     </div>
 
-                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>1 sklep internetowy</span>
@@ -1063,30 +1064,30 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Start")}
-                    className="mt-6 w-full py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs font-bold rounded-xl border border-[#262D3D] transition-colors cursor-pointer"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center"
                   >
                     Aktywuj Pakiet Start (14 dni)
                   </button>
                 </div>
 
                 {/* 2. PAKIET CREATOR */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all">
+                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#D0FF00]/40 rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">Pakiet Creator</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[10px] font-semibold text-[#D0FF00]">
+                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Creator</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[10px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
                         Polecany
                       </span>
                     </div>
 
                     <div>
-                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
-                        29.99 zł <span className="text-xs font-normal text-zinc-400">/ miesięcznie</span>
+                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
+                        29.99 zł <span className="text-xs font-normal text-zinc-400 font-['Poppins',sans-serif]">/ msc</span>
                       </div>
-                      <span className="text-xs text-zinc-400 block mt-0.5">dla twórców i marek odzieżowych</span>
+                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">dla twórców i marek odzieżowych</span>
                     </div>
 
-                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>Wszystko z pakietu Start</span>
@@ -1108,30 +1109,30 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Creator")}
-                    className="mt-6 w-full py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center text-center"
                   >
                     Kup Pakiet Creator (29.99 zł)
                   </button>
                 </div>
 
                 {/* 3. PAKIET BRAND */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#2A3040] transition-all">
+                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">Pakiet Brand</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#181B23] border border-[#242A38] text-[10px] font-semibold text-zinc-400">
+                      <span className="text-base font-bold text-white font-['Poppins',sans-serif]">Pakiet Brand</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-medium text-zinc-400 font-['Poppins',sans-serif]">
                         Dla profesjonalistów
                       </span>
                     </div>
 
                     <div>
-                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
-                        59.99 zł <span className="text-xs font-normal text-zinc-400">/ miesięcznie</span>
+                      <div className="text-3xl font-bold text-white font-['Sora',sans-serif]">
+                        59.99 zł <span className="text-xs font-normal text-zinc-400 font-['Poppins',sans-serif]">/ msc</span>
                       </div>
-                      <span className="text-xs text-zinc-400 block mt-0.5">pełna niezależność i własna domena</span>
+                      <span className="text-xs text-zinc-400 block mt-1 font-['Poppins',sans-serif]">pełna niezależność i własna domena</span>
                     </div>
 
-                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 pt-3 border-t border-[#17181F] font-['Poppins',sans-serif]">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>Wszystko z pakietu Creator</span>
@@ -1153,7 +1154,7 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Brand")}
-                    className="mt-6 w-full py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs font-bold rounded-xl border border-[#262D3D] transition-colors cursor-pointer"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center"
                   >
                     Kup Pakiet Brand (59.99 zł)
                   </button>
@@ -1617,28 +1618,28 @@ export default function AeuxDashboard({
       {/* ========================================================================= */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+          <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-7 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-white font-['Sora',sans-serif]">
                   Konfiguracja Sklepu
                 </h3>
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
                   {selectedPackageForConfig?.name || "Nowy sklep"}
                 </span>
               </div>
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="w-8 h-8 rounded-lg bg-[#181B23] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-lg bg-[#111319] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors border border-[#1C1E26]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveStoreConfig} className="space-y-4">
+            <form onSubmit={handleSaveStoreConfig} className="space-y-4 font-['Poppins',sans-serif]">
               {/* NAZWA SKLEPU */}
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5 font-['Poppins',sans-serif]">
                   Nazwa sklepu *
                 </label>
                 <input
@@ -1646,17 +1647,17 @@ export default function AeuxDashboard({
                   value={configStoreName}
                   onChange={(e) => setConfigStoreName(e.target.value)}
                   placeholder="Podaj nazwę sklepu"
-                  className="w-full px-3.5 py-2.5 bg-[#181B23] border border-[#262D3D] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
+                  className="w-full px-3.5 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
                   required
                 />
               </div>
 
               {/* SUBDOMENA SKLEPU */}
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5 font-['Poppins',sans-serif]">
                   Subdomena platformy *
                 </label>
-                <div className="flex items-center bg-[#181B23] border border-[#262D3D] rounded-xl overflow-hidden focus-within:border-[#D0FF00] transition-colors">
+                <div className="flex items-center bg-[#111319] border border-[#1C1E26] rounded-xl overflow-hidden focus-within:border-[#D0FF00] transition-colors">
                   <input
                     type="text"
                     value={configSubdomain}
@@ -1665,7 +1666,7 @@ export default function AeuxDashboard({
                     className="flex-1 px-3.5 py-2.5 bg-transparent text-xs text-white placeholder:text-zinc-600 focus:outline-none"
                     required
                   />
-                  <span className="px-3 text-xs text-zinc-500 font-mono bg-[#14161E] py-2.5 border-l border-[#262D3D]">
+                  <span className="px-3 text-xs text-zinc-500 font-mono bg-[#0D0E12] py-2.5 border-l border-[#1C1E26]">
                     .iskral.pl
                   </span>
                 </div>
@@ -1673,7 +1674,7 @@ export default function AeuxDashboard({
 
               {/* LOGO SKLEPU */}
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5 font-['Poppins',sans-serif]">
                   Logo sklepu (opcjonalnie)
                 </label>
                 <input
@@ -1681,21 +1682,21 @@ export default function AeuxDashboard({
                   value={configLogo}
                   onChange={(e) => setConfigLogo(e.target.value)}
                   placeholder="Wklej adres URL logo lub pozostaw puste"
-                  className="w-full px-3.5 py-2.5 bg-[#181B23] border border-[#262D3D] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
+                  className="w-full px-3.5 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowConfigModal(false)}
-                  className="flex-1 py-2.5 bg-[#181B23] hover:bg-[#202532] text-zinc-300 text-xs font-semibold rounded-xl border border-[#262D3D] cursor-pointer transition-colors"
+                  className="flex-1 px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer transition-colors text-center"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm"
+                  className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer transition-colors shadow-sm text-center"
                 >
                   Stwórz sklep
                 </button>
@@ -1710,32 +1711,32 @@ export default function AeuxDashboard({
       {/* ========================================================================= */}
       {upgradingPackage && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
+          <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-7 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
                 Ulepsz pakiet
               </h3>
               <button
                 onClick={() => setUpgradingPackage(null)}
-                className="w-8 h-8 rounded-lg bg-[#181B23] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-[#111319] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer border border-[#1C1E26]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
               Aktualny pakiet: <strong className="text-white">{upgradingPackage.name} ({upgradingPackage.planType})</strong>. Wybierz pakiet wyższy, aby odblokować dodatkowe możliwości:
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-3 font-['Poppins',sans-serif]">
               {upgradingPackage.planType !== "Creator" && (
                 <button
                   onClick={() => handleUpgradePackage("Creator")}
-                  className="w-full p-4 rounded-xl bg-[#181B23] hover:bg-[#222734] border border-[#262D3D] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
+                  className="w-full p-4 rounded-xl bg-[#111319] hover:bg-[#181B24] border border-[#1C1E26] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-white block">Pakiet Creator</span>
-                    <span className="text-[11px] text-zinc-400">29.99 zł / msc • Nielimitowane produkty</span>
+                    <span className="text-sm font-semibold text-white block">Pakiet Creator</span>
+                    <span className="text-xs text-zinc-400">29.99 zł / msc • Nielimitowane produkty</span>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
                 </button>
@@ -1744,11 +1745,11 @@ export default function AeuxDashboard({
               {upgradingPackage.planType !== "Brand" && (
                 <button
                   onClick={() => handleUpgradePackage("Brand")}
-                  className="w-full p-4 rounded-xl bg-[#181B23] hover:bg-[#222734] border border-[#262D3D] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
+                  className="w-full p-4 rounded-xl bg-[#111319] hover:bg-[#181B24] border border-[#1C1E26] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-white block">Pakiet Brand</span>
-                    <span className="text-[11px] text-zinc-400">59.99 zł / msc • Własna domena i tryb dropu</span>
+                    <span className="text-sm font-semibold text-white block">Pakiet Brand</span>
+                    <span className="text-xs text-zinc-400">59.99 zł / msc • Własna domena i tryb dropu</span>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
                 </button>
