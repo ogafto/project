@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import BackgroundVideo from "../components/BackgroundVideo";
 import { useAuth, Product, Category, PlanType, StoreConfig, TeamMember, Campaign, ServicePackage, User } from "../context/AuthContext";
 import { getStoreUrl } from "@/lib/cookies";
 import { checkSubdomainAvailability } from "@/lib/supabase";
@@ -107,7 +106,7 @@ export default function DashboardPage() {
   const [cfgDescription, setCfgDescription] = useState("");
   const [cfgLogo, setCfgLogo] = useState<string>("");
   const [cfgTemplate, setCfgTemplate] = useState("Dark Vibe");
-  const [cfgColor, setCfgColor] = useState("#FF5B28");
+  const [cfgColor, setCfgColor] = useState("#3B82F6");
   const [cfgShowSocials, setCfgShowSocials] = useState(true);
   const [cfgInstagram, setCfgInstagram] = useState("");
   const [cfgTiktok, setCfgTiktok] = useState("");
@@ -201,7 +200,7 @@ export default function DashboardPage() {
     customDomain: "",
     domainVerified: false,
     template: "Dark Vibe",
-    accentColor: "#FF5B28",
+    accentColor: "#3B82F6",
     stripeStatus: "connected",
     balanceCents: 0,
     planType: user?.plan || "Brand",
@@ -248,23 +247,21 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen w-full bg-[#090A0C] text-white flex items-center justify-center">
-        <BackgroundVideo />
-        <div className="w-8 h-8 border-4 border-[#FF5B28]/20 border-t-[#FF5B28] rounded-full animate-spin" />
+      <main className="min-h-screen w-full bg-[#0A0B0D] text-white flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#1E2025] border-t-[#3B82F6] rounded-full animate-spin" />
       </main>
     );
   }
 
   if (!user) {
     return (
-      <main className="min-h-screen w-full bg-[#090A0C] text-white flex flex-col items-center justify-center p-6 font-sans">
-        <BackgroundVideo />
-        <div className="bg-[#121318] border border-white/10 rounded-3xl p-8 text-center max-w-md shadow-2xl space-y-4">
-          <h2 className="text-2xl font-black text-white">Brak Dostępu</h2>
+      <main className="min-h-screen w-full bg-[#0A0B0D] text-white flex flex-col items-center justify-center p-6 font-sans">
+        <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-8 text-center max-w-md space-y-4">
+          <h2 className="text-xl font-bold text-white">Brak Dostępu</h2>
           <p className="text-xs text-zinc-400">Zaloguj się, aby uzyskać dostęp do swojego panelu klienta.</p>
           <Link
             href="/logowanie"
-            className="inline-block px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black rounded-xl text-xs shadow-lg shadow-[#FF5B28]/25 transition-all"
+            className="inline-block px-6 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold rounded-xl text-xs transition-all"
           >
             Przejdź do logowania →
           </Link>
@@ -304,7 +301,7 @@ export default function DashboardPage() {
     setCfgDescription("Oficjalny sklep streetwear z limitowanymi kolekcjami.");
     setCfgLogo("");
     setCfgTemplate("Dark Vibe");
-    setCfgColor("#FF5B28");
+    setCfgColor("#3B82F6");
     setCfgShowSocials(true);
     setShowConfigModal(true);
   };
@@ -547,35 +544,34 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#090A0C] text-white flex font-sans antialiased selection:bg-[#FF5B28] selection:text-white relative">
-      <BackgroundVideo />
-
+    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex font-sans antialiased selection:bg-[#3B82F6] selection:text-white">
+      
       {/* ========================================================================= */}
-      {/* 1. LEFT SIDEBAR (DARK MODE SLEEK LINEAR / VERCEL AESTHETIC) */}
+      {/* 1. LEFT SIDEBAR (BG: #111215, STROKE: #1E2025, NO SHADOWS) */}
       {/* ========================================================================= */}
-      <aside className="w-64 bg-[#0E0F14]/90 backdrop-blur-xl border-r border-white/10 min-h-screen flex flex-col justify-between shrink-0 sticky top-0 h-screen overflow-y-auto z-20 shadow-2xl">
+      <aside className="w-64 bg-[#111215] border-r border-[#1E2025] min-h-screen flex flex-col justify-between shrink-0 sticky top-0 h-screen overflow-y-auto z-20">
         <div className="p-6">
           
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 mb-8">
-            <img src="/logo.svg" alt="iskral" className="h-8 w-auto object-contain" />
+            <img src="/logo.svg" alt="iskral" className="h-7 w-auto object-contain" />
           </Link>
 
           {/* ========================================== */}
           {/* SIDEBAR VIEW A: GŁÓWNE MENU (DEFAULT) */}
           {/* ========================================== */}
           {navMode === "main" ? (
-            <div className="space-y-1.5 animate-in fade-in duration-150">
-              <span className="text-[11px] font-extrabold text-zinc-500 uppercase tracking-widest px-3 mb-2 block">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2 block">
                 GŁÓWNE
               </span>
 
               <button
                 onClick={() => setMainTab("home")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
                   mainTab === "home"
-                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#1E2025] text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Home className="w-4 h-4" />
@@ -584,10 +580,10 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setMainTab("shop")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
                   mainTab === "shop"
-                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#1E2025] text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -596,38 +592,37 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setMainTab("templates")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
                   mainTab === "templates"
-                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#1E2025] text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Layers className="w-4 h-4" />
                 <span>Szablony</span>
               </button>
 
-              {/* Usługi Tab - expands into package view */}
+              {/* Usługi Tab - click directly opens package view */}
               <button
                 onClick={() => {
                   setMainTab("services");
                   if (hasConfiguredStore || displayServices.length > 0) {
-                    // Enter package mode directly
                     setNavMode("package");
                     setPackageTab("editor");
                   }
                 }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-between cursor-pointer ${
                   mainTab === "services"
-                    ? "bg-white/10 text-white font-black"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#1E2025] text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Package className="w-4 h-4 text-cyan-400" />
+                  <Package className="w-4 h-4 text-[#3B82F6]" />
                   <span>Usługi</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 bg-white/10 text-white text-[10px] rounded-md font-mono">
+                  <span className="px-1.5 py-0.5 bg-[#0A0B0D] border border-[#1E2025] text-zinc-300 text-[10px] rounded-md font-mono">
                     {displayServices.length}
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
@@ -636,10 +631,10 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setMainTab("settings")}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
                   mainTab === "settings"
-                    ? "bg-[#FF5B28] text-white shadow-lg shadow-[#FF5B28]/25"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#1E2025] text-white"
+                    : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <SettingsIcon className="w-4 h-4" />
@@ -648,30 +643,30 @@ export default function DashboardPage() {
             </div>
           ) : (
             /* ========================================== */
-            /* SIDEBAR VIEW B: PAKIET / ZARZĄDZANIE SKLEPEM (PO WEJŚCIU W USŁUGI) */
+            /* SIDEBAR VIEW B: PAKIET (PO WEJŚCIU W USŁUGI) */
             /* ========================================== */
-            <div className="space-y-1 animate-in fade-in duration-150">
+            <div className="space-y-1">
               
-              {/* Back button to Main Menu */}
+              {/* Back to main */}
               <button
                 onClick={() => {
                   setNavMode("main");
                   setMainTab("home");
                 }}
-                className="w-full text-left px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 mb-4 cursor-pointer border border-white/5"
+                className="w-full text-left px-3 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 mb-4 cursor-pointer border border-[#1E2025]"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#FF5B28]" />
+                <ArrowLeft className="w-3.5 h-3.5 text-[#3B82F6]" />
                 <span>← Wróć do menu</span>
               </button>
 
-              <span className="text-[11px] font-extrabold text-[#FF5B28] uppercase tracking-widest px-3 mb-2 block">
+              <span className="text-[11px] font-bold text-[#3B82F6] uppercase tracking-wider px-3 mb-2 block">
                 PAKIET: {(currentStore.planType || user.plan || "Brand").toUpperCase()}
               </span>
 
               <button
                 onClick={() => setPackageTab("editor")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "editor" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "editor" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -680,8 +675,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("stats")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "stats" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "stats" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <BarChart3 className="w-3.5 h-3.5" />
@@ -690,8 +685,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("products")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "products" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "products" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
@@ -700,8 +695,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("orders")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "orders" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "orders" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
@@ -710,8 +705,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("domain")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "domain" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "domain" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" />
@@ -720,8 +715,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("balance")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "balance" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "balance" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Wallet className="w-3.5 h-3.5" />
@@ -730,8 +725,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("newsletter")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "newsletter" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "newsletter" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Mail className="w-3.5 h-3.5" />
@@ -740,8 +735,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("team")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "team" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "team" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -750,8 +745,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("drop")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "drop" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "drop" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Flame className="w-3.5 h-3.5 text-orange-400" />
@@ -760,8 +755,8 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setPackageTab("seo")}
-                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2.5 cursor-pointer ${
-                  packageTab === "seo" ? "bg-[#FF5B28] text-white shadow-md" : "text-zinc-400 hover:text-white hover:bg-white/5"
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2.5 cursor-pointer ${
+                  packageTab === "seo" ? "bg-[#1E2025] text-white" : "text-zinc-400 hover:text-white hover:bg-[#1E2025]/50"
                 }`}
               >
                 <Search className="w-3.5 h-3.5" />
@@ -773,13 +768,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom User Area */}
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-[#1E2025]">
           <button
             onClick={() => {
               logout();
               router.push("/logowanie");
             }}
-            className="w-full px-3.5 py-2.5 text-xs font-extrabold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+            className="w-full px-3.5 py-2.5 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Wyloguj się</span>
@@ -788,23 +783,23 @@ export default function DashboardPage() {
       </aside>
 
       {/* ========================================================================= */}
-      {/* 2. MAIN CONTENT AREA (DARK PREMIUM CANVAS) */}
+      {/* 2. MAIN CONTENT AREA (BG: #0A0B0D, STROKE: #1E2025, NO SHADOWS) */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex flex-col min-w-0 z-10">
+      <div className="flex-1 flex flex-col min-w-0">
         
         {/* TOP HEADER BAR */}
-        <header className="w-full px-8 py-5 flex items-center justify-between border-b border-white/[0.08] bg-[#0E0F14]/70 backdrop-blur-md sticky top-0 z-30">
+        <header className="w-full px-8 py-5 flex items-center justify-between border-b border-[#1E2025] bg-[#111215] sticky top-0 z-30">
           <div>
-            <h1 className="text-2xl font-black text-white tracking-tight">
+            <h1 className="text-xl font-bold text-white tracking-tight">
               {navMode === "package"
                 ? currentStore.name
                 : mainTab === "home"
                 ? "Strona główna"
                 : mainTab === "shop"
-                ? "Sklep z Pakietami"
+                ? "Sklep"
                 : mainTab === "templates"
-                ? "Dostępne Szablony"
-                : "Ustawienia Konta"}
+                ? "Szablony"
+                : "Ustawienia"}
             </h1>
           </div>
 
@@ -812,24 +807,24 @@ export default function DashboardPage() {
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-3 p-1.5 pl-2 pr-4 bg-[#14151B] hover:bg-white/10 rounded-full border border-white/10 shadow-lg transition-all cursor-pointer"
+              className="flex items-center gap-3 p-1.5 pl-2 pr-4 bg-[#0A0B0D] hover:bg-[#16181F] rounded-full border border-[#1E2025] transition-colors cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-[#FF5B28]/20 border border-[#FF5B28]/40 text-[#FF5B28] font-black text-xs flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-7 h-7 rounded-full bg-[#1E2025] text-zinc-300 font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{user.name ? user.name.slice(0, 2).toUpperCase() : "JK"}</span>
                 )}
               </div>
-              <span className="text-xs font-bold text-white">{user.name || user.email}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-bold text-zinc-200">{user.name || user.email}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
             </button>
 
             {/* Dropdown Menu */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-[#14151B] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in duration-100">
-                <div className="p-3 border-b border-white/5 mb-1 bg-[#090A0C] rounded-xl">
-                  <span className="text-[10px] font-extrabold uppercase text-[#FF5B28] block">Zalogowano jako</span>
+              <div className="absolute right-0 mt-2 w-56 bg-[#111215] border border-[#1E2025] rounded-2xl p-2 z-50">
+                <div className="p-3 border-b border-[#1E2025] mb-1 bg-[#0A0B0D] rounded-xl">
+                  <span className="text-[10px] font-bold uppercase text-[#3B82F6] block">Zalogowano jako</span>
                   <span className="text-xs font-bold text-white truncate block">{user.email}</span>
                 </div>
                 <button
@@ -838,12 +833,12 @@ export default function DashboardPage() {
                     setMainTab("settings");
                     setIsUserMenuOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:bg-[#1E2025] rounded-lg flex items-center gap-2 cursor-pointer"
                 >
                   <SettingsIcon className="w-4 h-4 text-zinc-400" />
                   <span>Ustawienia Konta</span>
                 </button>
-                <div className="border-t border-white/5 pt-1 mt-1">
+                <div className="border-t border-[#1E2025] pt-1 mt-1">
                   <button
                     onClick={() => {
                       logout();
@@ -864,10 +859,10 @@ export default function DashboardPage() {
         {message && (
           <div className="px-8 mt-4">
             <div
-              className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border shadow-xl backdrop-blur-xl ${
+              className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border ${
                 message.type === "success"
-                  ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
-                  : "bg-red-500/15 text-red-300 border-red-500/40"
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : "bg-red-500/10 text-red-400 border-red-500/30"
               }`}
             >
               <span>{message.text}</span>
@@ -879,37 +874,31 @@ export default function DashboardPage() {
         )}
 
         {/* MAIN BODY CONTAINER */}
-        <main className="flex-1 p-8 pt-6">
+        <main className="flex-1 p-8">
 
           {/* ========================================================================= */}
-          {/* 1. STRONA GŁÓWNA (DOKŁADNIE STAN 1 LUB STAN 2 W CIEMNYM WYDANIU) */}
+          {/* 1. STRONA GŁÓWNA */}
           {/* ========================================================================= */}
           {navMode === "main" && mainTab === "home" && (
-            <div className="w-full space-y-8 animate-in fade-in duration-200">
+            <div className="w-full space-y-6">
 
               {/* STAN 1: BRAK PAKIETU (SCREEN 1) */}
               {!hasPurchasedPackages && displayServices.length === 0 ? (
-                <div className="w-full max-w-xl mx-auto mt-16 p-12 bg-[#121318] border border-white/10 rounded-3xl shadow-2xl text-center flex flex-col items-center justify-center space-y-6">
-                  <div className="w-14 h-14 rounded-2xl bg-[#FF5B28]/10 border border-[#FF5B28]/30 flex items-center justify-center text-2xl text-[#FF5B28]">
-                    🚀
-                  </div>
-                  <h2 className="text-2xl font-black text-white tracking-tight">
+                <div className="w-full max-w-xl mx-auto mt-16 p-12 bg-[#111215] border border-[#1E2025] rounded-2xl text-center flex flex-col items-center justify-center space-y-5">
+                  <h2 className="text-xl font-bold text-white">
                     Nie posiadasz żadnego pakietu
                   </h2>
-                  <p className="text-xs text-zinc-400 max-w-sm">
-                    Aby uruchomić swój sklep i rozpocząć sprzedaż dropów, wybierz pakiet w sklepie platformy.
-                  </p>
                   <button
                     onClick={() => setMainTab("shop")}
-                    className="px-8 py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-xl shadow-lg shadow-[#FF5B28]/30 transition-all cursor-pointer transform hover:scale-105"
+                    className="px-8 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
-                    Przejdź do sklepu →
+                    Przejdź do sklepu
                   </button>
                 </div>
               ) : (
-                /* STAN 2: ZAKUPIONE USŁUGI / PAKIETY (SCREEN 2) */
+                /* STAN 2: ZAKUPIONE USŁUGI (SCREEN 2) */
                 <div className="space-y-4">
-                  <span className="text-xs font-black text-zinc-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider block">
                     USŁUGI
                   </span>
 
@@ -917,45 +906,45 @@ export default function DashboardPage() {
                     {displayServices.map((srv) => (
                       <div
                         key={srv.id}
-                        className="bg-[#121318] border border-white/10 hover:border-[#FF5B28]/40 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6 transition-all group"
+                        className="bg-[#111215] border border-[#1E2025] rounded-2xl p-6 flex flex-col justify-between space-y-6"
                       >
                         <div>
-                          {/* Top Row: Title & Placeholder Box */}
+                          {/* Top Row: Title & Icon Box */}
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <h3 className="text-lg font-black text-white">{srv.title}</h3>
-                              <span className="text-xs text-zinc-500 font-bold block mt-0.5">
-                                {srv.status === "Nieprzypisany" ? "🟡 Nieprzypisany" : "🟢 Przypisany"}
+                              <h3 className="text-base font-bold text-white">{srv.title}</h3>
+                              <span className="text-xs text-zinc-500 font-medium block mt-0.5">
+                                {srv.status}
                               </span>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
-                              <Package className="w-6 h-6" />
+                            <div className="w-11 h-11 rounded-xl bg-[#0A0B0D] border border-[#1E2025] flex items-center justify-center text-zinc-400 shrink-0">
+                              <Package className="w-5 h-5" />
                             </div>
                           </div>
 
                           {/* Info Lines */}
-                          <div className="mt-6 p-4 bg-[#090A0C] border border-white/5 rounded-2xl space-y-2 text-xs text-zinc-400">
+                          <div className="mt-6 space-y-1.5 text-xs text-zinc-400">
                             <div className="flex items-center justify-between">
                               <span>Nazwa pakietu:</span>
                               <strong className="text-white font-bold">Pakiet {srv.planType}</strong>
                             </div>
                             <div className="flex items-center justify-between">
                               <span>Ważność pakietu:</span>
-                              <strong className="text-emerald-400 font-mono font-bold">{srv.expiresAt}</strong>
+                              <strong className="text-zinc-200 font-mono font-medium">{srv.expiresAt}</strong>
                             </div>
                           </div>
 
                           {/* Sub-Buttons */}
-                          <div className="grid grid-cols-2 gap-2.5 mt-6">
+                          <div className="grid grid-cols-2 gap-2 mt-6">
                             <button
                               onClick={() => setMainTab("shop")}
-                              className="py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl border border-white/5 transition-colors cursor-pointer text-center"
+                              className="py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 font-bold text-xs rounded-xl border border-[#1E2025] transition-colors cursor-pointer text-center"
                             >
                               przedłuż pakiet
                             </button>
                             <button
                               onClick={() => handleOpenPackageManagement(srv)}
-                              className="py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl border border-white/5 transition-colors cursor-pointer text-center"
+                              className="py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 font-bold text-xs rounded-xl border border-[#1E2025] transition-colors cursor-pointer text-center"
                             >
                               zamówienia
                             </button>
@@ -967,14 +956,14 @@ export default function DashboardPage() {
                           {srv.status === "Nieprzypisany" ? (
                             <button
                               onClick={() => handleStartConfiguration(srv)}
-                              className="w-full py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-sm rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all cursor-pointer"
+                              className="w-full py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                             >
                               Przejdź dalej
                             </button>
                           ) : (
                             <button
                               onClick={() => handleOpenPackageManagement(srv)}
-                              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                              className="w-full py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                             >
                               Zarządzaj Sklepem →
                             </button>
@@ -990,23 +979,23 @@ export default function DashboardPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 2: SKLEP (ZAKUP PAKIETÓW W CIEMNYM DESIGNIE) */}
+          {/* TAB 2: SKLEP */}
           {/* ========================================================================= */}
           {navMode === "main" && mainTab === "shop" && (
-            <div className="space-y-6 max-w-5xl animate-in fade-in duration-150">
+            <div className="space-y-6 max-w-5xl">
               <div>
-                <h2 className="text-2xl font-black text-white">Sklep z Pakietami SaaS</h2>
-                <p className="text-xs text-zinc-400 mt-1">Wybierz pakiet dla swojego sklepu. Usługa pojawi się natychmiast na Twoim koncie ze statusem "Nieprzypisany".</p>
+                <h2 className="text-xl font-bold text-white">Sklep z Pakietami</h2>
+                <p className="text-xs text-zinc-400 mt-1">Wybierz pakiet dla swojego sklepu.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
                 {/* Pakiet Start */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6">
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-6 flex flex-col justify-between space-y-6">
                   <div>
-                    <span className="px-3 py-1 bg-white/5 text-zinc-300 border border-white/10 rounded-full text-[10px] font-black uppercase">14 Dni Gratis</span>
-                    <h3 className="text-xl font-black text-white mt-3">Pakiet Start</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Sprawdź swój pomysł bez opłat.</p>
-                    <div className="text-3xl font-black text-white font-mono mt-4">0 PLN <span className="text-xs font-normal text-zinc-500">/ 14 dni</span></div>
+                    <span className="px-2.5 py-0.5 bg-[#0A0B0D] border border-[#1E2025] text-zinc-400 rounded-full text-[10px] font-bold uppercase">14 Dni Gratis</span>
+                    <h3 className="text-lg font-bold text-white mt-3">Pakiet Start</h3>
+                    <p className="text-xs text-zinc-500 mt-1">Sprawdź swój pomysł bez opłat.</p>
+                    <div className="text-2xl font-bold text-white font-mono mt-4">0 PLN <span className="text-xs font-normal text-zinc-500">/ 14 dni</span></div>
                     <ul className="mt-6 space-y-2 text-xs text-zinc-400">
                       <li>✓ Subdomena .iskral.pl</li>
                       <li>✓ Do 5 produktów</li>
@@ -1018,26 +1007,26 @@ export default function DashboardPage() {
                       buyPlan("Start", "miesiac");
                       setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                    className="w-full py-2.5 bg-[#1E2025] hover:bg-[#252830] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
                     Wybierz Pakiet Start (0 PLN)
                   </button>
                 </div>
 
                 {/* Pakiet Creator */}
-                <div className="bg-[#121318] border-2 border-[#FF5B28] rounded-3xl p-6 shadow-2xl flex flex-col justify-between space-y-6 relative ring-2 ring-[#FF5B28]/30">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF5B28] text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
-                    Najpopularniejszy
+                <div className="bg-[#111215] border-2 border-[#3B82F6] rounded-2xl p-6 flex flex-col justify-between space-y-6 relative">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3B82F6] text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase">
+                    Polecany
                   </div>
                   <div>
-                    <span className="px-3 py-1 bg-[#FF5B28]/10 text-[#FF5B28] border border-[#FF5B28]/20 rounded-full text-[10px] font-black uppercase">Bestseller</span>
-                    <h3 className="text-xl font-black text-white mt-3">Pakiet Creator</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Dla twórców odzieży i dropów.</p>
-                    <div className="text-3xl font-black text-white font-mono mt-4">49.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
+                    <span className="px-2.5 py-0.5 bg-[#3B82F6]/10 text-[#3B82F6] rounded-full text-[10px] font-bold uppercase">Popularny</span>
+                    <h3 className="text-lg font-bold text-white mt-3">Pakiet Creator</h3>
+                    <p className="text-xs text-zinc-500 mt-1">Dla twórców odzieży i dropów.</p>
+                    <div className="text-2xl font-bold text-white font-mono mt-4">49.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
                     <ul className="mt-6 space-y-2 text-xs text-zinc-300">
-                      <li className="text-white font-bold">✓ Nielimitowane produkty</li>
-                      <li className="text-white font-bold">✓ Dynamiczny licznik dropu</li>
-                      <li className="text-emerald-400">✓ Prowizja tylko 1.0%</li>
+                      <li>✓ Nielimitowane produkty</li>
+                      <li>✓ Dynamiczny licznik dropu</li>
+                      <li className="text-emerald-400 font-bold">✓ Prowizja tylko 1.0%</li>
                     </ul>
                   </div>
                   <button
@@ -1045,19 +1034,19 @@ export default function DashboardPage() {
                       buyPlan("Creator", "miesiac");
                       setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/30 transition-all cursor-pointer"
+                    className="w-full py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
                     Kup Pakiet Creator
                   </button>
                 </div>
 
                 {/* Pakiet Brand */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-6">
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-6 flex flex-col justify-between space-y-6">
                   <div>
-                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase">0% Prowizji</span>
-                    <h3 className="text-xl font-black text-white mt-3">Pakiet Brand</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Dla rosnących marek streetwear.</p>
-                    <div className="text-3xl font-black text-white font-mono mt-4">99.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
+                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-bold uppercase">0% Prowizji</span>
+                    <h3 className="text-lg font-bold text-white mt-3">Pakiet Brand</h3>
+                    <p className="text-xs text-zinc-500 mt-1">Dla rosnących marek streetwear.</p>
+                    <div className="text-2xl font-bold text-white font-mono mt-4">99.90 PLN <span className="text-xs font-normal text-zinc-500">/ mc</span></div>
                     <ul className="mt-6 space-y-2 text-xs text-zinc-400">
                       <li className="font-bold text-emerald-400">✓ 0% prowizji platformy</li>
                       <li>✓ Własna domena .pl / .com</li>
@@ -1069,7 +1058,7 @@ export default function DashboardPage() {
                       buyPlan("Brand", "miesiac");
                       setMainTab("home");
                     }}
-                    className="w-full py-3.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                    className="w-full py-2.5 bg-[#1E2025] hover:bg-[#252830] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                   >
                     Kup Pakiet Brand
                   </button>
@@ -1082,21 +1071,21 @@ export default function DashboardPage() {
           {/* TAB 3: SZABLONY */}
           {/* ========================================================================= */}
           {navMode === "main" && mainTab === "templates" && (
-            <div className="space-y-6 max-w-4xl animate-in fade-in duration-150">
+            <div className="space-y-6 max-w-4xl">
               <div>
-                <h2 className="text-2xl font-black text-white">Dostępne Szablony Sklepu</h2>
-                <p className="text-xs text-zinc-400 mt-1">Platforma oferuje zoptymalizowany pod kątem konwersji i prędkości szablon streetwear.</p>
+                <h2 className="text-xl font-bold text-white">Dostępne Szablony</h2>
+                <p className="text-xs text-zinc-400 mt-1">Zoptymalizowany szablon e-commerce dla Twojej marki.</p>
               </div>
 
-              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col md:flex-row items-center gap-6">
-                <div className="w-full md:w-64 h-40 bg-[#090A0C] border border-white/10 rounded-2xl flex items-center justify-center text-white font-black shrink-0 text-lg shadow-inner">
+              <div className="p-6 bg-[#111215] border border-[#1E2025] rounded-2xl flex flex-col md:flex-row items-center gap-6">
+                <div className="w-full md:w-60 h-36 bg-[#0A0B0D] border border-[#1E2025] rounded-xl flex items-center justify-center text-white font-bold shrink-0 text-sm">
                   🔥 Dark Vibe / Streetwear
                 </div>
                 <div className="space-y-2">
-                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black text-[10px] rounded-full uppercase">
-                    Domyślny Szablon Platformy
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[10px] rounded-full uppercase">
+                    Domyślny Szablon
                   </span>
-                  <h3 className="text-xl font-black text-white">Dark Vibe (Hype & Streetwear)</h3>
+                  <h3 className="text-base font-bold text-white">Dark Vibe (Hype & Streetwear)</h3>
                   <p className="text-xs text-zinc-400 leading-relaxed">
                     Ciemna estetyka z wyrazistym akcentem kolorystycznym, dynamicznym licznikiem odliczania dropów oraz zoptymalizowanym koszykiem mobilnym.
                   </p>
@@ -1106,30 +1095,30 @@ export default function DashboardPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 4: USTAWIENIA KONTA (DANE, 2FA, AVATAR, ADRES) */}
+          {/* TAB 4: USTAWIENIA */}
           {/* ========================================================================= */}
           {navMode === "main" && mainTab === "settings" && (
-            <div className="max-w-3xl space-y-6 animate-in fade-in duration-150">
+            <div className="max-w-3xl space-y-6">
               <div>
-                <h2 className="text-2xl font-black text-white">Ustawienia Konta i Profilu</h2>
-                <p className="text-xs text-zinc-400 mt-1">Uzupełnij swoje pełne dane osobowe, adres oraz zabezpiecz konto aplikacją Authenticator 2FA.</p>
+                <h2 className="text-xl font-bold text-white">Ustawienia Konta</h2>
+                <p className="text-xs text-zinc-400 mt-1">Uzupełnij swoje dane osobowe, adres oraz konfigurację 2FA.</p>
               </div>
 
-              <form onSubmit={handleSaveProfile} className="p-8 bg-[#121318] border border-white/10 rounded-3xl shadow-2xl space-y-6">
+              <form onSubmit={handleSaveProfile} className="p-6 bg-[#111215] border border-[#1E2025] rounded-2xl space-y-6">
                 
-                {/* Avatar Photo Upload */}
+                {/* Avatar */}
                 <div>
-                  <label className="block text-xs font-bold text-zinc-300 mb-2">Zdjęcie Profilowe Konta</label>
+                  <label className="block text-xs font-bold text-zinc-300 mb-2">Zdjęcie Profilowe</label>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-[#090A0C] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-14 h-14 rounded-full bg-[#0A0B0D] border border-[#1E2025] flex items-center justify-center overflow-hidden shrink-0">
                       {profAvatar ? (
                         <img src={profAvatar} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <Camera className="w-6 h-6 text-zinc-500" />
+                        <Camera className="w-5 h-5 text-zinc-500" />
                       )}
                     </div>
                     <div>
-                      <label className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5">
+                      <label className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] border border-[#1E2025] text-white rounded-xl text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5">
                         <Upload className="w-3.5 h-3.5" />
                         <span>Wgraj zdjęcie z komputera</span>
                         <input
@@ -1152,7 +1141,7 @@ export default function DashboardPage() {
                       type="text"
                       value={profName}
                       onChange={(e) => setProfName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                      className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                     />
                   </div>
                   <div>
@@ -1161,7 +1150,7 @@ export default function DashboardPage() {
                       type="email"
                       value={profEmail}
                       disabled
-                      className="w-full px-4 py-2.5 bg-[#090A0C]/50 border border-white/5 rounded-xl text-xs text-zinc-500 font-mono"
+                      className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-zinc-500 font-mono"
                     />
                   </div>
                   <div>
@@ -1171,14 +1160,14 @@ export default function DashboardPage() {
                       value={profPhone}
                       onChange={(e) => setProfPhone(e.target.value)}
                       placeholder="+48 500 000 000"
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                      className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                     />
                   </div>
                 </div>
 
-                {/* Full Address */}
-                <div className="pt-4 border-t border-white/5 space-y-4">
-                  <h4 className="text-xs font-black text-white uppercase tracking-wider">Adres Zamieszkania / Siedziba Firmy</h4>
+                {/* Address */}
+                <div className="pt-4 border-t border-[#1E2025] space-y-4">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Adres Zamieszkania / Siedziba Firmy</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-bold text-zinc-300 mb-1">Ulica i numer lokalu</label>
@@ -1186,7 +1175,7 @@ export default function DashboardPage() {
                         type="text"
                         value={profStreet}
                         onChange={(e) => setProfStreet(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                        className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -1195,7 +1184,7 @@ export default function DashboardPage() {
                         type="text"
                         value={profZip}
                         onChange={(e) => setProfZip(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                        className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                       />
                     </div>
                     <div>
@@ -1204,7 +1193,7 @@ export default function DashboardPage() {
                         type="text"
                         value={profCity}
                         onChange={(e) => setProfCity(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                        className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                       />
                     </div>
                   </div>
@@ -1212,38 +1201,38 @@ export default function DashboardPage() {
 
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 cursor-pointer"
+                  className="px-6 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl cursor-pointer"
                 >
                   Zapisz Dane Profilowe
                 </button>
               </form>
 
-              {/* 2FA Authenticator Card */}
-              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* 2FA Card */}
+              <div className="p-6 bg-[#111215] border border-[#1E2025] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-[#FF5B28]" />
+                    <Smartphone className="w-5 h-5 text-[#3B82F6]" />
                     <h3 className="text-sm font-bold text-white">Dwuskładnikowa Autoryzacja 2FA (Google Authenticator)</h3>
                     {user.is2FAEnabled && (
-                      <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-[10px] font-extrabold rounded-full border border-emerald-500/30">
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/30">
                         Aktywne ✓
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-400 mt-1">Zabezpiecz konto jednorazowymi 6-cyfrowymi kodami z telefonu.</p>
+                  <p className="text-xs text-zinc-400 mt-1">Zabezpiecz konto kodami z aplikacji na telefonie.</p>
                 </div>
 
                 {user.is2FAEnabled ? (
                   <button
                     onClick={toggle2FA}
-                    className="px-4 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs rounded-xl border border-red-500/30 cursor-pointer"
+                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs rounded-xl border border-red-500/20 cursor-pointer"
                   >
                     Wyłącz 2FA
                   </button>
                 ) : (
                   <button
                     onClick={() => setShow2FAModal(true)}
-                    className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer"
                   >
                     <QrCode className="w-4 h-4" />
                     <span>Skonfiguruj 2FA</span>
@@ -1254,78 +1243,78 @@ export default function DashboardPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* PAKIET / ZARZĄDZANIE SKLEPEM (SCREEN 3 W CIEMNYM WYDANIU) */}
+          {/* PAKIET / ZARZĄDZANIE SKLEPEM (SCREEN 3) */}
           {/* ========================================================================= */}
           {navMode === "package" && (
-            <div className="space-y-8 animate-in fade-in duration-150">
+            <div className="space-y-6">
               
-              {/* 4 STATS CARDS ROW (DOKŁADNIE JAK NA SCREENIE 3 Z BADGE +29% TYGODNIOWO) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* 4 STATS CARDS ROW (DOKŁADNIE JAK NA SCREENIE 3) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
-                {/* Stat 1: Przychód całkowity */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-[#FF5B28]/40 transition-all">
+                {/* Stat 1 */}
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-5 flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-white">Przychód całkowity</h4>
-                      <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
+                      <h4 className="text-xs font-bold text-zinc-300">Przychód całkowity</h4>
+                      <span className="text-[11px] text-zinc-500">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-[#0A0B0D] border border-[#1E2025] text-[#3B82F6] flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-white font-mono">{totalRevenuePLN || "102"}</span>
+                    <span className="text-2xl font-bold text-white font-mono">{totalRevenuePLN || "102"}</span>
                     <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
-                {/* Stat 2: Liczba zamówień */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-blue-500/40 transition-all">
+                {/* Stat 2 */}
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-5 flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-white">Liczba zamówień</h4>
-                      <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
+                      <h4 className="text-xs font-bold text-zinc-300">Liczba zamówień</h4>
+                      <span className="text-[11px] text-zinc-500">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-[#0A0B0D] border border-[#1E2025] text-[#3B82F6] flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-white font-mono">{totalOrdersCount || "102"}</span>
+                    <span className="text-2xl font-bold text-white font-mono">{totalOrdersCount || "102"}</span>
                     <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
-                {/* Stat 3: Panel Sklepu (Odsłony) */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-purple-500/40 transition-all">
+                {/* Stat 3 */}
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-5 flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-white">Panel Sklepu</h4>
-                      <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
+                      <h4 className="text-xs font-bold text-zinc-300">Panel Sklepu</h4>
+                      <span className="text-[11px] text-zinc-500">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-[#0A0B0D] border border-[#1E2025] text-[#3B82F6] flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-white font-mono">{visitsCount || "102"}</span>
+                    <span className="text-2xl font-bold text-white font-mono">{visitsCount || "102"}</span>
                     <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
 
-                {/* Stat 4: Panel Sklepu (Średni Koszyk) */}
-                <div className="bg-[#121318] border border-white/10 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-amber-500/40 transition-all">
+                {/* Stat 4 */}
+                <div className="bg-[#111215] border border-[#1E2025] rounded-2xl p-5 flex flex-col justify-between space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-sm font-bold text-white">Panel Sklepu</h4>
-                      <span className="text-xs text-zinc-400 font-medium">Tygodniowo</span>
+                      <h4 className="text-xs font-bold text-zinc-300">Panel Sklepu</h4>
+                      <span className="text-[11px] text-zinc-500">Tygodniowo</span>
                     </div>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-[#0A0B0D] border border-[#1E2025] text-[#3B82F6] flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-white font-mono">{aovPLN || "102"}</span>
+                    <span className="text-2xl font-bold text-white font-mono">{aovPLN || "102"}</span>
                     <span className="text-xs font-bold text-emerald-400 font-mono">+29%</span>
                   </div>
                 </div>
@@ -1333,24 +1322,24 @@ export default function DashboardPage() {
               </div>
 
               {/* Subdomain Live Quick Bar */}
-              <div className="p-6 bg-[#121318] border border-white/10 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="p-5 bg-[#111215] border border-[#1E2025] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-black uppercase text-[#FF5B28] block tracking-wider">Adres Twojego Sklepu</span>
+                  <span className="text-[10px] font-bold uppercase text-[#3B82F6] block">Adres Twojego Sklepu</span>
                   <a
                     href={liveStoreUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-lg font-black text-white hover:text-cyan-400 flex items-center gap-1.5 mt-0.5 transition-colors"
+                    className="text-base font-bold text-white hover:text-[#3B82F6] flex items-center gap-1.5 mt-0.5 transition-colors"
                   >
                     <span>https://{currentStore.subdomain}.iskral.pl</span>
-                    <ExternalLink className="w-4 h-4 text-zinc-400" />
+                    <ExternalLink className="w-4 h-4 text-zinc-500" />
                   </a>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleCopyLink}
-                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-xl border border-white/10 flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-200 font-bold text-xs rounded-xl border border-[#1E2025] flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     {linkCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     <span>{linkCopied ? "Skopiowano!" : "Kopiuj Link"}</span>
@@ -1360,62 +1349,59 @@ export default function DashboardPage() {
                     href={liveStoreUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-5 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Odwiedź Sklep ↗</span>
                   </a>
                 </div>
               </div>
 
-              {/* Package Sub-tab Content */}
+              {/* Sub-tabs inside Package view */}
               {packageTab === "products" && (
-                <div className="space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
+                <div className="space-y-6 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                      <h2 className="text-xl font-black text-white">Katalog Produktów ({storeProducts.length})</h2>
-                      <p className="text-xs text-zinc-400 mt-0.5">Zarządzaj ofertą, stanem magazynowym i wariantami rozmiarów.</p>
+                      <h2 className="text-lg font-bold text-white">Katalog Produktów ({storeProducts.length})</h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">Zarządzaj produktami i stanem magazynowym.</p>
                     </div>
 
                     <button
                       onClick={handleOpenAddProduct}
-                      className="px-5 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                      className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Dodaj Nowy Produkt</span>
+                      <span>Dodaj Produkt</span>
                     </button>
                   </div>
 
                   {filteredProducts.length === 0 ? (
-                    <div className="p-12 bg-[#090A0C] border border-white/5 rounded-2xl text-center space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 text-zinc-500 flex items-center justify-center mx-auto text-xl">
-                        📦
-                      </div>
-                      <h4 className="text-sm font-bold text-white">Brak produktów w sklepie</h4>
-                      <p className="text-xs text-zinc-500 max-w-sm mx-auto">Dodaj pierwszy produkt klikając przycisk powyżej.</p>
+                    <div className="p-10 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-center space-y-2">
+                      <p className="text-sm font-bold text-zinc-300">Brak produktów</p>
+                      <p className="text-xs text-zinc-500">Dodaj pierwszy produkt klikając przycisk powyżej.</p>
                     </div>
                   ) : (
-                    <div className="bg-[#090A0C] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-[#0A0B0D] border border-[#1E2025] rounded-xl overflow-hidden">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-[#181920] text-zinc-400 uppercase font-bold text-[10px] border-b border-white/5">
+                        <thead className="bg-[#16171C] text-zinc-400 uppercase font-bold text-[10px] border-b border-[#1E2025]">
                           <tr>
-                            <th className="p-4">PRODUKT</th>
-                            <th className="p-4">TYP</th>
-                            <th className="p-4">CENA (PLN)</th>
-                            <th className="p-4">MAGAZYN</th>
-                            <th className="p-4">ROZMIARY</th>
-                            <th className="p-4">STATUS</th>
-                            <th className="p-4 text-right">AKCJE</th>
+                            <th className="p-3.5">PRODUKT</th>
+                            <th className="p-3.5">TYP</th>
+                            <th className="p-3.5">CENA</th>
+                            <th className="p-3.5">MAGAZYN</th>
+                            <th className="p-3.5">ROZMIARY</th>
+                            <th className="p-3.5">STATUS</th>
+                            <th className="p-3.5 text-right">AKCJE</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5 text-white">
+                        <tbody className="divide-y divide-[#1E2025] text-white">
                           {filteredProducts.map((p) => (
                             <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
-                              <td className="p-4">
+                              <td className="p-3.5">
                                 <div className="flex items-center gap-3">
                                   <img
                                     src={p.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"}
                                     alt={p.name}
-                                    className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0"
+                                    className="w-9 h-9 rounded-lg object-cover border border-[#1E2025] shrink-0"
                                   />
                                   <div>
                                     <span className="font-bold text-white block">{p.name}</span>
@@ -1423,43 +1409,43 @@ export default function DashboardPage() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-4">
-                                <span className="px-2 py-0.5 bg-white/10 text-white rounded-md text-[10px] font-bold">
+                              <td className="p-3.5">
+                                <span className="px-2 py-0.5 bg-[#111215] border border-[#1E2025] text-zinc-300 rounded text-[10px] font-medium">
                                   {p.type}
                                 </span>
                               </td>
-                              <td className="p-4 font-mono font-bold text-[#FF5B28]">
+                              <td className="p-3.5 font-mono font-bold text-[#3B82F6]">
                                 {p.price}
                               </td>
-                              <td className="p-4 font-mono text-zinc-400">
+                              <td className="p-3.5 font-mono text-zinc-400">
                                 {p.stock} szt.
                               </td>
-                              <td className="p-4">
+                              <td className="p-3.5">
                                 <div className="flex items-center gap-1 flex-wrap">
                                   {(p.variants || ["S", "M", "L"]).map((v) => (
-                                    <span key={v} className="px-1.5 py-0.5 bg-white/5 border border-white/10 text-zinc-300 rounded text-[10px] font-mono">
+                                    <span key={v} className="px-1.5 py-0.5 bg-[#111215] border border-[#1E2025] text-zinc-300 rounded text-[10px] font-mono">
                                       {v}
                                     </span>
                                   ))}
                                 </div>
                               </td>
-                              <td className="p-4">
+                              <td className="p-3.5">
                                 <button
                                   onClick={() => toggleProductStatus(p.id)}
-                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer ${
-                                    p.status === "Zawieszony" ? "bg-zinc-500/20 text-zinc-400" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer ${
+                                    p.status === "Zawieszony" ? "bg-zinc-800 text-zinc-400" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                   }`}
                                 >
                                   {p.status === "Zawieszony" ? "Szkic" : "Aktywny"}
                                 </button>
                               </td>
-                              <td className="p-4 text-right">
+                              <td className="p-3.5 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <button onClick={() => handleEditProduct(p)} className="p-1.5 hover:bg-white/10 rounded-lg text-cyan-400">
-                                    <Edit className="w-4 h-4" />
+                                  <button onClick={() => handleEditProduct(p)} className="p-1 hover:bg-[#1E2025] rounded text-blue-400">
+                                    <Edit className="w-3.5 h-3.5" />
                                   </button>
-                                  <button onClick={() => deleteProduct(p.id)} className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400">
-                                    <Trash2 className="w-4 h-4" />
+                                  <button onClick={() => deleteProduct(p.id)} className="p-1 hover:bg-red-500/10 rounded text-red-400">
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </td>
@@ -1473,30 +1459,30 @@ export default function DashboardPage() {
               )}
 
               {packageTab === "orders" && (
-                <div className="space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Historia Zamówień ({paidOrders.length})</h2>
+                <div className="space-y-6 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Historia Zamówień ({paidOrders.length})</h2>
                   {paidOrders.length === 0 ? (
                     <p className="text-xs text-zinc-500">Brak opłaconych zamówień.</p>
                   ) : (
-                    <div className="bg-[#090A0C] border border-white/5 rounded-2xl overflow-hidden">
+                    <div className="bg-[#0A0B0D] border border-[#1E2025] rounded-xl overflow-hidden">
                       <table className="w-full text-left text-xs text-white">
-                        <thead className="bg-[#181920] text-zinc-400 uppercase text-[10px]">
+                        <thead className="bg-[#16171C] text-zinc-400 uppercase text-[10px] border-b border-[#1E2025]">
                           <tr>
-                            <th className="p-4">ID</th>
-                            <th className="p-4">KLIENT</th>
-                            <th className="p-4">KWOTA</th>
-                            <th className="p-4">STATUS</th>
-                            <th className="p-4 text-right">DATA</th>
+                            <th className="p-3.5">ID</th>
+                            <th className="p-3.5">KLIENT</th>
+                            <th className="p-3.5">KWOTA</th>
+                            <th className="p-3.5">STATUS</th>
+                            <th className="p-3.5 text-right">DATA</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-[#1E2025]">
                           {paidOrders.map((o) => (
                             <tr key={o.id}>
-                              <td className="p-4 font-mono font-bold text-white">#{o.id.slice(-6).toUpperCase()}</td>
-                              <td className="p-4 text-zinc-300">{o.customerEmail}</td>
-                              <td className="p-4 font-bold text-emerald-400">{(o.amountTotalCents / 100).toFixed(2)} PLN</td>
-                              <td className="p-4"><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full font-bold">Opłacone</span></td>
-                              <td className="p-4 text-right font-mono text-zinc-500">{new Date(o.createdAt || Date.now()).toLocaleDateString("pl-PL")}</td>
+                              <td className="p-3.5 font-mono font-bold text-white">#{o.id.slice(-6).toUpperCase()}</td>
+                              <td className="p-3.5 text-zinc-300">{o.customerEmail}</td>
+                              <td className="p-3.5 font-bold text-emerald-400">{(o.amountTotalCents / 100).toFixed(2)} PLN</td>
+                              <td className="p-3.5"><span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-bold">Opłacone</span></td>
+                              <td className="p-3.5 text-right font-mono text-zinc-500">{new Date(o.createdAt || Date.now()).toLocaleDateString("pl-PL")}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1507,31 +1493,31 @@ export default function DashboardPage() {
               )}
 
               {packageTab === "drop" && (
-                <div className="max-w-2xl space-y-6 animate-in fade-in duration-150 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Konfiguracja Dropu</h2>
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Konfiguracja Dropu</h2>
                   <form onSubmit={handleSaveDropSettings} className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-[#090A0C] border border-white/5 rounded-2xl">
+                    <div className="flex items-center justify-between p-4 bg-[#0A0B0D] border border-[#1E2025] rounded-xl">
                       <div>
                         <h4 className="text-sm font-bold text-white">Włącz Odliczanie do Dropu</h4>
-                        <p className="text-xs text-zinc-400">Blokuje stronę sklepu dynamicznym zegarem.</p>
+                        <p className="text-xs text-zinc-400">Blokuje stronę sklepu zegarem przed premierą.</p>
                       </div>
                       <input
                         type="checkbox"
                         checked={dropEnabled}
                         onChange={(e) => setDropEnabled(e.target.checked)}
-                        className="w-5 h-5 accent-[#FF5B28]"
+                        className="w-4 h-4 accent-[#3B82F6]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-300 mb-1">Data i Godzina Najbliższego Dropu</label>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Data i Godzina Dropu</label>
                       <input
                         type="datetime-local"
                         value={dropDate}
                         onChange={(e) => setDropDate(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold font-mono text-white"
+                        className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold font-mono text-white"
                       />
                     </div>
-                    <button type="submit" className="px-6 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-bold text-xs rounded-xl shadow-md">
+                    <button type="submit" className="px-5 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl">
                       Zapisz Ustawienia Dropu
                     </button>
                   </form>
@@ -1539,54 +1525,54 @@ export default function DashboardPage() {
               )}
 
               {packageTab === "domain" && (
-                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Ustawienia Domeny</h2>
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Ustawienia Domeny</h2>
                   <div className="flex items-center">
-                    <input type="text" value={currentStore.subdomain} disabled className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs font-bold font-mono text-cyan-400" />
-                    <span className="px-4 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs font-mono text-zinc-400">.iskral.pl</span>
+                    <input type="text" value={currentStore.subdomain} disabled className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-l-xl text-xs font-bold font-mono text-zinc-300" />
+                    <span className="px-3.5 py-2 bg-[#16171C] border border-l-0 border-[#1E2025] rounded-r-xl text-xs font-mono text-zinc-400">.iskral.pl</span>
                   </div>
-                  <p className="text-xs text-emerald-400 font-bold">🟢 Subdomena aktywna z darmowym certyfikatem SSL.</p>
+                  <p className="text-xs text-emerald-400 font-medium">🟢 Subdomena aktywna z certyfikatem SSL.</p>
                 </div>
               )}
 
               {packageTab === "balance" && (
-                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Saldo i Wypłaty</h2>
-                  <div className="text-3xl font-black text-emerald-400 font-mono">{totalRevenuePLN} PLN</div>
-                  <input type="text" value={payoutIban} onChange={(e) => setPayoutIban(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white" />
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Saldo i Wypłaty</h2>
+                  <div className="text-3xl font-bold text-emerald-400 font-mono">{totalRevenuePLN} PLN</div>
+                  <input type="text" value={payoutIban} onChange={(e) => setPayoutIban(e.target.value)} className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-mono text-white" />
                   <button
                     onClick={() => {
                       if (parseFloat(totalRevenuePLN) <= 0) return alert("Brak środków do wypłaty.");
                       requestPayoutWithIBAN(parseFloat(totalRevenuePLN), payoutIban);
                     }}
-                    className="px-6 py-3 bg-[#FF5B28] text-white font-bold text-xs rounded-xl"
+                    className="px-5 py-2.5 bg-[#1E2025] hover:bg-[#252830] text-white font-bold text-xs rounded-xl"
                   >
-                    Zleć Wypłatę na Konto
+                    Zleć Wypłatę na Rachunek
                   </button>
                 </div>
               )}
 
               {packageTab === "newsletter" && (
-                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Newsletter</h2>
-                  <input type="text" placeholder="Tytuł Kampanii..." value={campaignTitle} onChange={(e) => setCampaignTitle(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
-                  <button onClick={() => { alert("Kampania wysłana!"); setCampaignTitle(""); }} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Wyślij do subskrybentów</button>
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Newsletter</h2>
+                  <input type="text" placeholder="Tytuł Kampanii..." value={campaignTitle} onChange={(e) => setCampaignTitle(e.target.value)} className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white" />
+                  <button onClick={() => { alert("Kampania wysłana!"); setCampaignTitle(""); }} className="px-5 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl">Wyślij Kampanię</button>
                 </div>
               )}
 
               {packageTab === "team" && (
-                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">Team Collaboration</h2>
-                  <input type="email" placeholder="E-mail członka zespołu..." value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
-                  <button onClick={() => { alert("Zaproszenie wysłane!"); setTeamEmail(""); }} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Zaproś do sklepu</button>
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">Team Collaboration</h2>
+                  <input type="email" placeholder="E-mail członka zespołu..." value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)} className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white" />
+                  <button onClick={() => { alert("Zaproszenie wysłane!"); setTeamEmail(""); }} className="px-5 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl">Zaproś do sklepu</button>
                 </div>
               )}
 
               {packageTab === "seo" && (
-                <div className="max-w-2xl space-y-4 p-6 bg-[#121318] border border-white/10 rounded-3xl">
-                  <h2 className="text-xl font-black text-white">SEO & Pozycjonowanie</h2>
-                  <input type="text" defaultValue={`${currentStore.name} | Oficjalny Sklep`} className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white" />
-                  <button onClick={() => setMessage({ type: "success", text: "Zapisano SEO!" })} className="px-6 py-2.5 bg-[#FF5B28] text-white font-bold text-xs rounded-xl">Zapisz SEO</button>
+                <div className="max-w-2xl space-y-4 p-6 bg-[#111215] border border-[#1E2025] rounded-2xl">
+                  <h2 className="text-lg font-bold text-white">SEO & Pozycjonowanie</h2>
+                  <input type="text" defaultValue={`${currentStore.name} | Oficjalny Sklep`} className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white" />
+                  <button onClick={() => setMessage({ type: "success", text: "Zapisano SEO!" })} className="px-5 py-2.5 bg-[#3B82F6] text-white font-bold text-xs rounded-xl">Zapisz SEO</button>
                 </div>
               )}
 
@@ -1597,17 +1583,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. KREATOR KONFIGURACJI SKLEPU (MODAL PO KLIKNIĘCIU "PRZEJDŹ DALEJ") */}
+      {/* 3. KREATOR KONFIGURACJI SKLEPU (MODAL) */}
       {/* ========================================================================= */}
       {showConfigModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#111215] border border-[#1E2025] rounded-2xl p-6 sm:p-8 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-[#1E2025]">
               <div>
-                <span className="text-[10px] font-black uppercase text-[#FF5B28] tracking-widest">Krok 2: Konfiguracja Sklepu</span>
-                <h3 className="text-xl font-black text-white mt-0.5">Konfigurator Nowego Sklepu</h3>
+                <span className="text-[10px] font-bold uppercase text-[#3B82F6] tracking-wider">Krok 2: Konfiguracja Sklepu</span>
+                <h3 className="text-lg font-bold text-white mt-0.5">Konfigurator Nowego Sklepu</h3>
               </div>
-              <button onClick={() => setShowConfigModal(false)} className="p-1 hover:bg-white/10 rounded-lg text-zinc-400">
+              <button onClick={() => setShowConfigModal(false)} className="p-1 hover:bg-[#1E2025] rounded-lg text-zinc-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1623,7 +1609,7 @@ export default function DashboardPage() {
                     value={cfgName}
                     onChange={(e) => setCfgName(e.target.value)}
                     placeholder="np. Dropwear Club"
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-[#FF5B28]"
+                    className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold text-white outline-none focus:border-[#3B82F6]"
                     required
                   />
                 </div>
@@ -1636,10 +1622,10 @@ export default function DashboardPage() {
                       value={cfgSubdomain}
                       onChange={(e) => setCfgSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
                       placeholder="twojanazwa"
-                      className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-l-xl text-xs font-mono font-bold text-cyan-400 outline-none focus:border-[#FF5B28]"
+                      className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-l-xl text-xs font-mono font-bold text-zinc-200 outline-none focus:border-[#3B82F6]"
                       required
                     />
-                    <span className="px-3 py-2.5 bg-white/5 border border-l-0 border-white/10 rounded-r-xl text-xs font-mono text-zinc-400">
+                    <span className="px-3 py-2 bg-[#16171C] border border-l-0 border-[#1E2025] rounded-r-xl text-xs font-mono text-zinc-400">
                       .iskral.pl
                     </span>
                   </div>
@@ -1651,19 +1637,19 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Krótki opis */}
+              {/* Opis */}
               <div>
-                <label className="block text-xs font-bold text-zinc-300 mb-1">Krótki Opis Sklepu / Bio Marki</label>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">Krótki Opis Sklepu / Bio</label>
                 <textarea
                   rows={2}
                   value={cfgDescription}
                   onChange={(e) => setCfgDescription(e.target.value)}
-                  placeholder="Oficjalny sklep streetwear z limitowanymi kolekcjami..."
-                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                  placeholder="Oficjalny sklep streetwear..."
+                  className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
-              {/* Logo Upload - KLIK LUB DRAG & DROP Z KOMPUTERA */}
+              {/* Logo Upload */}
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1.5">Logo Sklepu (Wgraj z Komputera lub Przeciągnij)</label>
                 <div
@@ -1674,25 +1660,25 @@ export default function DashboardPage() {
                       handleLogoFileUpload(e.dataTransfer.files[0]);
                     }
                   }}
-                  className="border-2 border-dashed border-white/10 hover:border-[#FF5B28] rounded-2xl p-4 flex items-center justify-between gap-4 bg-[#090A0C] transition-colors"
+                  className="border border-dashed border-[#1E2025] hover:border-[#3B82F6] rounded-xl p-4 flex items-center justify-between gap-4 bg-[#0A0B0D] transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-[#111215] border border-[#1E2025] flex items-center justify-center overflow-hidden shrink-0">
                       {cfgLogo ? (
                         <img src={cfgLogo} alt="Logo" className="w-full h-full object-contain p-1" />
                       ) : (
-                        <Camera className="w-6 h-6 text-zinc-500" />
+                        <Camera className="w-5 h-5 text-zinc-500" />
                       )}
                     </div>
                     <div>
                       <span className="text-xs font-bold text-white block">
-                        {cfgLogo ? "Logo załadowane z pliku ✓" : "Kliknij lub przeciągnij plik logo"}
+                        {cfgLogo ? "Logo załadowane ✓" : "Kliknij lub przeciągnij plik logo"}
                       </span>
                       <span className="text-[10px] text-zinc-500">Formaty: PNG, JPG, SVG, WEBP</span>
                     </div>
                   </div>
 
-                  <label className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shrink-0">
+                  <label className="px-4 py-2 bg-[#111215] hover:bg-[#1E2025] border border-[#1E2025] text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shrink-0">
                     <span>{cfgLogo ? "Zmień plik" : "Wybierz plik"}</span>
                     <input
                       type="file"
@@ -1711,9 +1697,9 @@ export default function DashboardPage() {
                   <select
                     value={cfgTemplate}
                     onChange={(e) => setCfgTemplate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none cursor-pointer"
+                    className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold text-white outline-none cursor-pointer"
                   >
-                    <option value="Dark Vibe">🔥 Dark Vibe (Hype & Streetwear)</option>
+                    <option value="Dark Vibe">🔥 Dark Vibe (Streetwear)</option>
                   </select>
                 </div>
 
@@ -1721,8 +1707,8 @@ export default function DashboardPage() {
                   <label className="block text-xs font-bold text-zinc-300 mb-1">Kolorystyka Akcentu</label>
                   <div className="flex items-center gap-2 pt-1">
                     {[
-                      { name: "Orange", hex: "#FF5B28" },
                       { name: "Blue", hex: "#3B82F6" },
+                      { name: "Orange", hex: "#FF5B28" },
                       { name: "Green", hex: "#10B981" },
                       { name: "Purple", hex: "#8B5CF6" },
                       { name: "Pink", hex: "#EC4899" },
@@ -1732,7 +1718,7 @@ export default function DashboardPage() {
                         type="button"
                         onClick={() => setCfgColor(col.hex)}
                         style={{ backgroundColor: col.hex }}
-                        className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
+                        className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
                           cfgColor === col.hex ? "ring-2 ring-offset-2 ring-white scale-110" : "opacity-70 hover:opacity-100"
                         }`}
                       />
@@ -1741,12 +1727,12 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Social Media & Toggle */}
-              <div className="pt-3 border-t border-white/10 space-y-3">
+              {/* Social Media */}
+              <div className="pt-3 border-t border-[#1E2025] space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-white">Social Media Sklepu</h4>
-                    <p className="text-[10px] text-zinc-500">Podaj linki do mediów społecznościowych Twojej marki.</p>
+                    <p className="text-[10px] text-zinc-500">Podaj linki do profili społecznościowych.</p>
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-300">
@@ -1754,7 +1740,7 @@ export default function DashboardPage() {
                       type="checkbox"
                       checked={cfgShowSocials}
                       onChange={(e) => setCfgShowSocials(e.target.checked)}
-                      className="w-4 h-4 accent-[#FF5B28]"
+                      className="w-4 h-4 accent-[#3B82F6]"
                     />
                     <span>Pokaż na stronie sklepu</span>
                   </label>
@@ -1764,47 +1750,47 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                       type="text"
-                      placeholder="Instagram (np. https://instagram.com/...)"
+                      placeholder="Instagram..."
                       value={cfgInstagram}
                       onChange={(e) => setCfgInstagram(e.target.value)}
-                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
+                      className="px-3 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
-                      placeholder="TikTok (np. https://tiktok.com/@...)"
+                      placeholder="TikTok..."
                       value={cfgTiktok}
                       onChange={(e) => setCfgTiktok(e.target.value)}
-                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
+                      className="px-3 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
                       placeholder="YouTube..."
                       value={cfgYoutube}
                       onChange={(e) => setCfgYoutube(e.target.value)}
-                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
+                      className="px-3 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white"
                     />
                     <input
                       type="text"
                       placeholder="Discord / Telegram..."
                       value={cfgDiscord}
                       onChange={(e) => setCfgDiscord(e.target.value)}
-                      className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white"
+                      className="px-3 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white"
                     />
                   </div>
                 )}
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-[#1E2025] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowConfigModal(false)}
-                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl cursor-pointer"
+                  className="px-5 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 font-bold text-xs rounded-xl border border-[#1E2025] cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-7 py-3 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-black text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all cursor-pointer"
+                  className="px-6 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
                 >
                   Uruchom Sklep i Przypisz Pakiet →
                 </button>
@@ -1815,17 +1801,17 @@ export default function DashboardPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 4. MODAL: DODAWANIE PRODUKTU (Z UPLOADEM ZDJĘCIA Z KOMPUTERA) */}
+      {/* 4. MODAL: DODAWANIE PRODUKTU */}
       {/* ========================================================================= */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#FF5B28]" />
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-[#111215] border border-[#1E2025] rounded-2xl p-6 sm:p-8 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-[#1E2025]">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#3B82F6]" />
                 <span>{editingProductId ? "Edycja Produktu" : "Dodaj Nowy Produkt"}</span>
               </h3>
-              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-white/10 rounded-lg text-zinc-400">
+              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-[#1E2025] rounded-lg text-zinc-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1837,8 +1823,8 @@ export default function DashboardPage() {
                   type="text"
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
-                  placeholder="np. Bluza Heavyweight Oversize 'Noir'"
-                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold text-white outline-none focus:border-[#FF5B28]"
+                  placeholder="np. Bluza Heavyweight 'Noir'"
+                  className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold text-white outline-none focus:border-[#3B82F6]"
                   required
                 />
               </div>
@@ -1851,7 +1837,7 @@ export default function DashboardPage() {
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
                     placeholder="149.00"
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-bold font-mono text-white outline-none focus:border-[#FF5B28]"
+                    className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold font-mono text-white outline-none focus:border-[#3B82F6]"
                     required
                   />
                 </div>
@@ -1862,7 +1848,7 @@ export default function DashboardPage() {
                     value={prodComparePrice}
                     onChange={(e) => setProdComparePrice(e.target.value)}
                     placeholder="199.00"
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-zinc-400 outline-none"
+                    className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-mono text-zinc-400 outline-none"
                   />
                 </div>
                 <div>
@@ -1871,18 +1857,18 @@ export default function DashboardPage() {
                     type="number"
                     value={prodStock}
                     onChange={(e) => setProdStock(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white outline-none"
+                    className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-mono text-white outline-none"
                     min={0}
                   />
                 </div>
               </div>
 
-              {/* Rozmiary / Warianty */}
+              {/* Rozmiary */}
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">Warianty / Rozmiary</label>
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                   {prodVariants.map((v) => (
-                    <span key={v} className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-mono font-bold text-white flex items-center gap-1">
+                    <span key={v} className="px-2.5 py-1 bg-[#0A0B0D] border border-[#1E2025] rounded-lg text-xs font-mono font-bold text-white flex items-center gap-1">
                       <span>{v}</span>
                       <button type="button" onClick={() => handleRemoveVariant(v)} className="text-zinc-500 hover:text-red-400 font-bold ml-1">✕</button>
                     </span>
@@ -1894,20 +1880,20 @@ export default function DashboardPage() {
                     placeholder="Dodaj rozmiar (np. XXL)..."
                     value={prodVariantInput}
                     onChange={(e) => setProdVariantInput(e.target.value)}
-                    className="px-3 py-2 bg-[#090A0C] border border-white/10 rounded-xl text-xs font-mono text-white flex-1 outline-none"
+                    className="px-3 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-mono text-white flex-1 outline-none"
                   />
-                  <button type="button" onClick={handleAddVariant} className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-xl cursor-pointer">
+                  <button type="button" onClick={handleAddVariant} className="px-4 py-2 bg-[#1E2025] hover:bg-[#252830] text-white text-xs font-bold rounded-xl cursor-pointer">
                     + Dodaj
                   </button>
                 </div>
               </div>
 
-              {/* Zdjęcie Produktu (Upload z Komputera) */}
+              {/* Zdjęcie Produktu */}
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1.5">Zdjęcie Produktu (Wgraj z Komputera)</label>
-                <div className="border-2 border-dashed border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4 bg-[#090A0C]">
+                <div className="border border-dashed border-[#1E2025] rounded-xl p-4 flex items-center justify-between gap-4 bg-[#0A0B0D]">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-[#111215] border border-[#1E2025] flex items-center justify-center overflow-hidden shrink-0">
                       {prodImage ? (
                         <img src={prodImage} alt="Produkt" className="w-full h-full object-cover" />
                       ) : (
@@ -1918,7 +1904,7 @@ export default function DashboardPage() {
                       {prodImage ? "Zdjęcie załadowane ✓" : "Wybierz zdjęcie produktu"}
                     </span>
                   </div>
-                  <label className="px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs rounded-xl cursor-pointer shrink-0">
+                  <label className="px-4 py-2 bg-[#111215] hover:bg-[#1E2025] border border-[#1E2025] text-white font-bold text-xs rounded-xl cursor-pointer shrink-0">
                     <span>Wgraj z komputera</span>
                     <input
                       type="file"
@@ -1937,21 +1923,21 @@ export default function DashboardPage() {
                   value={prodDescription}
                   onChange={(e) => setProdDescription(e.target.value)}
                   placeholder="Krótki opis materiałów, kroju..."
-                  className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#FF5B28]"
+                  className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-[#1E2025] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowProductModal(false)}
-                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-5 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 rounded-xl text-xs font-bold border border-[#1E2025] cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white rounded-xl text-xs font-black shadow-lg shadow-[#FF5B28]/25 cursor-pointer"
+                  className="px-6 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
                   {editingProductId ? "Zapisz Zmiany" : "Utwórz Produkt"}
                 </button>
@@ -1962,16 +1948,16 @@ export default function DashboardPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 5. MODAL: 2FA AUTHENTICATOR SETUP */}
+      {/* 5. MODAL: 2FA AUTHENTICATOR */}
       {/* ========================================================================= */}
       {show2FAModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#121318] border border-white/10 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
-            <h3 className="text-lg font-black text-white">Skonfiguruj Google Authenticator</h3>
-            <p className="text-xs text-zinc-400">Zeskanuj poniższy kod QR w aplikacji Authenticator lub Authy na telefonie:</p>
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#111215] border border-[#1E2025] rounded-2xl p-6 sm:p-8 text-center space-y-4">
+            <h3 className="text-base font-bold text-white">Google Authenticator</h3>
+            <p className="text-xs text-zinc-400">Zeskanuj poniższy kod QR w aplikacji Authenticator lub Authy:</p>
 
-            <div className="p-3 bg-white rounded-2xl inline-block mx-auto">
-              <img src={totpQrUrl} alt="2FA QR Code" className="w-44 h-44 mx-auto" />
+            <div className="p-3 bg-white rounded-xl inline-block mx-auto">
+              <img src={totpQrUrl} alt="2FA QR Code" className="w-40 h-40 mx-auto" />
             </div>
 
             <form
@@ -1993,20 +1979,20 @@ export default function DashboardPage() {
                 maxLength={6}
                 value={totpInput}
                 onChange={(e) => setTotpInput(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#090A0C] border border-white/10 rounded-xl text-center text-base font-mono font-bold tracking-widest text-white outline-none focus:border-[#FF5B28]"
+                className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-center text-sm font-mono font-bold tracking-widest text-white outline-none focus:border-[#3B82F6]"
                 required
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShow2FAModal(false)}
-                  className="w-1/2 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold rounded-xl cursor-pointer"
+                  className="w-1/2 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 text-xs font-bold rounded-xl border border-[#1E2025] cursor-pointer"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 bg-[#FF5B28] hover:bg-[#e04f20] text-white text-xs font-black rounded-xl shadow-md cursor-pointer"
+                  className="w-1/2 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Aktywuj 2FA
                 </button>
