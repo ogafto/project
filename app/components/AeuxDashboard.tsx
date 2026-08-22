@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard,
+  LayoutGrid,
   ShoppingBag,
+  ShoppingBasket,
+  BookOpen,
   Package,
   Layers,
   Sparkles,
@@ -34,6 +37,7 @@ import {
   LogOut,
   Mail,
   Users,
+  User as UserIcon,
   Eye,
   RefreshCw,
   HelpCircle,
@@ -91,9 +95,9 @@ export default function AeuxDashboard({
   setMessage,
 }: AeuxDashboardProps) {
   // Navigation tabs:
-  // "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia"
+  // "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia" | "profil"
   const [activeTab, setActiveTab] = useState<
-    "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia"
+    "pulpit" | "produkty" | "zamowienia" | "pakiety" | "kreator" | "drop" | "ustawienia" | "profil"
   >("pulpit");
 
   // Admin status
@@ -353,298 +357,177 @@ export default function AeuxDashboard({
     <div className="min-h-screen w-full bg-[#0B0D12] text-white flex font-sans antialiased selection:bg-[#FF5A28] selection:text-white">
       
       {/* ========================================================================= */}
-      {/* LEWY SIDEBAR - PEŁNA WYSOKOŚĆ (DARK THEME Z #FF5A28) */}
+      {/* LEWY SIDEBAR (BG #070709, LOGODB.SVG 188x22, POPPINS, #D0FF00 HIGHLIGHT) */}
       {/* ========================================================================= */}
-      <aside className="w-[280px] bg-[#0E1118] border-r border-[#1B212D] flex flex-col justify-between shrink-0 select-none sticky top-0 h-screen overflow-y-auto p-5 z-40">
+      <aside className="w-[284px] bg-[#070709] border-r border-[#141419] flex flex-col justify-between shrink-0 select-none sticky top-0 h-screen overflow-y-auto z-40">
         
-        <div className="space-y-6">
-          
-          {/* LOGO PLATFORMY */}
-          <div className="flex items-center justify-between px-2 pt-1">
-            <Link href="/dashboard" className="flex items-center gap-3 group">
-              <div className="flex items-center gap-1">
-                <div className="w-1.5 h-4 bg-[#FF5A28] rounded-full shadow-[0_0_8px_#FF5A28]" />
-                <div className="w-1.5 h-6 bg-[#FF5A28] rounded-full shadow-[0_0_12px_#FF5A28]" />
-                <div className="w-1.5 h-4 bg-[#FF5A28] rounded-full shadow-[0_0_8px_#FF5A28]" />
-              </div>
-              <span className="text-xl font-extrabold text-white tracking-tight group-hover:text-[#FF5A28] transition-colors">
-                iskral
-              </span>
+        <div>
+          {/* 1. LOGO NA SAMEJ GÓRZE - WYŚRODKOWANE, PADDING 64px GÓRA I DÓŁ */}
+          <div className="flex items-center justify-center py-[64px] px-6">
+            <Link href="/dashboard" className="flex items-center justify-center">
+              <img
+                src="/logodb.svg"
+                alt="Logo"
+                className="w-[188px] h-[22px] object-contain"
+              />
             </Link>
-
-            {isAdmin && (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#FF5A28]/15 text-[#FF5A28] border border-[#FF5A28]/40 text-[9px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(255,90,40,0.2)]">
-                Admin
-              </span>
-            )}
           </div>
 
-          {/* SELEKTOR AKTYWNEGO SKLEPU */}
-          <div className="relative">
-            <button
-              onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
-              className="w-full bg-[#131722] hover:bg-[#181D2A] border border-[#202738] rounded-2xl p-3 flex items-center justify-between text-left transition-all cursor-pointer shadow-sm group"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-[#FF5A28]/15 border border-[#FF5A28]/30 flex items-center justify-center text-[#FF5A28] shrink-0 group-hover:shadow-[0_0_10px_rgba(255,90,40,0.3)] transition-all">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-medium text-zinc-400 block leading-tight truncate">
-                    Aktywny Sklep
-                  </span>
-                  <span className="text-xs font-bold text-white block truncate mt-0.5">
-                    {currentStore.name}
-                  </span>
-                </div>
-              </div>
-              <ChevronDown className="w-4 h-4 text-zinc-400 shrink-0 group-hover:text-white transition-colors" />
-            </button>
-
-            {/* Lista Sklepów w Dropdownie */}
-            {isStoreDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-[#131722] border border-[#202738] rounded-2xl p-1.5 z-50 shadow-2xl animate-in fade-in">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                  Twoje Sklepy ({userStores.length || 1})
-                </div>
-                {(userStores.length > 0 ? userStores : [currentStore]).map((st) => (
-                  <button
-                    key={st.id}
-                    onClick={() => {
-                      if (setActiveStoreId) setActiveStoreId(st.id);
-                      setIsStoreDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-[#1B212F] rounded-xl transition-colors flex items-center justify-between cursor-pointer"
-                  >
-                    <span className="truncate">{st.name}</span>
-                    {st.id === currentStore.id && (
-                      <Check className="w-4 h-4 text-[#FF5A28]" />
-                    )}
-                  </button>
-                ))}
-                
-                <div className="border-t border-[#202738] mt-1 pt-1">
-                  <button
-                    onClick={() => {
-                      setShowStoreCreatorModal(true);
-                      setIsStoreDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-xs font-bold text-[#FF5A28] hover:bg-[#1B212F] rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Utwórz nowy sklep</span>
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* 2. SEKCJA GŁÓWNE (Poppins medium 12, #333333, padding 48px lewo/prawo) */}
+          <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-0 pb-0">
+            GŁÓWNE
           </div>
 
-          {/* WYSZUKIWARKA */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Szukaj w sklepie..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#131722] border border-[#202738] rounded-xl pl-9 pr-12 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#FF5A28] focus:ring-1 focus:ring-[#FF5A28] transition-all"
-            />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-400 bg-[#0E1118] px-1.5 py-0.5 rounded border border-[#202738]">
-              ⌘+F
-            </span>
-          </div>
-
-          {/* GŁÓWNA NAWIGACJA */}
-          <div className="space-y-1.5 pt-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-2 block">
-              NAWIGACJA
-            </span>
-
-            {/* Pulpit */}
+          {/* 3. MENU GŁÓWNE - BEZ ODSTĘPU OD GŁÓWNE (padding 48px lewo/prawo, 4px góra/dół, gap 8px) */}
+          <nav className="flex flex-col mt-0 pt-0">
+            {/* Strona główna */}
             <button
               onClick={() => setActiveTab("pulpit")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
                 activeTab === "pulpit"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
+                  ? "text-[#D0FF00]"
+                  : "text-[#5B5B62] hover:text-[#8E8E98]"
               }`}
             >
-              <LayoutDashboard className={`w-4 h-4 ${activeTab === "pulpit" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-              <span>Pulpit Główny</span>
-            </button>
-
-            {/* Produkty */}
-            <button
-              onClick={() => setActiveTab("produkty")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "produkty"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Package className={`w-4 h-4 ${activeTab === "produkty" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-                <span>Produkty</span>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#131722] border border-[#202738] text-zinc-300 font-mono">
-                {storeProducts.length}
+              {activeTab === "pulpit" && (
+                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+              )}
+              <LayoutGrid
+                className={`w-5 h-5 shrink-0 transition-colors ${
+                  activeTab === "pulpit"
+                    ? "text-[#D0FF00]"
+                    : "text-[#22222A] group-hover:text-[#5B5B62]"
+                }`}
+              />
+              <span className="text-[15px] font-medium tracking-tight">
+                Strona główna
               </span>
             </button>
 
-            {/* Zamówienia */}
-            <button
-              onClick={() => setActiveTab("zamowienia")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "zamowienia"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingBag className={`w-4 h-4 ${activeTab === "zamowienia" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-                <span>Zamówienia</span>
-              </div>
-              <span className="w-5 h-5 rounded-full bg-[#FF5A28] text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_#FF5A28]">
-                {paidOrders.length || 3}
-              </span>
-            </button>
-
-            {/* Pakiety i Ważność */}
+            {/* Kup pakiet */}
             <button
               onClick={() => setActiveTab("pakiety")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
                 activeTab === "pakiety"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
+                  ? "text-[#D0FF00]"
+                  : "text-[#5B5B62] hover:text-[#8E8E98]"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <CreditCard className={`w-4 h-4 ${activeTab === "pakiety" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-                <span>Pakiety i Ważność</span>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-[#FF5A28]/15 text-[#FF5A28] border border-[#FF5A28]/30 text-[9px] font-bold uppercase">
-                {currentStore.planType || user?.plan || "Brand"}
+              {activeTab === "pakiety" && (
+                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+              )}
+              <ShoppingBasket
+                className={`w-5 h-5 shrink-0 transition-colors ${
+                  activeTab === "pakiety"
+                    ? "text-[#D0FF00]"
+                    : "text-[#22222A] group-hover:text-[#5B5B62]"
+                }`}
+              />
+              <span className="text-[15px] font-medium tracking-tight">
+                Kup pakiet
               </span>
             </button>
 
-            {/* Kreator & Szablony */}
+            {/* Szablony */}
             <button
               onClick={() => setActiveTab("kreator")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
                 activeTab === "kreator"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
+                  ? "text-[#D0FF00]"
+                  : "text-[#5B5B62] hover:text-[#8E8E98]"
               }`}
             >
-              <Layers className={`w-4 h-4 ${activeTab === "kreator" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-              <span>Kreator & Szablony</span>
+              {activeTab === "kreator" && (
+                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+              )}
+              <BookOpen
+                className={`w-5 h-5 shrink-0 transition-colors ${
+                  activeTab === "kreator"
+                    ? "text-[#D0FF00]"
+                    : "text-[#22222A] group-hover:text-[#5B5B62]"
+                }`}
+              />
+              <span className="text-[15px] font-medium tracking-tight">
+                Szablony
+              </span>
             </button>
-
-            {/* Tryb Dropu */}
-            <button
-              onClick={() => setActiveTab("drop")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "drop"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
-              }`}
-            >
-              <Flame className={`w-4 h-4 ${activeTab === "drop" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-              <span>Tryb Dropu</span>
-            </button>
-
-            {/* Ustawienia */}
-            <button
-              onClick={() => setActiveTab("ustawienia")}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "ustawienia"
-                  ? "bg-[#1A1F2C] text-[#FF5A28] border border-[#FF5A28]/30 shadow-[0_0_15px_rgba(255,90,40,0.15)]"
-                  : "text-zinc-400 hover:text-white hover:bg-[#131722]"
-              }`}
-            >
-              <Settings className={`w-4 h-4 ${activeTab === "ustawienia" ? "text-[#FF5A28]" : "text-zinc-400"}`} />
-              <span>Ustawienia</span>
-            </button>
-
-            {/* PANEL ADMINA */}
-            {isAdmin && (
-              <div className="pt-3 mt-3 border-t border-[#1B212D]">
-                <Link
-                  href="/admin"
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#FF5A28] bg-[#FF5A28]/10 hover:bg-[#FF5A28]/20 border border-[#FF5A28]/30 transition-all shadow-[0_0_12px_rgba(255,90,40,0.1)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Shield className="w-4 h-4" />
-                    <span>Panel Administratora</span>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4" />
-                </Link>
-              </div>
-            )}
-          </div>
-
+          </nav>
         </div>
 
-        {/* KARTA KONTA UŻYTKOWNIKA NA DOLE SIDEBARU */}
-        <div className="pt-5 mt-5 border-t border-[#1B212D] relative">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-3 mb-2 block">
-            ZALOGOWANY PROFIL
-          </span>
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[#131722] border border-[#202738]">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-full overflow-hidden bg-[#FF5A28]/20 border border-[#FF5A28]/40 flex items-center justify-center text-[#FF5A28] font-bold text-xs shrink-0">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{user?.name ? user.name.slice(0, 2).toUpperCase() : "KL"}</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-white block truncate leading-tight">
-                  {user?.name || "Twórca Marki"}
-                </span>
-                <span className="text-[10px] text-zinc-400 block truncate mt-0.5">
-                  {user?.email || "klient@iskral.pl"}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="text-zinc-400 hover:text-white p-1.5 cursor-pointer rounded-lg hover:bg-[#1B212F] transition-colors"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </div>
+        {/* 4. DOLNA SEKCJA SIDEBARU (SPACING PASUJĄCY DO GÓRY, USTAWIENIA, TWÓJ PROFIL, WYLOGUJ SIĘ) */}
+        <div className="flex flex-col pb-[64px]">
+          {/* Ustawienia */}
+          <button
+            onClick={() => setActiveTab("ustawienia")}
+            className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+              activeTab === "ustawienia"
+                ? "text-[#D0FF00]"
+                : "text-[#5B5B62] hover:text-[#8E8E98]"
+            }`}
+          >
+            {activeTab === "ustawienia" && (
+              <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+            )}
+            <Settings
+              className={`w-5 h-5 shrink-0 transition-colors ${
+                activeTab === "ustawienia"
+                  ? "text-[#D0FF00]"
+                  : "text-[#22222A] group-hover:text-[#5B5B62]"
+              }`}
+            />
+            <span className="text-[15px] font-medium tracking-tight">
+              Ustawienia
+            </span>
+          </button>
 
-          {/* Menu użytkownika */}
-          {isUserMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#131722] border border-[#202738] rounded-2xl p-2 z-50 shadow-2xl animate-in fade-in">
-              <div className="px-3 py-2 border-b border-[#202738] mb-1">
-                <span className="text-[10px] font-bold uppercase text-[#FF5A28] block">
-                  {isAdmin ? "Administrator" : "Klient"}
-                </span>
-                <span className="text-xs font-semibold text-white block truncate">{user?.email}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setActiveTab("ustawienia");
-                  setIsUserMenuOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#1B212F] hover:text-white rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Ustawienia Konta</span>
-              </button>
-              {logout && (
-                <button
-                  onClick={logout}
-                  className="w-full text-left px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-2 cursor-pointer mt-1"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Wyloguj się</span>
-                </button>
-              )}
-            </div>
+          {/* Twój profil */}
+          <button
+            onClick={() => setActiveTab("profil")}
+            className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+              activeTab === "profil"
+                ? "text-[#D0FF00]"
+                : "text-[#5B5B62] hover:text-[#8E8E98]"
+            }`}
+          >
+            {activeTab === "profil" && (
+              <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+            )}
+            <UserIcon
+              className={`w-5 h-5 shrink-0 transition-colors ${
+                activeTab === "profil"
+                  ? "text-[#D0FF00]"
+                  : "text-[#22222A] group-hover:text-[#5B5B62]"
+              }`}
+            />
+            <span className="text-[15px] font-medium tracking-tight">
+              Twój profil
+            </span>
+          </button>
+
+          {/* Wyloguj się */}
+          {logout && (
+            <button
+              onClick={logout}
+              className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group text-[#5B5B62] hover:text-[#FF5A5A]"
+            >
+              <LogOut className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#FF5A5A]" />
+              <span className="text-[15px] font-medium tracking-tight">
+                Wyloguj się
+              </span>
+            </button>
+          )}
+
+          {/* Panel Administratora (jeśli admin) */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group text-[#5B5B62] hover:text-[#D0FF00] mt-1"
+            >
+              <Shield className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#D0FF00]" />
+              <span className="text-[14px] font-medium tracking-tight">
+                Panel Admina
+              </span>
+            </Link>
           )}
         </div>
 
@@ -664,9 +547,10 @@ export default function AeuxDashboard({
                 {activeTab === "produkty" && "Zarządzanie Produktami"}
                 {activeTab === "zamowienia" && "Zamówienia Klientów"}
                 {activeTab === "pakiety" && "Pakiety i Ważność Usług"}
-                {activeTab === "kreator" && "Kreator i Wygląd Sklepu"}
+                {activeTab === "kreator" && "Kreator i Szablony"}
                 {activeTab === "drop" && "Konfiguracja Trybu Dropu"}
                 {activeTab === "ustawienia" && "Ustawienia Konta i Wypłat"}
+                {activeTab === "profil" && "Twój Profil i Ustawienia"}
               </h1>
               <a
                 href={liveStoreUrl}
@@ -1481,9 +1365,9 @@ export default function AeuxDashboard({
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 7: USTAWIENIA */}
+        {/* WIDOK 7: USTAWIENIA & PROFIL */}
         {/* ========================================================================= */}
-        {activeTab === "ustawienia" && (
+        {(activeTab === "ustawienia" || activeTab === "profil") && (
           <div className="space-y-6 max-w-3xl">
             <div>
               <h2 className="text-lg font-bold text-white">Ustawienia Konta, Domeny i Wypłat</h2>
