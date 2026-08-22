@@ -53,6 +53,19 @@ import {
   OrderRecord,
 } from "../context/AuthContext";
 
+export interface UserPackage {
+  id: string;
+  number: number;
+  name: string;
+  planType: "Start" | "Creator" | "Brand";
+  price: string;
+  expiresAt: string;
+  storeName?: string;
+  subdomain?: string;
+  logoUrl?: string;
+  isConfigured: boolean;
+}
+
 interface AeuxDashboardProps {
   user: User | null;
   allUsers?: User[];
@@ -127,113 +140,97 @@ export default function AeuxDashboard({
   const [prodDescription, setProdDescription] = useState("");
   const [prodImage, setProdImage] = useState("");
 
-  // Store Creator Modal
-  const [showStoreCreatorModal, setShowStoreCreatorModal] = useState(false);
-  const [newStoreName, setNewStoreName] = useState("");
-  const [newStoreSubdomain, setNewStoreSubdomain] = useState("");
-  const [newStoreTemplate, setNewStoreTemplate] = useState("Dark Vibe");
+  // User Packages State (Pakiety i sklepy użytkownika)
+  const [userPackages, setUserPackages] = useState<UserPackage[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("iskra_user_packages_v2");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {}
+      }
+    }
+    if (user?.services && user.services.length > 0) {
+      return user.services.map((s) => ({
+        id: s.id || `pkg_${s.number}`,
+        number: s.number || 5191,
+        name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
+        planType: (s.planType as any) || "Start",
+        price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+        expiresAt: s.expiresAt || new Date(Date.now() + 14 * 86400000).toISOString(),
+        storeName: s.assignedStoreName || "",
+        subdomain: s.assignedSubdomain || "",
+        logoUrl: "",
+        isConfigured: Boolean(s.assignedSubdomain),
+      }));
+    }
+    if (userStores && userStores.length > 0) {
+      return userStores.map((st, idx) => ({
+        id: st.id || `pkg_${idx + 1000}`,
+        number: 1000 + idx,
+        name: st.name || `Sklep #${1000 + idx}`,
+        planType: (st.planType as any) || "Creator",
+        price: "29.99 zł / msc",
+        expiresAt: st.planExpiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+        storeName: st.name,
+        subdomain: st.subdomain,
+        logoUrl: st.logoUrl || "",
+        isConfigured: Boolean(st.subdomain),
+      }));
+    }
+    return [];
+  });
 
-  // Current Store fallback data
+  // Package renaming
+  const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
+  const [editingPackageName, setEditingPackageName] = useState("");
+
+  // Store Configurator Modal State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [selectedPackageForConfig, setSelectedPackageForConfig] = useState<UserPackage | null>(null);
+  const [configStoreName, setConfigStoreName] = useState("");
+  const [configSubdomain, setConfigSubdomain] = useState("");
+  const [configLogo, setConfigLogo] = useState("");
+
+  // Upgrade Modal State
+  const [upgradingPackage, setUpgradingPackage] = useState<UserPackage | null>(null);
+
+  // Active Store / Subdomain logic
+  const configuredPackage = userPackages.find((p) => p.isConfigured && p.subdomain);
+  const hasActiveStore = Boolean(configuredPackage);
+  const activeSubdomain = configuredPackage?.subdomain || "";
+  const liveStoreUrl = `https://${activeSubdomain}.iskral.pl`;
+
   const currentStore: StoreConfig = activeStore || (userStores.length > 0 ? userStores[0] : {
-    id: "demo_store",
-    name: "Mój Sklep",
-    subdomain: "dropwear",
+    id: configuredPackage?.id || "empty_store",
+    name: configuredPackage?.storeName || "Mój Sklep",
+    subdomain: configuredPackage?.subdomain || "",
     customDomain: "",
     template: "Dark Vibe",
-    accentColor: "#FF5A28",
-    announcement: "🔥 Nowy Drop 2026 dostępny online!",
-    planType: user?.plan || "Brand",
+    accentColor: "#D0FF00",
+    announcement: "",
+    planType: (configuredPackage?.planType as any) || user?.plan || "Brak",
     planStatus: "active",
-    balanceCents: 1425000,
-    visitsCount: 1420,
+    balanceCents: 0,
+    visitsCount: 0,
     domainVerified: false,
-    stripeStatus: "connected",
+    stripeStatus: "disconnected",
     dropConfig: {
-      enabled: true,
+      enabled: false,
       template: "Cyberpunk Launch",
-      targetDate: "2026-09-01T20:00",
+      targetDate: "",
     },
     categories: [],
-    products: [
-      {
-        id: "p1",
-        name: "Boxy Hoodie Heavyweight Black",
-        price: "249.00 PLN",
-        priceCents: 24900,
-        type: "Fizyczny",
-        status: "Aktywny",
-        sales: 42,
-        stock: 50,
-        variants: ["S", "M", "L", "XL"],
-        description: "Gramatura 450gsm, 100% bawełna organiczna czesana.",
-        image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80",
-      },
-      {
-        id: "p2",
-        name: "Oversized Vintage Tee Acid Wash",
-        price: "139.00 PLN",
-        priceCents: 13900,
-        type: "Fizyczny",
-        status: "Aktywny",
-        sales: 68,
-        stock: 35,
-        variants: ["M", "L", "XL"],
-        description: "Efekt sprania vintage, gruby kołnierz 3cm.",
-        image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80",
-      },
-      {
-        id: "p3",
-        name: "Tech Cargo Pants Cyber Dark",
-        price: "299.00 PLN",
-        priceCents: 29900,
-        type: "Fizyczny",
-        status: "Aktywny",
-        sales: 24,
-        stock: 20,
-        variants: ["S", "M", "L"],
-        description: "Wodoodporna tkanina ripstop, kieszenie modularne.",
-        image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80",
-      }
-    ],
-    orders: [
-      {
-        id: "ord_101",
-        tenantId: "demo",
-        stripeSessionId: "cs_101",
-        amountTotalCents: 24900,
-        status: "paid",
-        customerEmail: "kacper.nowak@gmail.com",
-        productTitle: "Boxy Hoodie Heavyweight Black",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "ord_102",
-        tenantId: "demo",
-        stripeSessionId: "cs_102",
-        amountTotalCents: 13900,
-        status: "paid",
-        customerEmail: "oliwia.zielinska@wp.pl",
-        productTitle: "Oversized Vintage Tee",
-        createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-      },
-      {
-        id: "ord_103",
-        tenantId: "demo",
-        stripeSessionId: "cs_103",
-        amountTotalCents: 29900,
-        status: "paid",
-        customerEmail: "mateusz.kowal@o2.pl",
-        productTitle: "Tech Cargo Pants Cyber Dark",
-        createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-      }
-    ],
+    products: [],
+    orders: [],
     payoutHistory: [],
     customers: [],
     campaigns: [],
     team: [],
     socials: {
-      instagram: "https://instagram.com",
-      tiktok: "https://tiktok.com",
+      instagram: "",
+      tiktok: "",
     },
   });
 
@@ -243,14 +240,194 @@ export default function AeuxDashboard({
   const paidOrders = storeOrders.filter((o) => o.status === "paid");
   const totalRevenueCents = paidOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), currentStore.balanceCents || 0);
   const totalRevenuePLN = (totalRevenueCents / 100).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const totalOrdersCount = Math.max(paidOrders.length, 84);
-  const aovPLN = totalOrdersCount > 0 ? (totalRevenueCents / totalOrdersCount / 100).toFixed(2) : "169.50";
+  const totalOrdersCount = paidOrders.length;
+  const aovPLN = totalOrdersCount > 0 ? (totalRevenueCents / totalOrdersCount / 100).toFixed(2) : "0.00";
 
-  // Subdomain & Live URL
-  const storeSubdomain = currentStore.subdomain || "dropwear";
-  const liveStoreUrl = currentStore.customDomain
-    ? `https://${currentStore.customDomain}`
-    : `https://${storeSubdomain}.iskral.pl`;
+  // Handlers for packages
+  const handleBuyPackage = (planType: "Start" | "Creator" | "Brand") => {
+    const pkgNum = Math.floor(1000 + Math.random() * 9000);
+    const durationDays = planType === "Start" ? 14 : 30;
+    const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+    const priceLabel = planType === "Start" ? "14 dni za darmo" : planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc";
+
+    const newPkg: UserPackage = {
+      id: `pkg_${Date.now()}_${pkgNum}`,
+      number: pkgNum,
+      name: `Pakiet ${planType} #${pkgNum}`,
+      planType,
+      price: priceLabel,
+      expiresAt,
+      isConfigured: false,
+    };
+
+    setUserPackages((prev) => {
+      const updated = [newPkg, ...prev];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Aktywowano Pakiet ${planType} #${pkgNum}! Możesz teraz skonfigurować swój sklep.`,
+      });
+    }
+
+    // Open configurator
+    setSelectedPackageForConfig(newPkg);
+    setConfigStoreName("");
+    setConfigSubdomain("");
+    setConfigLogo("");
+    setShowConfigModal(true);
+  };
+
+  const handleStartRename = (pkg: UserPackage) => {
+    setEditingPackageId(pkg.id);
+    setEditingPackageName(pkg.name);
+  };
+
+  const handleSaveRename = (pkgId: string) => {
+    if (!editingPackageName.trim()) {
+      setEditingPackageId(null);
+      return;
+    }
+    setUserPackages((prev) => {
+      const updated = prev.map((p) => (p.id === pkgId ? { ...p, name: editingPackageName.trim() } : p));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    setEditingPackageId(null);
+    if (setMessage) {
+      setMessage({ type: "success", text: "Zaktualizowano nazwę pakietu." });
+    }
+  };
+
+  const getRemainingTime = (expiresAt: string) => {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return "Wygasł";
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (days > 0) {
+      return `${days} dni, ${hours} godz.`;
+    }
+    return `${hours} godz., ${minutes} min.`;
+  };
+
+  const handleExtendPackage = (pkgId: string) => {
+    setUserPackages((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === pkgId) {
+          const currentExpiry = new Date(p.expiresAt).getTime();
+          const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+          const newExpiry = new Date(baseTime + 30 * 86400000).toISOString();
+          return { ...p, expiresAt: newExpiry };
+        }
+        return p;
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (setMessage) {
+      setMessage({ type: "success", text: "🎉 Pomyślnie przedłużono subskrypcję pakietu o 30 dni!" });
+    }
+  };
+
+  const handleUpgradePackage = (targetPlan: "Creator" | "Brand") => {
+    if (!upgradingPackage) return;
+    setUserPackages((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === upgradingPackage.id) {
+          return {
+            ...p,
+            planType: targetPlan,
+            price: targetPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+          };
+        }
+        return p;
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    setUpgradingPackage(null);
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Pakiet został pomyślnie ulepszony do ${targetPlan}!`,
+      });
+    }
+  };
+
+  const handleOpenConfigurator = (pkg: UserPackage) => {
+    setSelectedPackageForConfig(pkg);
+    setConfigStoreName(pkg.storeName || "");
+    setConfigSubdomain(pkg.subdomain || "");
+    setConfigLogo(pkg.logoUrl || "");
+    setShowConfigModal(true);
+  };
+
+  const handleSaveStoreConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!configStoreName.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj nazwę sklepu!" });
+      return;
+    }
+    const cleanSub = (configSubdomain || configStoreName).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!cleanSub) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj poprawną subdomenę sklepu!" });
+      return;
+    }
+
+    if (selectedPackageForConfig) {
+      setUserPackages((prev) => {
+        const updated = prev.map((p) => {
+          if (p.id === selectedPackageForConfig.id) {
+            return {
+              ...p,
+              storeName: configStoreName.trim(),
+              subdomain: cleanSub,
+              logoUrl: configLogo.trim(),
+              isConfigured: true,
+            };
+          }
+          return p;
+        });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+        }
+        return updated;
+      });
+    }
+
+    if (createOrUpdateStoreFull) {
+      createOrUpdateStoreFull({
+        name: configStoreName.trim(),
+        subdomain: cleanSub,
+        logoUrl: configLogo.trim(),
+        template: "Dark Vibe",
+        accentColor: "#D0FF00",
+        announcement: "",
+        plan: selectedPackageForConfig?.planType || "Start",
+        billingCycle: "miesiac",
+      });
+    }
+
+    setShowConfigModal(false);
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Sklep '${configStoreName}' został skonfigurowany pod adresem: https://${cleanSub}.iskral.pl`,
+      });
+    }
+  };
 
   // Weekly Revenue Bar Chart Data (#FF5A28 Theme)
   const weeklySalesData = [
@@ -327,30 +504,6 @@ export default function AeuxDashboard({
     setProdDescription(p.description || "");
     setProdImage(p.image || "");
     setShowProductModal(true);
-  };
-
-  const handleCreateStoreSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStoreName.trim()) return;
-    const cleanSub = (newStoreSubdomain || newStoreName).toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    if (createOrUpdateStoreFull) {
-      createOrUpdateStoreFull({
-        name: newStoreName.trim(),
-        subdomain: cleanSub,
-        template: newStoreTemplate,
-        accentColor: "#FF5A28",
-        announcement: "🔥 Nowy sklep już otwarty!",
-        plan: user?.plan || "Brand",
-      });
-    }
-    setShowStoreCreatorModal(false);
-    if (setMessage) {
-      setMessage({
-        type: "success",
-        text: `🎉 Utworzono sklep '${newStoreName}' pod adresem: https://${cleanSub}.iskral.pl`,
-      });
-    }
   };
 
   return (
@@ -515,15 +668,17 @@ export default function AeuxDashboard({
                 {activeTab === "ustawienia" && "Ustawienia Konta i Wypłat"}
                 {activeTab === "profil" && "Twój Profil i Ustawienia"}
               </h1>
-              <a
-                href={liveStoreUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#12141A] border border-[#1E222D] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
-              >
-                <span>{storeSubdomain}.iskral.pl</span>
-                <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
-              </a>
+              {hasActiveStore && (
+                <a
+                  href={liveStoreUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#12141A] border border-[#1E222D] text-xs font-semibold text-zinc-300 hover:text-white rounded-full shadow-sm hover:border-[#D0FF00]/40 transition-all"
+                >
+                  <span>{activeSubdomain}.iskral.pl</span>
+                  <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
+                </a>
+              )}
             </div>
             <p className="text-xs text-zinc-400 mt-1">
               Zarządzaj swoim sklepem internetowym w jednym miejscu.
@@ -549,8 +704,10 @@ export default function AeuxDashboard({
                   </span>
                   <div className="space-y-2 text-xs">
                     <div className="p-2.5 bg-[#181B23] rounded-xl border border-[#242A38] text-white">
-                      <span className="font-bold block text-[#D0FF00]">🟢 Status Sklepu</span>
-                      <span className="text-[11px] text-zinc-400">Subdomena i certyfikat SSL są aktywne.</span>
+                      <span className="font-bold block text-[#D0FF00]">🟢 System IskraL</span>
+                      <span className="text-[11px] text-zinc-400">
+                        {userPackages.length > 0 ? "Twój pakiet jest aktywny." : "Wybierz pakiet w zakładce Sklep, aby rozpocząć."}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -653,217 +810,358 @@ export default function AeuxDashboard({
         {/* WIDOK 1: STRONA GŁÓWNA */}
         {/* ========================================================================= */}
         {activeTab === "pulpit" && (
-          <div className="space-y-6 max-w-6xl">
-            
-            {/* HERO BANER ONBOARDINGU / STATUSU */}
-            <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#12151D] via-[#0E1017] to-[#0A0B0D] border border-[#1E2330] p-6 sm:p-8 shadow-2xl">
-              <div className="relative z-10 max-w-2xl space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Witaj w panelu platformy</span>
-                </div>
-                
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
-                  Uruchom swój sklep i zacznij sprzedawać
-                </h2>
-                
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  Skonfiguruj swoją markę odzieżową w kilku prostych krokach. Wybierz pakiet, aby odblokować płatności online BLIK i kartą, nielimitowane produkty, kreator szablonów oraz własną domenę.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <button
-                    onClick={() => setActiveTab("pakiety")}
-                    className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(208,255,0,0.25)] flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>Wybierz pakiet sklepu</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("kreator")}
-                    className="px-5 py-2.5 bg-[#171B24] hover:bg-[#202532] text-white text-xs font-semibold rounded-xl border border-[#262D3D] transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    <BookOpen className="w-4 h-4 text-zinc-400" />
-                    <span>Dostosuj szablony</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Tło ozdobne */}
-              <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-[#D0FF00]/5 to-transparent pointer-events-none" />
-            </div>
-
-            {/* KROKI STARTOWE DO URUCHOMIENIA SKLEPU (3 KARTY) */}
-            <div>
-              <h3 className="text-base font-bold text-white font-['Sora',sans-serif] mb-4">
-                Kroki do startu sprzedaży
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Krok 1 */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-[#D0FF00]/10 border border-[#D0FF00]/20 flex items-center justify-center text-[#D0FF00]">
-                        <CreditCard className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
-                        Krok 01
-                      </span>
-                    </div>
-                    <h4 className="text-base font-bold text-white">Aktywuj Pakiet</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Wybierz pakiet Creator lub Brand z nielimitowanymi produktami i integracją płatności BLIK.
-                    </p>
+          <div className="space-y-6 max-w-5xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* KARTA 1 (LEWA): BRAK PAKIETU */}
+              <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-7 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="w-11 h-11 rounded-xl bg-[#171A22] border border-[#242A38] flex items-center justify-center text-zinc-400">
+                    <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
                   </div>
-                  <button
-                    onClick={() => setActiveTab("pakiety")}
-                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-[#D0FF00] group-hover:text-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-[#D0FF00]"
-                  >
-                    Przejdź do pakietów →
-                  </button>
+                  <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                    Nie posiadasz żadnego pakietu
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                    Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
+                  </p>
                 </div>
 
-                {/* Krok 2 */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
-                        Krok 02
-                      </span>
-                    </div>
-                    <h4 className="text-base font-bold text-white">Wybierz Szablon</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Dopasuj unikalną oprawę wizualną, baner ogłoszeń oraz motyw graficzny swojego sklepu.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab("kreator")}
-                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-purple-500 group-hover:text-white text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-purple-500"
-                  >
-                    Przejdź do szablonów →
-                  </button>
-                </div>
-
-                {/* Krok 3 */}
-                <div className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all group">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                        <ShoppingBasket className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
-                        Krok 03
-                      </span>
-                    </div>
-                    <h4 className="text-base font-bold text-white">Dodaj Produkty</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      Wystaw ubrania, limitowane dropy, ustal ceny i zarządzaj stanami magazynowymi.
-                    </p>
-                  </div>
+                <div className="pt-6">
                   <button
                     onClick={() => setActiveTab("produkty")}
-                    className="mt-5 w-full py-2.5 bg-[#171B24] group-hover:bg-blue-500 group-hover:text-white text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-[#242A38] group-hover:border-blue-500"
+                    className="w-full sm:w-auto px-6 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Zarządzaj sklepem →
+                    <span>Przejdź dalej</span>
+                    <ArrowUpRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
+
+              {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
+              <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-7 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-semibold">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Dla nowych użytkowników • Tylko raz</span>
+                  </div>
+
+                  <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                    Sklep na 14 dni
+                  </h2>
+
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                    Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
+                  </p>
+                </div>
+
+                <div className="pt-6">
+                  <button
+                    onClick={() => {
+                      setActiveTab("produkty");
+                    }}
+                    className="w-full sm:w-auto px-6 py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs sm:text-sm font-bold rounded-xl border border-[#262E3E] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Wypróbuj za darmo (14 dni)</span>
+                    <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
+                  </button>
+                </div>
+              </div>
+
             </div>
-
-            {/* INFORMACJE O TWOIM SKLEPIE (STATUS I DOMENA) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
-                  <Globe className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Subdomena sklepu</span>
-                  <span className="text-xs font-bold text-white block truncate">{storeSubdomain}.iskral.pl</span>
-                </div>
-              </div>
-
-              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
-                  <Shield className="w-5 h-5 text-[#D0FF00]" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Certyfikat SSL</span>
-                  <span className="text-xs font-bold text-white block truncate">Aktywny & Bezpieczny</span>
-                </div>
-              </div>
-
-              <div className="bg-[#12141A] border border-[#1E222D] rounded-2xl p-4 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#181B23] border border-[#242A38] flex items-center justify-center text-zinc-300 shrink-0">
-                  <Sparkles className="w-5 h-5 text-amber-400" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[11px] text-zinc-500 block truncate font-medium">Pakiet konta</span>
-                  <span className="text-xs font-bold text-white block truncate">{user?.plan || "Brak aktywnego planu"}</span>
-                </div>
-              </div>
-            </div>
-
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 2: PRODUKTY */}
+        {/* WIDOK 2: SKLEP (ZARZĄDZANIE PAKIETAMI & SKLEPAMI) */}
         {/* ========================================================================= */}
         {activeTab === "produkty" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white">Lista Produktów w Sklepie ({storeProducts.length})</h2>
-                <p className="text-xs text-zinc-400">Zarządzaj ubraniami, dropami, stanem magazynowym i cenami.</p>
-              </div>
-              <button
-                onClick={handleOpenAddProduct}
-                className="px-4 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Dodaj Nowy Produkt</span>
-              </button>
+          <div className="space-y-8 max-w-6xl">
+            
+            {/* NAGŁÓWEK ZAKŁADKI SKLEP */}
+            <div>
+              <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif] tracking-tight">
+                Twoje Pakiety i Sklepy
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+                Zarządzaj swoimi sklepami, twórz nowe pakiety i kontroluj czas trwania subskrypcji.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {storeProducts.map((p) => (
-                <div key={p.id} className="bg-[#121620] border border-[#202738] rounded-2xl p-4 space-y-3 shadow-lg hover:border-[#FF5A28]/40 transition-all">
-                  <div className="h-52 rounded-xl overflow-hidden bg-[#181D2A] relative">
-                    <img src={p.image || (p.images && p.images[0])} alt={p.name} className="w-full h-full object-cover" />
-                    <span className="absolute top-2.5 right-2.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-[#0E1118]/90 backdrop-blur-md text-white border border-[#202738]">
-                      {p.price}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-white truncate">{p.name}</h3>
-                    <p className="text-xs text-zinc-400 line-clamp-2 mt-1">{p.description}</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-[#202738]">
-                    <span className="text-xs text-zinc-400 font-medium">Stan: <strong className="text-white">{p.stock || 50} szt.</strong></span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenEditProduct(p)}
-                        className="px-3 py-1.5 bg-[#181D2A] hover:bg-[#242C3E] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer border border-[#273245]"
-                      >
-                        Edytuj
-                      </button>
-                      {deleteProduct && (
-                        <button
-                          onClick={() => deleteProduct(p.id)}
-                          className="p-1.5 text-zinc-400 hover:text-rose-500 rounded-lg cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            {/* SEKCJA 1: LISTA TWOICH ZAKUPIONYCH PAKIETÓW */}
+            {userPackages.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Aktywne pakiety ({userPackages.length})
+                  </span>
                 </div>
-              ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {userPackages.map((pkg) => {
+                    const remaining = getRemainingTime(pkg.expiresAt);
+                    const isExp = remaining === "Wygasł";
+
+                    return (
+                      <div
+                        key={pkg.id}
+                        className="bg-[#12141A] border border-[#1E222D] rounded-[22px] p-5 flex flex-col justify-between hover:border-[#2C3242] transition-all shadow-sm"
+                      >
+                        <div className="space-y-4">
+                          {/* GÓRA KARTY: LOGO I TYP PAKIETU */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="w-14 h-14 rounded-2xl bg-[#181B23] border border-[#242A38] overflow-hidden flex items-center justify-center shrink-0">
+                              {pkg.logoUrl ? (
+                                <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="text-center p-1">
+                                  <ShoppingBag className="w-5 h-5 text-zinc-500 mx-auto" />
+                                  <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none">
+                                    Brak logo
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <span className="px-2.5 py-1 rounded-full bg-[#181B23] border border-[#242A38] text-[11px] font-semibold text-[#D0FF00]">
+                              {pkg.planType}
+                            </span>
+                          </div>
+
+                          {/* NAZWA PAKIETU (Z MOŻLIWOŚCIĄ EDYCJI) */}
+                          <div>
+                            {editingPackageId === pkg.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editingPackageName}
+                                  onChange={(e) => setEditingPackageName(e.target.value)}
+                                  className="w-full px-2.5 py-1 bg-[#181B23] border border-[#2E3648] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00]"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleSaveRename(pkg.id)}
+                                  className="px-2 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0"
+                                >
+                                  Zapisz
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group">
+                                <h3 className="text-base font-bold text-white truncate">
+                                  {pkg.name}
+                                </h3>
+                                <button
+                                  onClick={() => handleStartRename(pkg)}
+                                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer p-1 rounded"
+                                  title="Zmień nazwę pakietu"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            <span className="text-[11px] text-zinc-500 block mt-0.5">
+                              ID: #{pkg.number} • {pkg.isConfigured && pkg.subdomain ? `${pkg.subdomain}.iskral.pl` : "Nie skonfigurowano"}
+                            </span>
+                          </div>
+
+                          {/* WAŻNOŚĆ SUBSKRYPCJI / ODLICZANIE */}
+                          <div className="p-3 bg-[#181B23] rounded-xl border border-[#202636] flex items-center justify-between text-xs">
+                            <span className="text-zinc-400 flex items-center gap-1.5 font-medium">
+                              <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                              Ważność:
+                            </span>
+                            <span className={`font-semibold ${isExp ? "text-rose-400 font-bold" : "text-[#D0FF00]"}`}>
+                              {remaining}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* PRZYCISKI AKCJI KARTY PAKIETU */}
+                        <div className="pt-4 border-t border-[#1C202B] space-y-2 mt-4">
+                          <button
+                            onClick={() => handleOpenConfigurator(pkg)}
+                            className="w-full py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>{pkg.isConfigured ? "Przejdź do sklepu" : "Przejdź dalej (Konfiguruj)"}</span>
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleExtendPackage(pkg.id)}
+                              className="py-2 bg-[#181B23] hover:bg-[#202532] text-zinc-300 hover:text-white text-[11px] font-semibold rounded-lg border border-[#242A38] transition-colors cursor-pointer"
+                            >
+                              Przedłuż (+30 dni)
+                            </button>
+                            <button
+                              onClick={() => setUpgradingPackage(pkg)}
+                              className="py-2 bg-[#181B23] hover:bg-[#202532] text-zinc-300 hover:text-[#D0FF00] text-[11px] font-semibold rounded-lg border border-[#242A38] transition-colors cursor-pointer"
+                            >
+                              Ulepsz pakiet
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SEKCJA 2: DOSTĘPNE PAKIETY DO ZAKUPU (CENNIK PLATFORMY) */}
+            <div className="space-y-4 pt-2">
+              <div>
+                <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
+                  {userPackages.length > 0 ? "Kup kolejny pakiet lub stwórz nowy sklep" : "Wybierz pakiet dla swojego sklepu"}
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Wybierz plan odpowiadający skali Twojego biznesu. Każdy pakiet pozwala utworzyć osobny sklep.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* 1. PAKIET START */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#2A3040] transition-all">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">Pakiet Start</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#181B23] border border-[#242A38] text-[10px] font-semibold text-zinc-400">
+                        14 dni za darmo
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
+                        0.00 zł
+                      </div>
+                      <span className="text-xs text-zinc-400 block mt-0.5">przez pierwsze 14 dni</span>
+                    </div>
+
+                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>1 sklep internetowy</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Darmowa subdomena .iskral.pl</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Podstawowy szablon i koszyk</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Płatności online BLIK i karta</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => handleBuyPackage("Start")}
+                    className="mt-6 w-full py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs font-bold rounded-xl border border-[#262D3D] transition-colors cursor-pointer"
+                  >
+                    Aktywuj Pakiet Start (14 dni)
+                  </button>
+                </div>
+
+                {/* 2. PAKIET CREATOR */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#D0FF00]/40 transition-all">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">Pakiet Creator</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[10px] font-semibold text-[#D0FF00]">
+                        Polecany
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
+                        29.99 zł <span className="text-xs font-normal text-zinc-400">/ miesięcznie</span>
+                      </div>
+                      <span className="text-xs text-zinc-400 block mt-0.5">dla twórców i marek odzieżowych</span>
+                    </div>
+
+                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Wszystko z pakietu Start</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Nielimitowane produkty i warianty</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Zaawansowany kreator szablonów</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Wypłaty na konto bankowe IBAN</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => handleBuyPackage("Creator")}
+                    className="mt-6 w-full py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    Kup Pakiet Creator (29.99 zł)
+                  </button>
+                </div>
+
+                {/* 3. PAKIET BRAND */}
+                <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 flex flex-col justify-between hover:border-[#2A3040] transition-all">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">Pakiet Brand</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#181B23] border border-[#242A38] text-[10px] font-semibold text-zinc-400">
+                        Dla profesjonalistów
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="text-2xl font-bold text-white font-['Sora',sans-serif]">
+                        59.99 zł <span className="text-xs font-normal text-zinc-400">/ miesięcznie</span>
+                      </div>
+                      <span className="text-xs text-zinc-400 block mt-0.5">pełna niezależność i własna domena</span>
+                    </div>
+
+                    <ul className="space-y-2 text-xs text-zinc-300 pt-2 border-t border-[#1C202B]">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Wszystko z pakietu Creator</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Własna domena .pl / .com z SSL</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Tryb dropu i odliczania do premiery</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
+                        <span>Priorytetowe wypłaty i 0% prowizji</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => handleBuyPackage("Brand")}
+                    className="mt-6 w-full py-3 bg-[#181B23] hover:bg-[#222734] text-white text-xs font-bold rounded-xl border border-[#262D3D] transition-colors cursor-pointer"
+                  >
+                    Kup Pakiet Brand (59.99 zł)
+                  </button>
+                </div>
+
+              </div>
             </div>
+
           </div>
         )}
 
@@ -1315,61 +1613,147 @@ export default function AeuxDashboard({
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: TWORZENIE NOWEGO SKLEPU */}
+      {/* MODAL: KONFIGURATOR SKLEPU (CZYSTE POLA BEZ DOMYŚLNYCH PLACEHOLDERÓW) */}
       {/* ========================================================================= */}
-      {showStoreCreatorModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-[#121620] border border-[#202738] rounded-3xl p-6 sm:p-8 max-w-md w-full text-white space-y-5 shadow-2xl">
+      {showConfigModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white">Utwórz Nowy Sklep</h3>
-                <p className="text-xs text-zinc-400">Skonfiguruj kolejną markę pod swoim kontem</p>
+                <h3 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                  Konfiguracja Sklepu
+                </h3>
+                <span className="text-xs text-zinc-400">
+                  {selectedPackageForConfig?.name || "Nowy sklep"}
+                </span>
               </div>
-              <button onClick={() => setShowStoreCreatorModal(false)} className="text-zinc-400 hover:text-white">
-                <X className="w-5 h-5" />
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="w-8 h-8 rounded-lg bg-[#181B23] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateStoreSubmit} className="space-y-4">
+            <form onSubmit={handleSaveStoreConfig} className="space-y-4">
+              {/* NAZWA SKLEPU */}
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1">Nazwa Sklepu / Marki *</label>
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                  Nazwa sklepu *
+                </label>
                 <input
                   type="text"
-                  placeholder="np. Streetwear Studio"
-                  value={newStoreName}
-                  onChange={(e) => setNewStoreName(e.target.value)}
-                  className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
+                  value={configStoreName}
+                  onChange={(e) => setConfigStoreName(e.target.value)}
+                  placeholder="Podaj nazwę sklepu"
+                  className="w-full px-3.5 py-2.5 bg-[#181B23] border border-[#262D3D] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
                   required
                 />
               </div>
 
+              {/* SUBDOMENA SKLEPU */}
               <div>
-                <label className="text-xs font-semibold text-zinc-300 block mb-1">Subdomena (.iskral.pl)</label>
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                  Subdomena platformy *
+                </label>
+                <div className="flex items-center bg-[#181B23] border border-[#262D3D] rounded-xl overflow-hidden focus-within:border-[#D0FF00] transition-colors">
+                  <input
+                    type="text"
+                    value={configSubdomain}
+                    onChange={(e) => setConfigSubdomain(e.target.value)}
+                    placeholder="Podaj subdomenę"
+                    className="flex-1 px-3.5 py-2.5 bg-transparent text-xs text-white placeholder:text-zinc-600 focus:outline-none"
+                    required
+                  />
+                  <span className="px-3 text-xs text-zinc-500 font-mono bg-[#14161E] py-2.5 border-l border-[#262D3D]">
+                    .iskral.pl
+                  </span>
+                </div>
+              </div>
+
+              {/* LOGO SKLEPU */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                  Logo sklepu (opcjonalnie)
+                </label>
                 <input
                   type="text"
-                  placeholder="np. streetstudio"
-                  value={newStoreSubdomain}
-                  onChange={(e) => setNewStoreSubdomain(e.target.value)}
-                  className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
+                  value={configLogo}
+                  onChange={(e) => setConfigLogo(e.target.value)}
+                  placeholder="Wklej adres URL logo lub pozostaw puste"
+                  className="w-full px-3.5 py-2.5 bg-[#181B23] border border-[#262D3D] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-3">
+              <div className="flex items-center gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowStoreCreatorModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => setShowConfigModal(false)}
+                  className="flex-1 py-2.5 bg-[#181B23] hover:bg-[#202532] text-zinc-300 text-xs font-semibold rounded-xl border border-[#262D3D] cursor-pointer transition-colors"
                 >
                   Anuluj
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md"
+                  className="flex-1 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm"
                 >
-                  Utwórz Sklep →
+                  Stwórz sklep
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ULEPSZENIE PAKIETU (UPGRADE & DOPŁATA RÓŻNICY) */}
+      {/* ========================================================================= */}
+      {upgradingPackage && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#12141A] border border-[#1E222D] rounded-[24px] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
+                Ulepsz pakiet
+              </h3>
+              <button
+                onClick={() => setUpgradingPackage(null)}
+                className="w-8 h-8 rounded-lg bg-[#181B23] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400">
+              Aktualny pakiet: <strong className="text-white">{upgradingPackage.name} ({upgradingPackage.planType})</strong>. Wybierz pakiet wyższy, aby odblokować dodatkowe możliwości:
+            </p>
+
+            <div className="space-y-3">
+              {upgradingPackage.planType !== "Creator" && (
+                <button
+                  onClick={() => handleUpgradePackage("Creator")}
+                  className="w-full p-4 rounded-xl bg-[#181B23] hover:bg-[#222734] border border-[#262D3D] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-white block">Pakiet Creator</span>
+                    <span className="text-[11px] text-zinc-400">29.99 zł / msc • Nielimitowane produkty</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
+                </button>
+              )}
+
+              {upgradingPackage.planType !== "Brand" && (
+                <button
+                  onClick={() => handleUpgradePackage("Brand")}
+                  className="w-full p-4 rounded-xl bg-[#181B23] hover:bg-[#222734] border border-[#262D3D] hover:border-[#D0FF00] text-left transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-white block">Pakiet Brand</span>
+                    <span className="text-[11px] text-zinc-400">59.99 zł / msc • Własna domena i tryb dropu</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-[#D0FF00]" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
