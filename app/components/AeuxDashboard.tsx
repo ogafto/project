@@ -1334,29 +1334,20 @@ export default function AeuxDashboard({
 
               </div>
             ) : (
-              /* DLA UŻYTKOWNIKA Z PAKIETEM: KAFELKI AKTYWNEGO PAKIETU NA STRONIE GŁÓWNEJ */
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif] tracking-tight">
-                    Twój aktywny pakiet
-                  </h2>
-                  <p className="text-xs text-zinc-400 font-['Poppins',sans-serif] mt-0.5">
-                    Zarządzaj swoją marką, konfiguracją sklepu i ważnością subskrypcji.
-                  </p>
-                </div>
+              /* DLA UŻYTKOWNIKA Z PAKIETEM: KAFELKI PAKIETÓW W CZYSTYM, PROPORCJONALNYM UKŁADZIE KART */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userPackages.map((pkg) => {
+                  const remaining = getRemainingTime(pkg.expiresAt);
+                  const isExp = remaining === "Wygasł";
 
-                <div className="space-y-4">
-                  {userPackages.map((pkg) => {
-                    const remaining = getRemainingTime(pkg.expiresAt);
-                    const isExp = remaining === "Wygasł";
-
-                    return (
-                      <div
-                        key={pkg.id}
-                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all"
-                      >
-                        {/* LEWA STRONA: LOGO, NAZWA, SUBDOMENA / BRAK KONFIGURACJI */}
-                        <div className="flex items-center gap-4 min-w-0">
+                  return (
+                    <div
+                      key={pkg.id}
+                      className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all space-y-6"
+                    >
+                      <div className="space-y-4">
+                        {/* GÓRA KARTY: LOGO I BADGE TYPU PAKIETU */}
+                        <div className="flex items-start justify-between gap-3">
                           <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
                             {pkg.logoUrl ? (
                               <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
@@ -1370,260 +1361,132 @@ export default function AeuxDashboard({
                             )}
                           </div>
 
-                          <div className="space-y-1.5 min-w-0 text-left">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-[10px] font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
-                                {pkg.planType}
-                              </span>
-                              <span className="text-xs text-zinc-500 font-mono font-['Poppins',sans-serif]">
-                                ID: #{pkg.number}
-                              </span>
-                            </div>
-
-                            {/* EDYCJA NAZWY */}
-                            {editingPackageId === pkg.id ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={editingPackageName}
-                                  onChange={(e) => setEditingPackageName(e.target.value)}
-                                  className="px-2.5 py-1 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleSaveRename(pkg.id)}
-                                  className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
-                                >
-                                  Zapisz
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 group">
-                                <h3 className="text-lg font-bold text-white truncate font-['Poppins',sans-serif]">
-                                  {pkg.name}
-                                </h3>
-                                <button
-                                  onClick={() => handleStartRename(pkg)}
-                                  className="opacity-60 hover:opacity-100 text-zinc-400 hover:text-white transition-opacity cursor-pointer p-1"
-                                  title="Zmień nazwę"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-
-                            {/* STATUS SUBDOMENY */}
-                            <div>
-                              {pkg.isConfigured && pkg.subdomain ? (
-                                <a
-                                  href={`https://${pkg.subdomain}.iskral.pl`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-xs text-[#D0FF00] hover:underline font-semibold font-['Poppins',sans-serif]"
-                                >
-                                  <span>{pkg.subdomain}.iskral.pl</span>
-                                  <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
-                                </a>
-                              ) : (
-                                <span className="text-xs text-zinc-500 font-medium font-['Poppins',sans-serif]">
-                                  Nie skonfigurowano
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-[11px] font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
+                            {pkg.planType}
+                          </span>
                         </div>
 
-                        {/* ŚRODEK: WAŻNOŚĆ SKLEPU */}
-                        <div className="bg-[#111319] border border-[#1C1E26] px-4 py-3 rounded-2xl flex items-center gap-3 shrink-0 w-full sm:w-auto">
-                          <Clock className={`w-4 h-4 shrink-0 ${isExp ? "text-rose-400" : "text-[#D0FF00]"}`} />
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-zinc-500 block font-['Poppins',sans-serif]">
-                              Ważność sklepu
-                            </span>
-                            <span className={`text-xs font-bold font-['Poppins',sans-serif] ${isExp ? "text-rose-400" : "text-zinc-200"}`}>
-                              {remaining}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* PRAWA STRONA: PRZYCISKI AKCJI (Przejdź dalej, Przedłuż, Ulepsz) */}
-                        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-start md:justify-end">
-                          {pkg.isConfigured && pkg.subdomain ? (
-                            <a
-                              href={`https://${pkg.subdomain}.iskral.pl`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer font-['Poppins',sans-serif] whitespace-nowrap"
-                            >
-                              <span>Przejdź do sklepu</span>
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
+                        {/* NAZWA PAKIETU (Z MOŻLIWOŚCIĄ EDYCJI) ORAZ STATUS */}
+                        <div className="space-y-1">
+                          {editingPackageId === pkg.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editingPackageName}
+                                onChange={(e) => setEditingPackageName(e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveRename(pkg.id)}
+                                className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
+                              >
+                                Zapisz
+                              </button>
+                            </div>
                           ) : (
-                            <button
-                              onClick={() => handleOpenConfigurator(pkg)}
-                              className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer font-['Poppins',sans-serif] whitespace-nowrap"
-                            >
-                              <span>Przejdź dalej (Konfiguruj)</span>
-                              <ArrowUpRight className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-2 group">
+                              <h3 className="text-lg font-bold text-white font-['Poppins',sans-serif]">
+                                {pkg.name}
+                              </h3>
+                              <button
+                                onClick={() => handleStartRename(pkg)}
+                                className="text-zinc-500 hover:text-white transition-colors cursor-pointer p-1 rounded"
+                                title="Zmień nazwę"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
 
+                          <div className="text-xs text-zinc-500 font-['Poppins',sans-serif]">
+                            ID: #{pkg.number} •{" "}
+                            {pkg.isConfigured && pkg.subdomain ? (
+                              <a
+                                href={`https://${pkg.subdomain}.iskral.pl`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[#D0FF00] hover:underline font-medium inline-flex items-center gap-1"
+                              >
+                                <span>{pkg.subdomain}.iskral.pl</span>
+                                <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
+                              </a>
+                            ) : (
+                              <span>Nie skonfigurowano</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* WAŻNOŚĆ SUBSKRYPCJI */}
+                        <div className="p-3.5 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between text-xs font-['Poppins',sans-serif]">
+                          <span className="text-zinc-400 flex items-center gap-2 font-medium">
+                            <Clock className={`w-4 h-4 ${isExp ? "text-rose-400" : "text-zinc-500"}`} />
+                            Ważność:
+                          </span>
+                          <span className={`font-bold ${isExp ? "text-rose-400" : "text-[#D0FF00]"}`}>
+                            {remaining}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* PRZYCISKI AKCJI KARTY PAKIETU */}
+                      <div className="space-y-2.5 pt-2">
+                        {pkg.isConfigured && pkg.subdomain ? (
+                          <a
+                            href={`https://${pkg.subdomain}.iskral.pl`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[15px] font-bold font-['Poppins',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>Przejdź do sklepu</span>
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenConfigurator(pkg)}
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[15px] font-bold font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>Przejdź dalej (Konfiguruj)</span>
+                            <ArrowUpRight className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 font-['Poppins',sans-serif]">
                           <button
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className="px-3.5 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-['Poppins',sans-serif] whitespace-nowrap"
+                            className="py-2.5 px-2 bg-[#141722] hover:bg-[#1A1F2C] text-white text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer text-center whitespace-nowrap"
                           >
-                            <span>Przedłuż (+30 dni)</span>
+                            Przedłuż (+30 dni)
                           </button>
-
-                          {pkg.planType !== "Brand" && (
+                          
+                          {pkg.planType !== "Brand" ? (
                             <button
                               onClick={() => setUpgradingPackage(pkg)}
-                              className="px-3.5 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-zinc-300 hover:text-[#D0FF00] text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-['Poppins',sans-serif] whitespace-nowrap"
+                              className="py-2.5 px-2 bg-[#141722] hover:bg-[#1A1F2C] text-zinc-300 hover:text-[#D0FF00] text-xs font-semibold rounded-xl border border-[#22283A] transition-colors cursor-pointer text-center whitespace-nowrap"
                             >
-                              <span>Ulepsz pakiet</span>
+                              Ulepsz pakiet
                             </button>
+                          ) : (
+                            <div className="py-2.5 px-2 bg-[#111319] text-zinc-600 text-xs font-medium rounded-xl border border-[#1C1E26] text-center">
+                              Najwyższy pakiet
+                            </div>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 2: SKLEP (ZARZĄDZANIE PAKIETAMI & CENNIK) */}
+        {/* WIDOK 2: SKLEP (CENNIK I ZAKUP PAKIETÓW) */}
         {/* ========================================================================= */}
         {activeTab === "produkty" && (
           <div className="space-y-8 max-w-6xl">
-            
-            {/* SEKCJA 1: LISTA TWOICH ZAKUPIONYCH PAKIETÓW (JEŚLI UŻYTKOWNIK JAKIEŚ POSIADA) */}
-            {userPackages.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-white font-['Sora',sans-serif]">
-                    Twoje Aktywne Pakiety ({userPackages.length})
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {userPackages.map((pkg) => {
-                    const remaining = getRemainingTime(pkg.expiresAt);
-                    const isExp = remaining === "Wygasł";
-
-                    return (
-                      <div
-                        key={pkg.id}
-                        className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all"
-                      >
-                        <div className="space-y-4">
-                          {/* GÓRA KARTY: LOGO I TYP PAKIETU */}
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
-                              {pkg.logoUrl ? (
-                                <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="text-center p-1">
-                                  <ShoppingBag className="w-5 h-5 text-zinc-500 mx-auto" />
-                                  <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none font-['Poppins',sans-serif]">
-                                    Brak logo
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-[11px] font-medium text-[#D0FF00] font-['Poppins',sans-serif]">
-                              {pkg.planType}
-                            </span>
-                          </div>
-
-                          {/* NAZWA PAKIETU (Z MOŻLIWOŚCIĄ EDYCJI) */}
-                          <div>
-                            {editingPackageId === pkg.id ? (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={editingPackageName}
-                                  onChange={(e) => setEditingPackageName(e.target.value)}
-                                  className="w-full px-2.5 py-1.5 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleSaveRename(pkg.id)}
-                                  className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
-                                >
-                                  Zapisz
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 group">
-                                <h3 className="text-base font-bold text-white truncate font-['Poppins',sans-serif]">
-                                  {pkg.name}
-                                </h3>
-                                <button
-                                  onClick={() => handleStartRename(pkg)}
-                                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer p-1 rounded"
-                                  title="Zmień nazwę pakietu"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
-
-                            <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                              ID: #{pkg.number} • {pkg.isConfigured && pkg.subdomain ? `${pkg.subdomain}.iskral.pl` : "Nie skonfigurowano"}
-                            </span>
-                          </div>
-
-                          {/* WAŻNOŚĆ SUBSKRYPCJI / ODLICZANIE */}
-                          <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between text-xs font-['Poppins',sans-serif]">
-                            <span className="text-zinc-400 flex items-center gap-1.5 font-medium">
-                              <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                              Ważność:
-                            </span>
-                            <span className={`font-semibold ${isExp ? "text-rose-400 font-bold" : "text-[#D0FF00]"}`}>
-                              {remaining}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* PRZYCISKI AKCJI KARTY PAKIETU */}
-                        <div className="pt-4 border-t border-[#17181F] space-y-2 mt-4">
-                          <button
-                            onClick={() => handleOpenConfigurator(pkg)}
-                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            <span>{pkg.isConfigured ? "Przejdź do sklepu" : "Przejdź dalej (Konfiguruj)"}</span>
-                            <ArrowUpRight className="w-4 h-4" />
-                          </button>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => handleExtendPackage(pkg.id)}
-                              className="py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-white text-xs font-medium rounded-xl border border-[#1C1E26] transition-colors cursor-pointer font-['Poppins',sans-serif]"
-                            >
-                              Przedłuż (+30 dni)
-                            </button>
-                            <button
-                              onClick={() => setUpgradingPackage(pkg)}
-                              className="py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-[#D0FF00] text-xs font-medium rounded-xl border border-[#1C1E26] transition-colors cursor-pointer font-['Poppins',sans-serif]"
-                            >
-                              Ulepsz pakiet
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* SEKCJA 2: WYBÓR PAKIETU (CENNIK Z PRZEŁĄCZNIKIEM MIESIĄC / ROK -50%) */}
-            <div className="space-y-6 pt-2">
               
               {/* PRZEŁĄCZNIK MIESIĄC / ROK (-50%) - WYRÓWNANY DO LEWEJ, W KOLORYSTYCE CREATORA (#D0FF00) */}
               <div className="flex justify-start items-center">
@@ -1860,7 +1723,6 @@ export default function AeuxDashboard({
                 </div>
 
               </div>
-            </div>
 
           </div>
         )}
