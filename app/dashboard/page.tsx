@@ -8,26 +8,56 @@ import AeuxDashboard from "../components/AeuxDashboard";
 import { X } from "lucide-react";
 
 export default function DashboardPage() {
-  const { user, logout, message, setMessage } = useAuth();
+  const {
+    user,
+    allUsers,
+    activeStore,
+    userStores,
+    setActiveStoreId,
+    logout,
+    buyPlan,
+    updateUserProfile,
+    toggle2FA,
+    updateStoreConfig,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    toggleProductStatus,
+    requestPayoutWithIBAN,
+    createOrUpdateStoreFull,
+    message,
+    setMessage,
+  } = useAuth();
   const router = useRouter();
 
   return (
-    <div className="min-h-screen w-full bg-[#0E1510]">
-      {/* AEUSER GLOBAL DASHBOARD MATCHING MOCKUP DESIGN */}
+    <div className="min-h-screen w-full bg-[#090E0A]">
+      {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DESIGN AEUX) */}
       <AeuxDashboard
-        userName={user?.name || "Alex Williamson"}
-        userTag={`#${user?.email ? user.email.split("@")[0] : "dela-1974"}`}
-        userAvatar={
-          user?.avatarUrl ||
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80"
-        }
-        onLogout={() => {
+        user={user}
+        allUsers={allUsers}
+        activeStore={activeStore}
+        userStores={userStores}
+        setActiveStoreId={setActiveStoreId}
+        logout={() => {
           logout();
           router.push("/logowanie");
         }}
+        buyPlan={buyPlan}
+        updateUserProfile={updateUserProfile}
+        toggle2FA={toggle2FA}
+        updateStoreConfig={updateStoreConfig}
+        addProduct={addProduct}
+        updateProduct={updateProduct}
+        deleteProduct={deleteProduct}
+        toggleProductStatus={toggleProductStatus}
+        requestPayoutWithIBAN={requestPayoutWithIBAN}
+        createOrUpdateStoreFull={createOrUpdateStoreFull}
+        message={message}
+        setMessage={setMessage}
       />
 
-      {/* SLEEK SLIDE-IN TOAST NOTIFICATION */}
+      {/* POWIADOMIENIE TOAST */}
       {message && (
         <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-right-8 fade-in duration-200">
           <div
