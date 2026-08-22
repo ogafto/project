@@ -371,52 +371,22 @@ const ADMIN_USER: User = {
   name: "Administrator",
   email: "projekt@iskral.pl",
   role: "superadmin",
-  plan: "Brand",
-  billingCycle: "rok",
-  planExpiresAt: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toISOString(),
+  plan: "Brak",
+  billingCycle: "miesiac",
   isTrial: false,
-  hasStore: true,
+  hasStore: false,
   accountStatus: "Active",
   is2FAEnabled: false,
   isEmailVerified: true,
   createdAt: "2026-01-01",
-  activeStoreId: "t_admin_projekt",
-  stores: [
-    {
-      ...CLEAN_EMPTY_STORE_TEMPLATE,
-      id: "t_admin_projekt",
-      name: "Sklep Główny Admina",
-      subdomain: "gigantto",
-      balanceCents: 0,
-      stripeStatus: "connected",
-      planType: "Brand",
-    },
-  ],
-  store: {
-    ...CLEAN_EMPTY_STORE_TEMPLATE,
-    id: "t_admin_projekt",
-    name: "Sklep Główny Admina",
-    subdomain: "gigantto",
-    balanceCents: 0,
-    stripeStatus: "connected",
-    planType: "Brand",
-  },
+  services: [],
+  stores: [],
+  store: undefined,
 };
 
 const INITIAL_USERS: User[] = [ADMIN_USER];
 
-const DEFAULT_SUBSCRIPTION_HISTORY: SaaSSubscriptionRecord[] = [
-  {
-    id: "sub_101",
-    tenantId: "t_admin_projekt",
-    userId: "usr_admin_projekt",
-    userEmail: "projekt@iskral.pl",
-    planName: "Brand",
-    billingCycle: "rok",
-    amountPaidCents: 59900,
-    createdAt: "2026-08-01T12:00:00Z",
-  },
-];
+const DEFAULT_SUBSCRIPTION_HISTORY: SaaSSubscriptionRecord[] = [];
 
 const DEFAULT_BLOG_POSTS: BlogPost[] = [
   {
@@ -439,24 +409,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<User[]>(() => {
     if (typeof window !== "undefined") {
-      const cookieAllUsers = getAuthCookie("iskra_all_users");
+      const cookieAllUsers = getAuthCookie("iskra_all_users_clean_v1");
       if (cookieAllUsers) {
         try {
           const parsed: User[] = JSON.parse(cookieAllUsers);
-          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@iskral.pl" || u.email.toLowerCase() === "projekt@motywo.pl")) {
-            parsed.unshift(ADMIN_USER);
-          }
-          return parsed;
-        } catch {}
-      }
-      const saved = localStorage.getItem("iskra_users_v12") || localStorage.getItem("motywo_users_v11");
-      if (saved) {
-        try {
-          const parsed: User[] = JSON.parse(saved);
-          if (!parsed.some((u) => u.email.toLowerCase() === "projekt@iskral.pl" || u.email.toLowerCase() === "projekt@motywo.pl")) {
-            parsed.unshift(ADMIN_USER);
-          }
-          return parsed;
+          return parsed.map((u) => ({ ...u, hasStore: false, stores: [], store: undefined, services: [] }));
         } catch {}
       }
     }
@@ -467,23 +424,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       const cookieUser = getAuthCookie("iskra_session");
       if (cookieUser) {
-        try { return JSON.parse(cookieUser); } catch {}
-      }
-      const savedUser = localStorage.getItem("motywo_current_user_v11");
-      if (savedUser) {
-        try { return JSON.parse(savedUser); } catch {}
+        try {
+          const parsed = JSON.parse(cookieUser);
+          if (parsed) {
+            return {
+              ...parsed,
+              hasStore: false,
+              stores: [],
+              store: undefined,
+              services: [],
+              activeStoreId: undefined,
+            };
+          }
+        } catch {}
       }
     }
     return null;
   });
 
   const [subscriptionHistory, setSubscriptionHistory] = useState<SaaSSubscriptionRecord[]>(() => {
-    if (typeof window !== "undefined") {
-      const savedSubs = localStorage.getItem("motywo_subs_history_v11");
-      if (savedSubs) {
-        try { return JSON.parse(savedSubs); } catch {}
-      }
-    }
     return DEFAULT_SUBSCRIPTION_HISTORY;
   });
 
