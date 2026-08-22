@@ -31,8 +31,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen w-full bg-[#090E0A]">
-      {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DESIGN AEUX) */}
+    <div className="min-h-screen w-full bg-[#0B0D12]">
+      {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #FF5A28) */}
       <AeuxDashboard
         user={user}
         allUsers={allUsers}
@@ -63,20 +63,20 @@ export default function DashboardPage() {
           <div
             className={`p-4 pr-5 rounded-2xl text-xs font-bold flex items-center gap-3 border shadow-2xl ${
               message.type === "success"
-                ? "bg-[#0C130E] text-emerald-300 border-emerald-500/40"
-                : "bg-[#0C130E] text-red-300 border-red-500/40"
+                ? "bg-[#121620] text-[#FF5A28] border-[#FF5A28]/40"
+                : "bg-[#121620] text-red-400 border-red-500/40"
             }`}
           >
             <div
               className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                 message.type === "success"
-                  ? "bg-emerald-500/20 text-emerald-400"
+                  ? "bg-[#FF5A28]/20 text-[#FF5A28]"
                   : "bg-red-500/20 text-red-400"
               }`}
             >
               {message.type === "success" ? "✓" : "!"}
             </div>
-            <span className="max-w-xs">{message.text}</span>
+            <span className="max-w-xs text-white">{message.text}</span>
             <button
               onClick={() => setMessage(null)}
               className="p-1 text-zinc-500 hover:text-white rounded-lg cursor-pointer ml-2"
