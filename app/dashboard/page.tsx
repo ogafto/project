@@ -244,13 +244,35 @@ export default function DashboardPage() {
     team: [],
   };
 
+  // Store Customization & Editor State (editable per store)
+  const [storeEditName, setStoreEditName] = useState(currentStore.name || "");
+  const [storeEditSubdomain, setStoreEditSubdomain] = useState(currentStore.subdomain || "");
+  const [storeEditAnnouncement, setStoreEditAnnouncement] = useState(currentStore.announcement || "");
+  const [storeEditColor, setStoreEditColor] = useState(currentStore.accentColor || "#3B82F6");
+  const [storeEditLogo, setStoreEditLogo] = useState(currentStore.logoUrl || "");
+  const [storeEditInstagram, setStoreEditInstagram] = useState(currentStore.socials?.instagram || "");
+  const [storeEditTiktok, setStoreEditTiktok] = useState(currentStore.socials?.tiktok || "");
+  const [storeEditYoutube, setStoreEditYoutube] = useState(currentStore.socials?.youtube || "");
+  const [storeEditX, setStoreEditX] = useState(currentStore.socials?.x || "");
+  const [storeEditDiscord, setStoreEditDiscord] = useState(currentStore.socials?.discord || "");
+
   useEffect(() => {
     if (currentStore) {
       setDropEnabled(Boolean(currentStore.dropConfig?.enabled));
       setDropDate(currentStore.dropConfig?.targetDate || "");
       setDropTemplate(currentStore.dropConfig?.template || "Cyberpunk Launch");
+      setStoreEditName(currentStore.name || "");
+      setStoreEditSubdomain(currentStore.subdomain || "");
+      setStoreEditAnnouncement(currentStore.announcement || "🎉 Witaj w naszym sklepie!");
+      setStoreEditColor(currentStore.accentColor || "#3B82F6");
+      setStoreEditLogo(currentStore.logoUrl || "");
+      setStoreEditInstagram(currentStore.socials?.instagram || "");
+      setStoreEditTiktok(currentStore.socials?.tiktok || "");
+      setStoreEditYoutube(currentStore.socials?.youtube || "");
+      setStoreEditX(currentStore.socials?.x || "");
+      setStoreEditDiscord(currentStore.socials?.discord || "");
     }
-  }, [currentStore.id]);
+  }, [currentStore.id, currentStore.subdomain, currentStore.name]);
 
   // Live subdomain check in config modal
   useEffect(() => {
@@ -337,13 +359,19 @@ export default function DashboardPage() {
 
   const handleStartConfiguration = (service: ServicePackage) => {
     setConfigService(service);
-    setCfgName(user?.name ? `Sklep ${user.name}` : "Dropwear Club");
-    setCfgSubdomain((user?.name || "sklep").toLowerCase().replace(/[^a-z0-9]/g, "") || "dropwear");
-    setCfgDescription("Oficjalny sklep streetwear z limitowanymi kolekcjami.");
+    setCfgName("");
+    setCfgSubdomain("");
+    setCfgDescription("");
     setCfgLogo("");
     setCfgTemplate("Dark Vibe");
     setCfgColor("#3B82F6");
     setCfgShowSocials(true);
+    setCfgInstagram("");
+    setCfgTiktok("");
+    setCfgYoutube("");
+    setCfgX("");
+    setCfgDiscord("");
+    setCfgFacebook("");
     setShowConfigModal(true);
   };
 
@@ -401,9 +429,12 @@ export default function DashboardPage() {
       return;
     }
 
+    const cleanSub = cfgSubdomain.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
     const created = createOrUpdateStoreFull({
-      name: cfgName,
-      subdomain: cfgSubdomain,
+      serviceId: configService?.id,
+      name: cfgName.trim(),
+      subdomain: cleanSub,
       niche: "Moda & Streetwear",
       logoUrl: cfgLogo,
       template: cfgTemplate,
@@ -425,12 +456,15 @@ export default function DashboardPage() {
       },
     });
 
+    if (created && created.id) {
+      setActiveStoreId(created.id);
+    }
     setShowConfigModal(false);
     setNavMode("package");
     setPackageTab("editor");
     setMessage({
       type: "success",
-      text: `🎉 Sklep ${cfgName} został skonfigurowany pod adresem: https://${cfgSubdomain}.iskral.pl`,
+      text: `🎉 Sklep ${cfgName} został skonfigurowany pod adresem: https://${cleanSub}.iskral.pl`,
     });
   };
 
@@ -483,6 +517,51 @@ export default function DashboardPage() {
       type: "success",
       text: `Pakiet pomyślnie uaktualniony do ${targetUpgradePlan}! Dopłacono różnicę: ${priceDiff.toFixed(2)} PLN.`,
     });
+  };
+
+  // Store Editor Save Handler
+  const handleSaveStoreEditor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeEditName.trim()) {
+      alert("Wpisz nazwę sklepu.");
+      return;
+    }
+    const cleanSub = storeEditSubdomain.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!cleanSub) {
+      alert("Wpisz poprawną subdomenę.");
+      return;
+    }
+
+    updateStoreConfig({
+      name: storeEditName.trim(),
+      subdomain: cleanSub,
+      announcement: storeEditAnnouncement,
+      accentColor: storeEditColor,
+      logoUrl: storeEditLogo,
+      socials: {
+        instagram: storeEditInstagram,
+        tiktok: storeEditTiktok,
+        youtube: storeEditYoutube,
+        x: storeEditX,
+        discord: storeEditDiscord,
+      },
+    });
+
+    setMessage({
+      type: "success",
+      text: `🎉 Zapisano ustawienia sklepu '${storeEditName}'! Adres: https://${cleanSub}.iskral.pl`,
+    });
+  };
+
+  const handleStoreLogoUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setStoreEditLogo(e.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Products handlers
@@ -1574,6 +1653,173 @@ export default function DashboardPage() {
               </div>
 
               {/* Sub-tabs inside Package view */}
+              {packageTab === "editor" && (
+                <div className="space-y-6 max-w-4xl p-6 bg-[#111215] border border-[#1E2025] rounded-[16px]">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-[#1E2025]">
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Edytor i Konfiguracja Sklepu</h2>
+                      <p className="text-xs text-zinc-400 mt-0.5">Dostosuj nazwę, subdomenę, logo, kolory i odnośniki społecznościowe.</p>
+                    </div>
+                    <a
+                      href={liveStoreUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] border border-[#1E2025] text-zinc-300 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#3B82F6]" />
+                      <span>Podgląd na żywo ↗</span>
+                    </a>
+                  </div>
+
+                  <form onSubmit={handleSaveStoreEditor} className="space-y-5">
+                    {/* Nazwa i Subdomena */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-300 mb-1">Nazwa Sklepu</label>
+                        <input
+                          type="text"
+                          value={storeEditName}
+                          onChange={(e) => setStoreEditName(e.target.value)}
+                          placeholder="Wpisz nazwę sklepu..."
+                          className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs font-bold text-white outline-none focus:border-[#3B82F6]"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-300 mb-1">Subdomena Sklepu</label>
+                        <div className="flex items-center">
+                          <input
+                            type="text"
+                            value={storeEditSubdomain}
+                            onChange={(e) => setStoreEditSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                            placeholder="twoja-subdomena"
+                            className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-l-xl text-xs font-mono font-bold text-zinc-200 outline-none focus:border-[#3B82F6]"
+                            required
+                          />
+                          <span className="px-3.5 py-2 bg-[#16171C] border border-l-0 border-[#1E2025] rounded-r-xl text-xs font-mono text-zinc-400">
+                            .iskral.pl
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pasek ogłoszeń */}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1">Pasek Ogłoszeń (Announcement Bar)</label>
+                      <input
+                        type="text"
+                        value={storeEditAnnouncement}
+                        onChange={(e) => setStoreEditAnnouncement(e.target.value)}
+                        placeholder="np. 🎉 Darmowa dostawa od 200 PLN!"
+                        className="w-full px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none focus:border-[#3B82F6]"
+                      />
+                    </div>
+
+                    {/* Logo Sklepu */}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1.5">Logo Sklepu (Wgraj z Komputera)</label>
+                      <div className="border border-dashed border-[#1E2025] hover:border-[#3B82F6] rounded-xl p-4 flex items-center justify-between gap-4 bg-[#0A0B0D] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-[#111215] border border-[#1E2025] flex items-center justify-center overflow-hidden shrink-0">
+                            {storeEditLogo ? (
+                              <img src={storeEditLogo} alt="Logo" className="w-full h-full object-contain p-1" />
+                            ) : (
+                              <Camera className="w-5 h-5 text-zinc-500" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-white block">
+                              {storeEditLogo ? "Logo załadowane ✓" : "Brak logo (wybierz plik)"}
+                            </span>
+                            <span className="text-[10px] text-zinc-500">Formaty: PNG, JPG, SVG, WEBP</span>
+                          </div>
+                        </div>
+
+                        <label className="px-4 py-2 bg-[#111215] hover:bg-[#1E2025] border border-[#1E2025] text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shrink-0">
+                          <span>{storeEditLogo ? "Zmień logo" : "Wgraj logo"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => e.target.files?.[0] && handleStoreLogoUpload(e.target.files[0])}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Kolorystyka */}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-300 mb-1.5">Kolor Akcentu Sklepu</label>
+                      <div className="flex items-center gap-3 pt-1">
+                        {[
+                          { name: "Blue", hex: "#3B82F6" },
+                          { name: "Orange", hex: "#FF5B28" },
+                          { name: "Green", hex: "#10B981" },
+                          { name: "Purple", hex: "#8B5CF6" },
+                          { name: "Pink", hex: "#EC4899" },
+                        ].map((col) => (
+                          <button
+                            key={col.hex}
+                            type="button"
+                            onClick={() => setStoreEditColor(col.hex)}
+                            style={{ backgroundColor: col.hex }}
+                            className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
+                              storeEditColor === col.hex ? "ring-2 ring-offset-2 ring-white scale-110" : "opacity-70 hover:opacity-100"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Social Media */}
+                    <div className="pt-3 border-t border-[#1E2025] space-y-3">
+                      <h4 className="text-xs font-bold text-white">Social Media Sklepu</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Instagram (np. @twojmarka)..."
+                          value={storeEditInstagram}
+                          onChange={(e) => setStoreEditInstagram(e.target.value)}
+                          className="px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="TikTok (np. @twojmarka)..."
+                          value={storeEditTiktok}
+                          onChange={(e) => setStoreEditTiktok(e.target.value)}
+                          className="px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="YouTube..."
+                          value={storeEditYoutube}
+                          onChange={(e) => setStoreEditYoutube(e.target.value)}
+                          className="px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Discord..."
+                          value={storeEditDiscord}
+                          onChange={(e) => setStoreEditDiscord(e.target.value)}
+                          className="px-3.5 py-2 bg-[#0A0B0D] border border-[#1E2025] rounded-xl text-xs text-white outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-[#1E2025] flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shadow-none"
+                      >
+                        Zapisz Zmiany w Sklepie ✓
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Sub-tabs inside Package view */}
               {packageTab === "products" && (
                 <div className="space-y-6 p-6 bg-[#111215] border border-[#1E2025] rounded-[16px]">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -2030,60 +2276,105 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-xs text-zinc-400">
-                Wybierz na jaki okres chcesz przedłużyć pakiet <strong className="text-white">{renewTargetService.title}</strong>:
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRenewCycle("miesiac")}
-                  className={`p-4 rounded-xl border text-left cursor-pointer transition-colors ${
-                    renewCycle === "miesiac"
-                      ? "bg-[#0A0B0D] border-[#3B82F6] text-white"
-                      : "bg-[#0A0B0D] border-[#1E2025] text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  <span className="text-xs font-bold block">1 Miesiąc</span>
-                  <span className="text-base font-bold text-[#3B82F6] font-mono mt-1 block">
-                    {renewTargetService.planType === "Brand" ? "99.90 PLN" : renewTargetService.planType === "Creator" ? "49.90 PLN" : "0 PLN"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRenewCycle("rok")}
-                  className={`p-4 rounded-xl border text-left cursor-pointer transition-colors ${
-                    renewCycle === "rok"
-                      ? "bg-[#0A0B0D] border-[#3B82F6] text-white"
-                      : "bg-[#0A0B0D] border-[#1E2025] text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  <span className="text-xs font-bold block">1 Rok (-17%)</span>
-                  <span className="text-base font-bold text-[#3B82F6] font-mono mt-1 block">
-                    {renewTargetService.planType === "Brand" ? "599 PLN" : renewTargetService.planType === "Creator" ? "299 PLN" : "0 PLN"}
-                  </span>
-                </button>
+            {renewTargetService.planType === "Start" ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs leading-relaxed">
+                  ⚠️ <strong>Pakiet Start (Trial 14 dni)</strong> jest jednorazowym bezpłatnym okresem próbnym i nie można go przedłużyć. Aby kontynuować działanie sklepu bez limitu czasu, przejdź na pełny pakiet <strong>Creator</strong> lub <strong>Brand</strong>.
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRenewModal(false);
+                      setUpgradeTargetService(renewTargetService);
+                      setTargetUpgradePlan("Creator");
+                      setShowUpgradeModal(true);
+                    }}
+                    className="p-4 rounded-xl border border-[#1E2025] hover:border-[#3B82F6] bg-[#0A0B0D] text-left cursor-pointer transition-colors"
+                  >
+                    <span className="text-xs font-bold text-white block">Pakiet Creator</span>
+                    <span className="text-sm font-bold text-[#3B82F6] font-mono mt-1 block">49.90 PLN / mc</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRenewModal(false);
+                      setUpgradeTargetService(renewTargetService);
+                      setTargetUpgradePlan("Brand");
+                      setShowUpgradeModal(true);
+                    }}
+                    className="p-4 rounded-xl border border-[#1E2025] hover:border-emerald-500 bg-[#0A0B0D] text-left cursor-pointer transition-colors"
+                  >
+                    <span className="text-xs font-bold text-white block">Pakiet Brand (0% Prowizji)</span>
+                    <span className="text-sm font-bold text-emerald-400 font-mono mt-1 block">99.90 PLN / mc</span>
+                  </button>
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowRenewModal(false)}
+                    className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 text-xs font-bold rounded-xl border border-[#1E2025]"
+                  >
+                    Zamknij
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-zinc-400">
+                  Wybierz na jaki okres chcesz przedłużyć pakiet <strong className="text-white">{renewTargetService.title}</strong>:
+                </p>
 
-            <div className="pt-3 border-t border-[#1E2025] flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowRenewModal(false)}
-                className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 text-xs font-bold rounded-xl border border-[#1E2025]"
-              >
-                Anuluj
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteRenewal}
-                className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold rounded-xl"
-              >
-                Opłać i Przedłuż Ważność
-              </button>
-            </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRenewCycle("miesiac")}
+                    className={`p-4 rounded-xl border text-left cursor-pointer transition-colors ${
+                      renewCycle === "miesiac"
+                        ? "bg-[#0A0B0D] border-[#3B82F6] text-white"
+                        : "bg-[#0A0B0D] border-[#1E2025] text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-xs font-bold block">1 Miesiąc</span>
+                    <span className="text-base font-bold text-[#3B82F6] font-mono mt-1 block">
+                      {renewTargetService.planType === "Brand" ? "99.90 PLN" : "49.90 PLN"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRenewCycle("rok")}
+                    className={`p-4 rounded-xl border text-left cursor-pointer transition-colors ${
+                      renewCycle === "rok"
+                        ? "bg-[#0A0B0D] border-[#3B82F6] text-white"
+                        : "bg-[#0A0B0D] border-[#1E2025] text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-xs font-bold block">1 Rok (-17%)</span>
+                    <span className="text-base font-bold text-[#3B82F6] font-mono mt-1 block">
+                      {renewTargetService.planType === "Brand" ? "599 PLN" : "299 PLN"}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="pt-3 border-t border-[#1E2025] flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRenewModal(false)}
+                    className="px-4 py-2 bg-[#0A0B0D] hover:bg-[#1E2025] text-zinc-300 text-xs font-bold rounded-xl border border-[#1E2025]"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteRenewal}
+                    className="px-5 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold rounded-xl"
+                  >
+                    Opłać i Przedłuż Ważność
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

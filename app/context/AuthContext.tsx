@@ -314,6 +314,7 @@ interface AuthContextType {
   recordSaaSSubscription: (tenantId: string, userId: string, userEmail: string, planName: string, amountPaidCents: number) => void;
   createStripeCheckout: (params: { productId?: string; planType?: PlanType; title: string; priceCents: number; customerEmail?: string; tenantId?: string }) => Promise<string | null>;
   createOrUpdateStoreFull: (params: {
+    serviceId?: string;
     name: string;
     subdomain: string;
     customDomain?: string;
@@ -1392,6 +1393,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createOrUpdateStoreFull = (params: {
+    serviceId?: string;
     name: string;
     subdomain: string;
     customDomain?: string;
@@ -1415,53 +1417,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       digitalFileUrl?: string;
     };
   }): StoreConfig => {
-    if (!user) {
-      throw new Error("Użytkownik nie jest zalogowany");
-    }
-
-    const baseStore = activeStore || (user.stores && user.stores[0]) || user.store;
-    const storeId = baseStore?.id || `t_${Date.now()}`;
-
-    let baseSub = (params.subdomain || params.name || "sklep").toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!baseSub) baseSub = "sklep";
-
-    let finalSub = baseSub;
-    let c = 1;
-    while (allUsers.some((u) => (u.stores || []).some((s) => s.subdomain === finalSub && s.id !== storeId))) {
-      finalSub = `${baseSub}${c}`;
-      c++;
-    }
+    if (!user) throw new Error("No active user session");
 
     const isTrial = params.plan === "Start" || params.plan === "trial_14d";
     const durationDays = isTrial ? 14 : params.billingCycle === "rok" ? 365 : 30;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
-    let products = baseStore?.products ? [...baseStore.products] : [];
-    if (params.initialProduct && params.initialProduct.name) {
-      const cleanPrice = String(params.initialProduct.price || "").replace(",", ".").replace(/[^0-9.]/g, "");
-      const priceNum = parseFloat(cleanPrice) || 10;
-      const priceCents = params.initialProduct.priceCents || Math.round(priceNum * 100);
+    const cleanSub = params.subdomain.toLowerCase().replace(/[^a-z0-9]/g, "") || "sklep";
+    let finalSub = cleanSub;
+    let counter = 1;
+    while (allUsers.some((u) => (u.stores || []).some((s) => s.subdomain === finalSub && s.ownerId !== user.id))) {
+      finalSub = `${cleanSub}${counter}`;
+      counter++;
+    }
 
+    const storeId = `store_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const products: Product[] = [];
+
+    if (params.initialProduct) {
       const newProd: Product = {
-        id: `prod_${Date.now()}`,
+        id: `p_${Date.now()}`,
         tenantId: storeId,
         name: params.initialProduct.name,
-        description: params.initialProduct.description || "Oficjalny produkt gotowy w nowym sklepie.",
-        price: `${priceNum.toFixed(2)} PLN`,
-        priceCents,
+        description: params.initialProduct.description || "",
+        price: params.initialProduct.price,
+        priceCents: params.initialProduct.priceCents,
         type: params.initialProduct.type,
         status: "Aktywny",
-        sales: 0,
         stock: 50,
-        image: params.initialProduct.image || (params.initialProduct.type === "Cyfrowy"
-          ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"
-          : "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80"),
-        images: params.initialProduct.images && params.initialProduct.images.length > 0
-          ? params.initialProduct.images
-          : [params.initialProduct.image || ""].filter(Boolean),
+        sales: 0,
+        variants: ["S", "M", "L", "XL"],
+        image: params.initialProduct.image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80",
+        images: params.initialProduct.images || [params.initialProduct.image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80"],
         isDigital: params.initialProduct.type === "Cyfrowy",
-        digitalFileName: params.initialProduct.digitalFileName || (params.initialProduct.type === "Cyfrowy" ? "Plik_Cyfrowy.pdf" : undefined),
-        digitalFileSize: params.initialProduct.digitalFileSize || (params.initialProduct.type === "Cyfrowy" ? "15.4 MB" : undefined),
+        digitalFileName: params.initialProduct.digitalFileName,
+        digitalFileSize: params.initialProduct.digitalFileSize,
         digitalFileUrl: params.initialProduct.digitalFileUrl || (params.initialProduct.type === "Cyfrowy" ? "data:application/pdf;base64,demo" : undefined),
       };
 
@@ -1470,39 +1460,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const updatedStore: StoreConfig = {
-      ...(baseStore || CLEAN_EMPTY_STORE_TEMPLATE),
+    const newStoreConfig: StoreConfig = {
+      ...CLEAN_EMPTY_STORE_TEMPLATE,
       id: storeId,
       ownerId: user.id,
       ownerEmail: user.email,
       name: params.name || "Mój Sklep",
       subdomain: finalSub,
-      customDomain: params.customDomain || baseStore?.customDomain || "",
-      niche: params.niche || baseStore?.niche || "",
-      logoUrl: params.logoUrl || baseStore?.logoUrl || "",
+      customDomain: params.customDomain || "",
+      niche: params.niche || "Moda & Streetwear",
+      logoUrl: params.logoUrl || "",
       template: params.template || "Dark Vibe",
-      accentColor: params.accentColor || "#FF5B28",
-      announcement: params.announcement || "🎉 Witaj w naszym sklepie!",
+      accentColor: params.accentColor || "#3B82F6",
+      announcement: params.announcement || "🎉 Nowy drop już dostępny!",
       planType: params.plan,
       planStatus: "active",
       planExpiresAt: expiresAt,
       products,
     };
 
-    const currentStores = user.stores && user.stores.length > 0 ? user.stores : [updatedStore];
-    const exists = currentStores.some((s) => s.id === updatedStore.id);
-    const updatedStores = exists
-      ? currentStores.map((s) => (s.id === updatedStore.id ? updatedStore : s))
-      : [...currentStores, updatedStore];
+    const existingStores = user.stores || [];
+    const updatedStores = [...existingStores, newStoreConfig];
 
     const updatedServices = (user.services || []).map((s) => {
-      if (s.status === "Nieprzypisany") {
+      if ((params.serviceId && s.id === params.serviceId) || (!params.serviceId && s.status === "Nieprzypisany")) {
         return {
           ...s,
           status: "Przypisany" as const,
-          assignedStoreId: updatedStore.id,
-          assignedStoreName: updatedStore.name,
-          assignedSubdomain: updatedStore.subdomain,
+          assignedStoreId: newStoreConfig.id,
+          assignedStoreName: newStoreConfig.name,
+          assignedSubdomain: newStoreConfig.subdomain,
         };
       }
       return s;
@@ -1514,40 +1501,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       plan: params.plan,
       hasStore: true,
       services: updatedServices.length > 0 ? updatedServices : user.services,
-      activeStoreId: updatedStore.id,
+      activeStoreId: newStoreConfig.id,
       stores: updatedStores,
-      store: updatedStores[0],
+      store: newStoreConfig,
     };
 
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
 
-    // KLUCZOWE: Zapisz sklep do Supabase bazy danych z powiązaniem owner_id
-    upsertStoreInSupabase(updatedStore, user.id).then((saved) => {
+    // Zapisz sklep do Supabase
+    upsertStoreInSupabase(newStoreConfig, user.id).then((saved) => {
       if (saved) {
-        console.log(`[Store] Sklep '${updatedStore.subdomain}' zapisany do Supabase dla User ID: ${user.id}`);
+        console.log(`[Store] Sklep '${newStoreConfig.subdomain}' zapisany do Supabase dla User ID: ${user.id}`);
       } else {
-        console.warn(`[Store] Nie udało się zapisać sklepu '${updatedStore.subdomain}' do Supabase`);
+        console.warn(`[Store] Nie udało się zapisać sklepu '${newStoreConfig.subdomain}' do Supabase`);
       }
     }).catch(console.error);
 
     fetch("/api/stores/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ store: updatedStore, owner_id: user.id }),
+      body: JSON.stringify({ store: newStoreConfig, owner_id: user.id }),
     }).catch(() => {});
 
     const priceCents = isTrial ? 0 : params.plan === "Creator" || params.plan === "starter" ? (params.billingCycle === "rok" ? 29900 : 4990) : (params.billingCycle === "rok" ? 59900 : 9990);
     if (priceCents > 0) {
-      recordSaaSSubscription(updatedStore.id, user.id, user.email, params.plan, priceCents);
+      recordSaaSSubscription(newStoreConfig.id, user.id, user.email, params.plan, priceCents);
     }
 
     setMessage({
       type: "success",
-      text: `🎉 Sklep ${updatedStore.name} aktywny na: https://${updatedStore.subdomain}.iskral.pl`,
+      text: `🎉 Sklep ${newStoreConfig.name} aktywny pod adresem: https://${newStoreConfig.subdomain}.iskral.pl`,
     });
 
-    return updatedStore;
+    return newStoreConfig;
   };
 
   const updateStoreConfig = (config: Partial<StoreConfig>) => {
