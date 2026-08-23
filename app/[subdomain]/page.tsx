@@ -118,18 +118,20 @@ export default function TenantStorePage({ params }: PageProps) {
   const [selectedProductModal, setSelectedProductModal] = useState<Product | null>(null);
   const [activeModalImageIdx, setActiveModalImageIdx] = useState<number>(0);
 
-  // 2. Track real visits
+  // 2. Track real visits (completely isolated from rendering)
   useEffect(() => {
-    if (!subdomain) return;
+    if (!subdomain || typeof window === "undefined") return;
     try {
       fetch("/api/stores/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdomain }),
       }).catch(() => {});
-      const visitKey = `iskra_visits_${subdomain}`;
-      const cur = Number(localStorage.getItem(visitKey) || "0");
-      localStorage.setItem(visitKey, String(cur + 1));
+      try {
+        const visitKey = `iskra_visits_${subdomain}`;
+        const cur = Number(localStorage.getItem(visitKey) || "0");
+        localStorage.setItem(visitKey, String(cur + 1));
+      } catch {}
     } catch {}
   }, [subdomain]);
 
