@@ -274,7 +274,7 @@ interface AuthContextType {
   exitImpersonation: () => void;
   toggleImpersonationEdit: () => void;
   sendOTP: (email: string) => Promise<boolean>;
-  login: (email: string, password?: string) => { success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string };
+  login: (email: string, password?: string) => Promise<{ success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string }>;
   verify2FA: (code: string) => boolean;
   register: (name: string, email: string) => Promise<boolean>;
   verifyEmail: (code: string) => Promise<boolean> | boolean;
@@ -536,7 +536,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthCookie("iskra_session", JSON.stringify(user));
         localStorage.setItem("iskra_current_user_v12", JSON.stringify(user));
 
-        // Automatyczna synchronizacja wszystkich sklepów użytkownika do bazy danych Supabase
+        // Automatyczna synchronizacja profilu i wszystkich sklepów użytkownika do bazy danych Supabase
+        fetch("/api/auth/sync-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user, stores: user.stores, services: user.services }),
+        }).catch(() => {});
+
         const storesToSync = user.stores && user.stores.length > 0 ? user.stores : user.store ? [user.store] : [];
         storesToSync.forEach((st) => {
           if (st && st.subdomain) {
@@ -544,7 +550,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fetch("/api/stores/sync", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ store: st }),
+              body: JSON.stringify({ store: st, owner_id: user.id }),
             }).catch(() => {});
           }
         });
@@ -554,6 +560,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [user]);
+
+  // Background cross-device sync on load
+  useEffect(() => {
+    if (!user?.email) return;
+    const syncUserCrossDevice = async () => {
+      try {
+        const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(user.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.user) {
+            const serverUser: User = data.user;
+            setUser((prev) => {
+              if (!prev) return serverUser;
+              const mergedStores = serverUser.stores && serverUser.stores.length > 0 ? serverUser.stores : prev.stores;
+              const mergedServices = serverUser.services && serverUser.services.length > 0 ? serverUser.services : prev.services;
+              return {
+                ...prev,
+                ...serverUser,
+                stores: mergedStores,
+                store: mergedStores && mergedStores.length > 0 ? mergedStores[0] : prev.store,
+                services: mergedServices,
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[AuthContext] Background sync warning:", err);
+      }
+    };
+    syncUserCrossDevice();
+  }, [user?.email]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -774,7 +811,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSubscriptionHistory((prev) => [newRecord, ...prev]);
   };
 
-  const login = (email: string, password?: string) => {
+  const login = async (email: string, password?: string): Promise<{ success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
@@ -794,7 +831,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     }
 
-    const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+    let existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    // Jeśli użytkownika nie ma w pamięci tego urządzenia (np. logowanie na telefonie), pobierz z bazy Supabase
+    if (!existing) {
+      try {
+        const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(cleanEmail)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.user) {
+            existing = data.user;
+            setAllUsers((prev) => {
+              const already = prev.some((u) => u.email.toLowerCase() === cleanEmail);
+              return already ? prev : [...prev, data.user];
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[Auth] Cross-device user fetch error:", err);
+      }
+    }
+
     if (!existing) {
       return {
         success: false,
@@ -802,10 +859,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    if (existing.isEmailVerified === false) {
-      setPendingUserToVerify(existing);
-      setPendingEmail(existing.email);
-      sendOTP(existing.email);
+    let targetUser: User = existing;
+
+    // Pobierz najświeższe sklepy i usługi z bazy danych dla spójności
+    try {
+      const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(cleanEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          targetUser = {
+            ...targetUser,
+            ...data.user,
+            stores: data.stores && data.stores.length > 0 ? data.stores : targetUser.stores,
+            services: data.services && data.services.length > 0 ? data.services : targetUser.services,
+          };
+        }
+      }
+    } catch {}
+
+    if (targetUser.isEmailVerified === false) {
+      setPendingUserToVerify(targetUser);
+      setPendingEmail(targetUser.email);
+      sendOTP(targetUser.email);
       return {
         success: false,
         requiresOTP: true,
@@ -813,40 +888,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    if (existing.accountStatus === "Blocked") {
+    if (targetUser.accountStatus === "Blocked") {
       return {
         success: false,
         message: "Twoje konto zostało zablokowane przez administratora serwisu. Skontaktuj się z pomocą techniczną.",
       };
     }
 
-    if (existing.accountStatus === "Suspended") {
+    if (targetUser.accountStatus === "Suspended") {
       return {
         success: false,
         message: "Konto Twojego sklepu zostało tymczasowo zawieszone.",
       };
     }
 
-    const userStores = existing.stores && existing.stores.length > 0 ? existing.stores : (existing.store ? [existing.store] : []);
-    const hasStore = userStores.length > 0 || Boolean(existing.hasStore);
-    const activeStoreId = existing.activeStoreId || (userStores.length > 0 ? userStores[0].id : undefined);
+    const userStores = targetUser.stores && targetUser.stores.length > 0 ? targetUser.stores : (targetUser.store ? [targetUser.store] : []);
+    const hasStore = userStores.length > 0 || Boolean(targetUser.hasStore);
+    const activeStoreId = targetUser.activeStoreId || (userStores.length > 0 ? userStores[0].id : undefined);
 
     const loggedInUser: User = {
-      ...existing,
+      ...targetUser,
       hasStore,
       stores: userStores,
-      store: userStores[0] || existing.store,
+      store: userStores[0] || targetUser.store,
       activeStoreId,
     };
 
-    if (existing.is2FAEnabled) {
+    if (targetUser.is2FAEnabled) {
       setRequires2FA(true);
       setPending2FAUser(loggedInUser);
       return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
     }
 
     setUser(loggedInUser);
-    setMessage({ type: "success", text: `Witaj ponownie, ${existing.name}!` });
+    setAllUsers((prev) => {
+      const idx = prev.findIndex((u) => u.email.toLowerCase() === cleanEmail);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = loggedInUser;
+        return copy;
+      }
+      return [...prev, loggedInUser];
+    });
+
+    setMessage({ type: "success", text: `Witaj ponownie, ${targetUser.name}!` });
     return { success: true };
   };
 
@@ -951,6 +1036,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setPendingUserToVerify(newUser);
     setAllUsers((prev) => [...prev, newUser]);
+
+    fetch("/api/auth/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: newUser }),
+    }).catch(() => {});
+
     const sent = await sendOTP(cleanEmail);
     return sent;
   };
@@ -1019,6 +1111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return [...prev, verifiedUser];
     });
 
+    fetch("/api/auth/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: verifiedUser }),
+    }).catch(() => {});
+
     setPendingOTPCode(null);
     setPendingUserToVerify(null);
     setMessage({ type: "success", text: "Konto pomyślnie aktywowane i zweryfikowane!" });
@@ -1079,6 +1177,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
+
+    fetch("/api/auth/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: updatedUser, services: updatedServices }),
+    }).catch(() => {});
 
     setMessage({
       type: "success",

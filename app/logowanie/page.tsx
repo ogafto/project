@@ -19,7 +19,7 @@ export default function LogowaniePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const formattedEmail = email.trim().toLowerCase();
 
@@ -29,7 +29,7 @@ export default function LogowaniePage() {
     }
 
     setError("");
-    const res = login(formattedEmail, password);
+    const res = await login(formattedEmail, password);
     if (res.requiresOTP) {
       setSuccess("Adres e-mail wymaga weryfikacji. Przekierowywanie do weryfikacji OTP...");
       setTimeout(() => {

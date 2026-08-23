@@ -13,20 +13,98 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Brak klienta Supabase." }, { status: 500 });
     }
 
-    // 1. Jeśli zapytanie jest o sklepy danego użytkownika (po owner_id)
-    if (ownerId) {
-      const { data: userStores, error: userStoreErr } = await dbClient
-        .from("stores")
-        .select("*")
-        .eq("owner_id", ownerId)
-        .neq("status", "deleted");
-
-      if (!userStoreErr && userStores && userStores.length > 0) {
-        return NextResponse.json({
-          success: true,
-          stores: userStores,
-        });
+    // 1. Jeśli zapytanie jest o sklepy danego użytkownika (po owner_id lub owner_email)
+    if (ownerId || ownerEmail) {
+      let resolvedOwnerId = ownerId;
+      if (!resolvedOwnerId && ownerEmail) {
+        const { data: prof } = await dbClient
+          .from("profiles")
+          .select("id")
+          .eq("email", ownerEmail)
+          .maybeSingle();
+        if (prof?.id) resolvedOwnerId = prof.id;
       }
+
+      let userStores: any[] = [];
+      if (resolvedOwnerId) {
+        const { data: storesById } = await dbClient
+          .from("stores")
+          .select("*")
+          .eq("owner_id", resolvedOwnerId)
+          .neq("status", "deleted");
+        if (storesById && storesById.length > 0) userStores = storesById;
+      }
+
+      if (userStores.length === 0 && ownerEmail) {
+        const { data: allStores } = await dbClient
+          .from("stores")
+          .select("*")
+          .neq("status", "deleted");
+        if (allStores && allStores.length > 0) {
+          userStores = allStores.filter((s: any) => {
+            const em = s.theme_config?.ownerEmail || s.owner_email;
+            return em && em.toLowerCase() === ownerEmail;
+          });
+        }
+      }
+
+      // Dołącz produkty do każdego sklepu
+      const enrichedStores = await Promise.all(
+        userStores.map(async (st: any) => {
+          const { data: prods } = await dbClient
+            .from("products")
+            .select("*")
+            .eq("store_id", st.id);
+
+          const mappedProducts = (prods || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price || `${((p.price_cents || 0) / 100).toFixed(2)} zł`,
+            priceCents: p.price_cents || 0,
+            comparePrice: p.compare_price,
+            comparePriceCents: p.compare_price_cents,
+            type: p.type || "Fizyczny",
+            status: p.status || "Aktywny",
+            sales: p.sales || 0,
+            stock: p.stock !== undefined ? p.stock : 50,
+            description: p.description || "",
+            image: p.image_url,
+            images: p.images || (p.image_url ? [p.image_url] : []),
+            isDigital: p.is_digital || p.type === "Cyfrowy",
+            digitalFileName: p.digital_file_name,
+            digitalFileSize: p.digital_file_size,
+            digitalFileUrl: p.digital_file_url,
+            isDropOnly: p.is_drop_only,
+            dropTargetDate: p.drop_target_date,
+          }));
+
+          return {
+            id: st.id,
+            name: st.name,
+            subdomain: st.subdomain,
+            customDomain: st.custom_domain,
+            domainVerified: st.domain_verified,
+            logoUrl: st.logo_url || "",
+            description: st.description || "",
+            announcement: st.announcement || "",
+            template: st.template || "Dark Vibe",
+            accentColor: st.accent_color || "#D0FF00",
+            planType: st.plan_type || "Start",
+            planStatus: st.plan_status || "active",
+            status: st.status || "active",
+            isActive: st.is_active,
+            socials: st.social_links || {},
+            dropConfig: st.drop_config || { enabled: false },
+            products: mappedProducts,
+            orders: [],
+          };
+        })
+      );
+
+      return NextResponse.json({
+        success: true,
+        stores: enrichedStores,
+      });
     }
 
     // 2. Jeśli zapytanie jest o konkretny sklep po subdomenie, domenie własnej lub ID

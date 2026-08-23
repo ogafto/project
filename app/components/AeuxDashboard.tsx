@@ -560,6 +560,80 @@ team: [],
         } catch {}
       }
     }
+
+    // Cross-device background fetch from Supabase backend API
+    const syncRemoteUserResources = async () => {
+      if (!user?.email) return;
+      try {
+        const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(user.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.user) {
+            const serverStores: any[] = data.stores || data.user.stores || [];
+            const serverServices: any[] = data.services || data.user.services || [];
+
+            if (serverStores.length > 0 || serverServices.length > 0) {
+              const serverPkgs: UserPackage[] = [];
+
+              // 1. Zbuduj pakiety ze sklepów zapisanych w bazie Supabase
+              serverStores.forEach((st: any, idx: number) => {
+                serverPkgs.push({
+                  id: st.id || `pkg_${idx + 1000}`,
+                  number: 1000 + idx,
+                  name: st.name || `Sklep #${1000 + idx}`,
+                  planType: (st.planType as any) || "Creator",
+                  price: "29.99 zł / msc",
+                  expiresAt: st.planExpiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+                  storeName: st.name,
+                  subdomain: st.subdomain,
+                  logoUrl: st.logoUrl || "",
+                  isConfigured: Boolean(st.subdomain),
+                });
+              });
+
+              // 2. Dołącz pakiety z wykupionych usług (services)
+              serverServices.forEach((s: any) => {
+                if (!serverPkgs.some((p) => p.id === s.id)) {
+                  serverPkgs.push({
+                    id: s.id || `pkg_${s.number}`,
+                    number: s.number || 5191,
+                    name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
+                    planType: (s.planType as any) || "Start",
+                    price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+                    expiresAt: s.expiresAt || new Date(Date.now() + 14 * 86400000).toISOString(),
+                    storeName: s.assignedStoreName || "",
+                    subdomain: s.assignedSubdomain || "",
+                    logoUrl: "",
+                    isConfigured: Boolean(s.assignedSubdomain),
+                  });
+                }
+              });
+
+              if (serverPkgs.length > 0) {
+                setUserPackages(serverPkgs);
+                localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(serverPkgs));
+                const configured = serverPkgs.find((p) => p.isConfigured);
+                if (configured) {
+                  setActiveStorePackage(configured);
+                  localStorage.setItem(`iskra_active_store_${key}`, JSON.stringify(configured));
+                }
+              }
+
+              // Synchronizuj produkty aktywnego sklepu z bazy danych
+              const activeSt = serverStores[0];
+              if (activeSt && Array.isArray(activeSt.products) && activeSt.products.length > 0) {
+                setLocalProducts(activeSt.products);
+                localStorage.setItem(`iskra_products_${key}`, JSON.stringify(activeSt.products));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[Dashboard] Cross-device sync error:", e);
+      }
+    };
+
+    syncRemoteUserResources();
   }, [user?.id, user?.email, user?.services?.length, userStores.length]);
 
   const getRemainingTime = (expiresAt?: string) => {
