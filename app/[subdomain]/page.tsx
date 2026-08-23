@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
-import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
+import type { Product, Category, StoreConfig } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 import NotFoundPage from "@/app/not-found";
 
@@ -23,7 +23,6 @@ export default function TenantStorePage({ params }: PageProps) {
 
   const subdomain = decodeURIComponent(rawSub || "").toLowerCase().trim();
 
-  const { allUsers = [] } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
   const [localFallbackStore, setLocalFallbackStore] = useState<StoreConfig | null>(null);
   const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
@@ -202,34 +201,8 @@ export default function TenantStorePage({ params }: PageProps) {
     }
   }, [subdomain]);
 
-  // 5. Resolve targetStore
-  let targetStore: StoreConfig | undefined;
-  let ownerUser: User | undefined;
-
-  if (subdomain) {
-    for (const u of allUsers || []) {
-      const uStores = u?.stores || (u?.store ? [u.store] : []);
-      const found = uStores.find(
-        (s) =>
-          s?.subdomain?.toLowerCase() === subdomain ||
-          s?.customDomain?.toLowerCase() === subdomain ||
-          s?.id === subdomain
-      );
-      if (found) {
-        targetStore = found;
-        ownerUser = u;
-        break;
-      }
-    }
-  }
-
-  if (!targetStore && asyncStore) {
-    targetStore = asyncStore;
-  }
-
-  if (!targetStore && localFallbackStore) {
-    targetStore = localFallbackStore;
-  }
+  // 5. Resolve targetStore cleanly from Supabase or client fallback
+  let targetStore: StoreConfig | undefined = asyncStore || localFallbackStore || undefined;
 
   const isDropActive = Boolean(
     targetStore?.dropConfig?.enabled &&
@@ -267,10 +240,6 @@ export default function TenantStorePage({ params }: PageProps) {
   // ==========================================
   // SAFE CONDITIONAL RENDERING
   // ==========================================
-
-  const isOwnerActive = ownerUser
-    ? ownerUser.accountStatus !== "Blocked" && ownerUser.accountStatus !== "Suspended"
-    : true;
 
   const isStoreActive = targetStore
     ? targetStore.status !== "suspended" &&
@@ -326,7 +295,7 @@ export default function TenantStorePage({ params }: PageProps) {
   }
 
   // Not found
-  if (!isDBLoading && (!targetStore || !isOwnerActive)) {
+  if (!isDBLoading && !targetStore) {
     return (
       <div className="min-h-screen bg-[#0A0B0D] text-white flex flex-col items-center justify-center p-6 text-center font-sans">
         <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-2xl mb-4">
