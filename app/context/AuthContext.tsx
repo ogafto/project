@@ -4,6 +4,15 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase, upsertStoreInSupabase } from "@/lib/supabase";
 import { getAuthCookie, setAuthCookie, deleteAuthCookie } from "@/lib/cookies";
 import { hasFeatureAccess, PlanFeatureConfig, getStoreLifecycleDates } from "@/lib/plans";
+import {
+  safeSetItem,
+  safeGetItem,
+  safeRemoveItem,
+  safeSessionSetItem,
+  safeSessionGetItem,
+  safeSessionRemoveItem,
+  isSubdomainHost,
+} from "@/lib/storage";
 
 export type Role = "user" | "superadmin" | "client" | "admin";
 export type PlanType = "trial_14d" | "starter" | "brand" | "pro" | "Start" | "Creator" | "Brand" | "Brak";
@@ -417,6 +426,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Na publicznych subdomenach sklepów nie wczytujemy ani nie modyfikujemy stanu sesji twórcy
+    if (isSubdomainHost()) {
+      setIsAuthLoaded(true);
+      return;
+    }
+
     try {
       // 1. Wczytaj allUsers
       let loadedUsers: User[] = INITIAL_USERS;
@@ -428,7 +443,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
       if (loadedUsers.length <= 1) {
-        const saved = localStorage.getItem("iskra_users_v12");
+        const saved = safeGetItem("iskra_users_v12");
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
@@ -448,7 +463,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
       if (!loadedUser) {
-        const savedUser = localStorage.getItem("iskra_current_user_v12");
+        const savedUser = safeGetItem("iskra_current_user_v12");
         if (savedUser) {
           try {
             const parsed = JSON.parse(savedUser);
@@ -490,16 +505,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const [pendingEmail, setPendingEmailState] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return sessionStorage.getItem("iskra_pending_email") || null;
+    if (typeof window !== "undefined") return safeSessionGetItem("iskra_pending_email");
     return null;
   });
   const [pendingOTPCode, setPendingOTPCodeState] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return sessionStorage.getItem("iskra_pending_otp") || null;
+    if (typeof window !== "undefined") return safeSessionGetItem("iskra_pending_otp");
     return null;
   });
   const [pendingUserToVerify, setPendingUserToVerifyState] = useState<User | null>(() => {
     if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("iskra_pending_user");
+      const stored = safeSessionGetItem("iskra_pending_user");
       try { return stored ? JSON.parse(stored) : null; } catch (e) { return null; }
     }
     return null;
@@ -508,24 +523,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setPendingEmail = (email: string | null) => {
     setPendingEmailState(email);
     if (typeof window !== "undefined") {
-      if (email) sessionStorage.setItem("iskra_pending_email", email);
-      else sessionStorage.removeItem("iskra_pending_email");
+      if (email) safeSessionSetItem("iskra_pending_email", email);
+      else safeSessionRemoveItem("iskra_pending_email");
     }
   };
 
   const setPendingOTPCode = (code: string | null) => {
     setPendingOTPCodeState(code);
     if (typeof window !== "undefined") {
-      if (code) sessionStorage.setItem("iskra_pending_otp", code);
-      else sessionStorage.removeItem("iskra_pending_otp");
+      if (code) safeSessionSetItem("iskra_pending_otp", code);
+      else safeSessionRemoveItem("iskra_pending_otp");
     }
   };
 
   const setPendingUserToVerify = (u: User | null) => {
     setPendingUserToVerifyState(u);
     if (typeof window !== "undefined") {
-      if (u) sessionStorage.setItem("iskra_pending_user", JSON.stringify(u));
-      else sessionStorage.removeItem("iskra_pending_user");
+      if (u) safeSessionSetItem("iskra_pending_user", JSON.stringify(u));
+      else safeSessionRemoveItem("iskra_pending_user");
     }
   };
 
@@ -534,17 +549,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setAuthCookie("iskra_all_users", JSON.stringify(allUsers));
-      localStorage.setItem("iskra_users_v12", JSON.stringify(allUsers));
+    if (typeof window !== "undefined" && !isSubdomainHost()) {
+      const sanitizedUsers = allUsers.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        accountStatus: u.accountStatus,
+        plan: u.plan,
+        createdAt: u.createdAt,
+      }));
+      setAuthCookie("iskra_all_users", JSON.stringify(sanitizedUsers));
+      safeSetItem("iskra_users_v12", sanitizedUsers);
     }
   }, [allUsers]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (isSubdomainHost()) {
+        // Na subdomenie nie zapisujemy sesji użytkownika
+        return;
+      }
+
       if (user) {
-        setAuthCookie("iskra_session", JSON.stringify(user));
-        localStorage.setItem("iskra_current_user_v12", JSON.stringify(user));
+        // Optymalizacja pamięci sesji - tylko niezbędne metadane konta
+        const sanitizedSession = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          accountStatus: user.accountStatus,
+          plan: user.plan,
+          avatarUrl: user.avatarUrl,
+          activeStoreId: user.activeStoreId,
+          is2FAEnabled: user.is2FAEnabled,
+          isEmailVerified: user.isEmailVerified,
+        };
+
+        setAuthCookie("iskra_session", JSON.stringify(sanitizedSession));
+        safeSetItem("iskra_current_user_v12", sanitizedSession);
 
         // Automatyczna synchronizacja profilu i wszystkich sklepów użytkownika do bazy danych Supabase
         fetch("/api/auth/sync-user", {
@@ -566,14 +609,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         deleteAuthCookie("iskra_session");
-        localStorage.removeItem("iskra_current_user_v12");
+        safeRemoveItem("iskra_current_user_v12");
       }
     }
   }, [user]);
 
   // Background cross-device sync on load
   useEffect(() => {
-    if (!user?.email) return;
+    if (!user?.email || isSubdomainHost()) return;
     let isMounted = true;
     const syncUserCrossDevice = async () => {
       try {
@@ -623,8 +666,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.email]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_subs_history_v12", JSON.stringify(subscriptionHistory));
+    if (typeof window !== "undefined" && !isSubdomainHost()) {
+      safeSetItem("iskra_subs_history_v12", subscriptionHistory);
     }
   }, [subscriptionHistory]);
 

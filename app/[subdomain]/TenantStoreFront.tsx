@@ -5,6 +5,7 @@ import Link from "next/link";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import type { Product, StoreConfig } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
+import { safeSetItem, safeGetItem } from "@/lib/storage";
 
 const DEFAULT_PRODUCT_IMAGE =
   "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
@@ -342,8 +343,8 @@ export function TenantStoreFront({
 
     try {
       const visitKey = `iskra_visits_${subdomain}`;
-      const cur = Number(localStorage.getItem(visitKey) || "0");
-      localStorage.setItem(visitKey, String(cur + 1));
+      const cur = Number(safeGetItem(visitKey) || "0");
+      safeSetItem(visitKey, String(cur + 1));
     } catch {}
   }, [subdomain]);
 

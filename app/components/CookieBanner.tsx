@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { safeGetItem, safeSetItem } from "@/lib/storage";
 
 export default function CookieBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem("cookie_consent_accepted");
+    const consent = safeGetItem("cookie_consent_accepted");
     if (!consent) {
       // Small delay for smooth appearance
       const timer = setTimeout(() => setShow(true), 800);
@@ -15,12 +16,12 @@ export default function CookieBanner() {
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem("cookie_consent_accepted", "true");
+    safeSetItem("cookie_consent_accepted", "true");
     setShow(false);
   };
 
   const handleReject = () => {
-    localStorage.setItem("cookie_consent_accepted", "essential_only");
+    safeSetItem("cookie_consent_accepted", "essential_only");
     setShow(false);
   };
 
