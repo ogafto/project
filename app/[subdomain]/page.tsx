@@ -97,7 +97,8 @@ export default function TenantStorePage({ params }: PageProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            tenantId: subdomain,
+            storeId: asyncStore?.id || subdomain,
+            tenantId: asyncStore?.id || subdomain,
             productId: productId || "order_prod",
             customerEmail: "klient@iskral.pl",
             amountTotalCents: 10000,

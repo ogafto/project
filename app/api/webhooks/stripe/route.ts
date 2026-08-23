@@ -99,7 +99,6 @@ export async function POST(req: NextRequest) {
           const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           await dbAdmin.from("orders").insert({
             id: orderId,
-            tenant_id: tenantId,
             store_id: tenantId,
             stripe_session_id: session.id,
             total_amount: (amountTotalCents / 100).toFixed(2),

@@ -91,12 +91,13 @@ export async function GET(req: NextRequest) {
         const { data: storeOrders } = await dbClient
           .from("orders")
           .select("*")
-          .eq("tenant_id", st.id)
+          .eq("store_id", st.id)
           .order("created_at", { ascending: false });
 
         const mappedOrders = (storeOrders || []).map((o: any) => ({
           id: o.id || `ord_${Date.now()}`,
-          tenantId: o.tenant_id,
+          tenantId: o.store_id || st.id,
+          storeId: o.store_id || st.id,
           stripeSessionId: o.stripe_session_id || "",
           amountTotalCents: o.amount_total_cents || 0,
           status: o.status || "paid",

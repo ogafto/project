@@ -574,19 +574,20 @@ export default function AeuxDashboard({
     const stId = activeStorePackage?.id || currentStore.id;
     if (!stId || stId === "empty_store") return;
 
-    fetch(`/api/stores/order?tenantId=${encodeURIComponent(stId)}`)
+    fetch(`/api/stores/order?storeId=${encodeURIComponent(stId)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.success && Array.isArray(data.orders) && data.orders.length > 0) {
-          const mapped: OrderRecord[] = data.orders.map((o: any) => ({
-            id: o.id,
-            tenantId: o.tenant_id || o.store_id || stId,
-            stripeSessionId: o.stripe_session_id || "",
-            amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
+        const orderList = Array.isArray(data?.orders) ? data.orders : [];
+        if (orderList.length > 0) {
+          const mapped: OrderRecord[] = orderList.map((o: any) => ({
+            id: o.id || `ord_${Date.now()}`,
+            tenantId: o.store_id || o.storeId || o.tenant_id || stId,
+            stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
+            amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
             status: o.status || "paid",
-            customerEmail: o.customer_email || "klient@iskral.pl",
-            productTitle: o.product_title || "Zamówienie w sklepie",
-            createdAt: o.created_at || new Date().toISOString(),
+            customerEmail: o.customer_email || o.customerEmail || "klient@iskral.pl",
+            productTitle: o.product_title || o.productTitle || "Zamówienie w sklepie",
+            createdAt: o.created_at || o.createdAt || new Date().toISOString(),
           }));
           setLocalOrders(mapped);
           if (typeof window !== "undefined" && user) {
