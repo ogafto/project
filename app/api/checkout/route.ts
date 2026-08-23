@@ -4,9 +4,22 @@ import { supabaseAdmin, supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: any = {};
+    const contentType = req.headers.get("content-type") || "";
+    const isFormData =
+      contentType.includes("application/x-www-form-urlencoded") ||
+      contentType.includes("multipart/form-data");
+
+    if (isFormData) {
+      const formData = await req.formData();
+      body = Object.fromEntries(formData.entries());
+    } else {
+      body = await req.json().catch(() => ({}));
+    }
+
     const {
       tenantId,
+      storeId,
       productId,
       title,
       priceCents,
@@ -18,11 +31,17 @@ export async function POST(req: NextRequest) {
       packageId,
     } = body;
 
+    const resolvedTenantId = storeId || tenantId;
+
     const origin = req.headers.get("origin") || req.headers.get("referer") || "http://localhost:3000";
     const cleanOrigin = origin.replace(/\/$/, "");
 
     const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || "iskral.pl").toLowerCase().trim();
-    const isLocal = !process.env.NODE_ENV || process.env.NODE_ENV === "development" || cleanOrigin.includes("localhost") || cleanOrigin.includes("127.0.0.1");
+    const isLocal =
+      !process.env.NODE_ENV ||
+      process.env.NODE_ENV === "development" ||
+      cleanOrigin.includes("localhost") ||
+      cleanOrigin.includes("127.0.0.1");
     const rootDashboardOrigin = isLocal ? "http://localhost:3000" : `https://${rootDomain}`;
 
     let finalUnitAmountCents = Number(priceCents || 0);
@@ -70,7 +89,7 @@ export async function POST(req: NextRequest) {
             name: title || (isPlan ? `Pakiet SaaS ${planType}` : "Produkt"),
             description: isPlan
               ? `Subskrypcja pakietu ${planType} (${billingCycle || "miesiac"})`
-              : `Zakup ze sklepu ID: ${tenantId}`,
+              : `Zakup ze sklepu ID: ${resolvedTenantId}`,
           },
           unit_amount: finalUnitAmountCents,
         },
@@ -106,8 +125,8 @@ export async function POST(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        tenant_id: tenantId || "demo-tenant",
-        store_id: tenantId || "demo-tenant",
+        tenant_id: resolvedTenantId || "demo-tenant",
+        store_id: resolvedTenantId || "demo-tenant",
         product_id: productId || "demo-product",
         type: isPlan ? "plan" : "product",
         plan_type: planType || "",
@@ -119,6 +138,10 @@ export async function POST(req: NextRequest) {
         quantity: String(body.quantity || 1),
       },
     });
+
+    if (isFormData && session.url) {
+      return NextResponse.redirect(session.url, 303);
+    }
 
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (err: any) {
