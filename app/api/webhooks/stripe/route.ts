@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
-import { sendPurchaseConfirmationEmail } from "@/lib/email";
+import { sendPurchaseConfirmationEmail, sendCustomerOrderConfirmationEmail } from "@/lib/email";
 
 const formatDatePL = (date: Date) => {
   const monthsPL = [
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
           try {
             const { data: storeData } = await dbAdmin
               .from("stores")
-              .select("balance_cents")
+              .select("balance_cents, name")
               .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
               .maybeSingle();
 
@@ -193,6 +193,23 @@ export async function POST(req: NextRequest) {
               .from("stores")
               .update({ balance_cents: currentBalance + amountTotalCents })
               .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
+
+            // Send order confirmation to customer
+            if (customerEmail) {
+              const amountFormatted = `${(amountTotalCents / 100).toFixed(2).replace(".", ",")} zł`;
+              sendCustomerOrderConfirmationEmail({
+                to: customerEmail,
+                storeName: storeData?.name || "Sklep",
+                orderId,
+                amountTotalFormatted: amountFormatted,
+                items: [{ title: productTitle, quantity, amountCents: amountTotalCents, priceFormatted: amountFormatted }],
+                productTitle,
+                shippingMethod: shippingType,
+                paczkomatCode: paczkomatCode || undefined,
+                shippingAddress: shippingAddress || undefined,
+                customerName: customerName || undefined
+              }).catch((emailErr) => console.error("[Stripe Webhook Order Confirmation Email Error]:", emailErr));
+            }
           } catch (balErr) {
             console.warn("[Stripe Webhook] Balance update warning:", balErr);
           }

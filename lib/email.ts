@@ -523,3 +523,232 @@ export async function sendOrderShippedEmail({
   }
 }
 
+/**
+ * 5. Wysyłanie automatycznego potwierdzenia zakupu do klienta (Customer Order Confirmation)
+ */
+export async function sendCustomerOrderConfirmationEmail({
+  to,
+  storeName,
+  orderId,
+  amountTotalFormatted,
+  items,
+  productTitle,
+  shippingMethod,
+  paczkomatCode,
+  shippingAddress,
+  customerName,
+}: {
+  to: string;
+  storeName: string;
+  orderId: string;
+  amountTotalFormatted: string;
+  items?: Array<{
+    title?: string;
+    quantity?: number;
+    amountCents?: number;
+    priceFormatted?: string;
+    selectedVariant?: string;
+  }>;
+  productTitle?: string;
+  shippingMethod?: string;
+  paczkomatCode?: string;
+  shippingAddress?: string;
+  customerName?: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  const resend = getResendClient();
+  const cleanEmail = (to || "").trim().toLowerCase();
+
+  if (!resend) {
+    console.warn("[Resend Email] Pominięto wysyłkę e-maila - brak skonfigurowanego klucza RESEND_API_KEY.");
+    return { success: false, error: "Brak skonfigurowanego klucza RESEND_API_KEY." };
+  }
+
+  const shortOrderId = orderId.includes("_") ? orderId.split("_").pop() || orderId : orderId.slice(-8);
+  const subject = `Potwierdzenie zakupu – zamówienie #${shortOrderId} w sklepie ${storeName}`;
+
+  const itemsHtml = Array.isArray(items) && items.length > 0
+    ? items.map((it) => {
+        const itemPrice = it.priceFormatted || (it.amountCents ? `${(it.amountCents / 100).toFixed(2)} PLN` : "");
+        return `
+          <tr>
+            <td style="padding: 10px 0; font-size: 13px; color: #FFFFFF; border-bottom: 1px solid rgba(255,255,255,0.06);">
+              <div style="font-weight: 700; color: #FFFFFF;">${it.title || "Produkt"}</div>
+              ${it.selectedVariant ? `<div style="color: #A1A1AA; font-size: 11px; margin-top: 2px;">Wariant / Rozmiar: <strong style="color: #D0FF00;">${it.selectedVariant}</strong></div>` : ""}
+            </td>
+            <td align="center" style="padding: 10px 12px; font-size: 13px; color: #A1A1AA; font-family: monospace; border-bottom: 1px solid rgba(255,255,255,0.06);">
+              x${it.quantity || 1}
+            </td>
+            <td align="right" style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #D0FF00; font-family: monospace; border-bottom: 1px solid rgba(255,255,255,0.06);">
+              ${itemPrice}
+            </td>
+          </tr>
+        `;
+      }).join("")
+    : `
+        <tr>
+          <td style="padding: 10px 0; font-size: 13px; color: #FFFFFF; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-weight: 700; color: #FFFFFF;">${productTitle || "Zamówienie ze sklepu"}</div>
+          </td>
+          <td align="center" style="padding: 10px 12px; font-size: 13px; color: #A1A1AA; font-family: monospace; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            x1
+          </td>
+          <td align="right" style="padding: 10px 0; font-size: 13px; font-weight: 700; color: #D0FF00; font-family: monospace; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            ${amountTotalFormatted}
+          </td>
+        </tr>
+      `;
+
+  const deliveryInfoHtml = paczkomatCode
+    ? `
+        <tr>
+          <td style="padding: 6px 0; font-size: 12px; color: #707070;">Metoda doręczenia:</td>
+          <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #FFFFFF;">Paczkomat InPost</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 12px; color: #707070;">Oznaczenie Paczkomatu:</td>
+          <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #D0FF00; font-family: monospace;">${paczkomatCode}</td>
+        </tr>
+      `
+    : shippingAddress
+    ? `
+        <tr>
+          <td style="padding: 6px 0; font-size: 12px; color: #707070;">Metoda doręczenia:</td>
+          <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #FFFFFF;">Przesyłka kurierska</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 12px; color: #707070;">Adres doręczenia:</td>
+          <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">${shippingAddress}</td>
+        </tr>
+      `
+    : `
+        <tr>
+          <td style="padding: 6px 0; font-size: 12px; color: #707070;">Sposób dostawy:</td>
+          <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #10B981;">${shippingMethod || "Dostawa cyfrowa (e-mail)"}</td>
+        </tr>
+      `;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pl">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #090A0C; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #FFFFFF;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #090A0C; padding: 40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="100%" max-width="540" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #111216; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 36px 32px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);">
+                <tr>
+                  <td align="center" style="padding-bottom: 24px;">
+                    <div style="display: inline-block; padding: 6px 16px; background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 999px; color: #10B981; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;">
+                      ✓ Płatność Zaksięgowana
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom: 8px;">
+                    <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.5px;">
+                      Dziękujemy za zakupy!
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom: 28px; font-size: 14px; line-height: 1.6; color: #A1A1AA;">
+                    Twoje zamówienie <strong style="color: #FFFFFF;">#${shortOrderId}</strong> w sklepie <strong style="color: #D0FF00;">${storeName}</strong> zostało pomyślnie opłacone i przyjęte do realizacji.
+                  </td>
+                </tr>
+
+                <!-- STATUS ZAMÓWIENIA -->
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <div style="background-color: rgba(208, 255, 0, 0.08); border: 1px solid rgba(208, 255, 0, 0.25); border-radius: 16px; padding: 16px 20px; font-size: 13px; line-height: 1.5; color: #D0FF00; text-align: center;">
+                      ⚡ <strong>Status:</strong> Płatność została zaksięgowana. Zamówienie jest przygotowywane do wysyłki.
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- ZESTAWIENIE ZAKUPIONYCH PRODUKTÓW -->
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <div style="background-color: #090A0C; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 20px;">
+                      <span style="font-size: 11px; font-weight: 700; color: #707070; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 12px;">
+                        Zakupione produkty:
+                      </span>
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        ${itemsHtml}
+                        <tr>
+                          <td colspan="2" style="padding-top: 14px; font-size: 13px; font-weight: 700; color: #FFFFFF;">
+                            Łączna kwota:
+                          </td>
+                          <td align="right" style="padding-top: 14px; font-size: 16px; font-weight: 900; color: #D0FF00; font-family: monospace;">
+                            ${amountTotalFormatted}
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- DANE DOSTAWY -->
+                <tr>
+                  <td style="padding-bottom: 28px;">
+                    <div style="background-color: #090A0C; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 20px;">
+                      <span style="font-size: 11px; font-weight: 700; color: #707070; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 12px;">
+                        Dane do dostawy:
+                      </span>
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                        ${customerName ? `
+                          <tr>
+                            <td style="padding: 6px 0; font-size: 12px; color: #707070;">Odbiorca:</td>
+                            <td align="right" style="padding: 6px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">${customerName}</td>
+                          </tr>
+                        ` : ""}
+                        ${deliveryInfoHtml}
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td align="center" style="padding-bottom: 24px; font-size: 12px; color: #707070; line-height: 1.5;">
+                    ℹ️ <em>Otrzymasz kolejną wiadomość e-mail z potwierdzeniem nadania przesyłki w momencie jej wysłania przez sklep.</em>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11px; color: #505055; padding-top: 20px;">
+                    © ${new Date().getFullYear()} ${storeName} via IskraL Platform (iskral.pl). Wszelkie prawa zastrzeżone.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  try {
+    console.log(`[Resend Email] Wysyłanie potwierdzenia zakupu do klienta: order=${orderId} to=${cleanEmail} store=${storeName}`);
+    const result = await resend.emails.send({
+      from: SENDER_EMAIL,
+      to: [cleanEmail],
+      subject,
+      html,
+    });
+
+    if (result.error) {
+      console.error(`[Resend Email Error] Błąd potwierdzenia zamówienia na ${cleanEmail}:`, result.error);
+      return { success: false, error: result.error.message, data: result.error };
+    }
+
+    console.log(`[Resend Email Success] Pomyślnie wysłano potwierdzenie zamówienia id=${result.data?.id} to=${cleanEmail}`);
+    return { success: true, data: result.data };
+  } catch (err: any) {
+    console.error(`[Resend Email Exception] Wyjątek potwierdzenia zamówienia na ${cleanEmail}:`, err);
+    return { success: false, error: err.message || "Błąd wysyłania e-maila z potwierdzeniem zakupu" };
+  }
+}
+
+

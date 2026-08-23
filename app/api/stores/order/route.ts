@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
+import { sendCustomerOrderConfirmationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -115,6 +116,36 @@ export async function POST(req: NextRequest) {
       }
     } catch (storeErr) {
       console.warn("[API /api/stores/order update balance error]:", storeErr);
+    }
+
+    // 4. Wysyłanie e-maila transakcyjnego z potwierdzeniem zakupu do klienta
+    if (customerEmail && customerEmail.includes("@")) {
+      try {
+        let storeName = "IskraL Sklep";
+        const { data: stInfo } = await dbClient
+          .from("stores")
+          .select("name")
+          .or(`id.eq.${targetStoreId},subdomain.eq.${targetStoreId}`)
+          .maybeSingle();
+        if (stInfo?.name) storeName = stInfo.name;
+
+        const amountFormatted = `${((amountTotalCents || 0) / 100).toFixed(2)} PLN`;
+
+        sendCustomerOrderConfirmationEmail({
+          to: customerEmail,
+          storeName,
+          orderId,
+          amountTotalFormatted: amountFormatted,
+          items: resolvedItems,
+          productTitle: productTitle || resolvedItems[0]?.title,
+          shippingMethod: resolvedShippingDetails?.method,
+          paczkomatCode: paczkomatCode || resolvedShippingDetails?.paczkomat,
+          shippingAddress: shippingAddress || resolvedShippingDetails?.address,
+          customerName: customerName || resolvedShippingDetails?.name,
+        }).catch((emailErr) => console.error("[Order API Email Error]:", emailErr));
+      } catch (emailEx) {
+        console.error("[Order API Email Exception]:", emailEx);
+      }
     }
 
     return NextResponse.json({ success: true, order: orderData ? orderData[0] : orderPayload, orderId });
