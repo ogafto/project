@@ -9,10 +9,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - _static (static files)
      * - _vercel (Vercel deployment files)
-     * - favicon.ico, sitemap.xml, robots.txt
-     * - all static files with extensions (e.g. .svg, .png, .jpg, .css, .js)
+     * - favicon.ico, sitemap.xml, robots.txt, placeholders
      */
-    "/((?!api/|_next/static|_next/image|_static|_vercel|[\\w-]+\\.\\w+).*)",
+    "/((?!api/|_next/static|_next/image|_static|_vercel|favicon.ico|robots.txt|sitemap.xml|placeholders/).*)",
   ],
 };
 
@@ -26,6 +25,7 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/_static") ||
     pathname.startsWith("/_vercel") ||
+    pathname.startsWith("/placeholders") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();

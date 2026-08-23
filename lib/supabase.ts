@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
+declare global {
+  var __supabaseClient: any;
+  var __supabaseAdminClient: any;
+}
+
 // Helper to resolve Supabase credentials safely
 const getSupabaseCredentials = () => {
   const url =
@@ -21,43 +26,73 @@ const { url: supabaseUrl, anonKey: supabaseAnonKey, serviceKey: supabaseServiceR
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-let supabaseClient: any = null;
-let supabaseAdminClient: any = null;
-
-try {
-  if (isSupabaseConfigured) {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+// SINGLETON PATTERN: Use globalThis to avoid creating new connections on every serverless invocation
+if (!globalThis.__supabaseClient && isSupabaseConfigured) {
+  try {
+    globalThis.__supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: typeof window !== "undefined" },
+      global: {
+        headers: { "x-client-info": "iskral-saas-platform" },
+      },
     });
+  } catch (err) {
+    console.warn("[Supabase] Failed to initialize public Supabase client:", err);
   }
-} catch (err) {
-  console.warn("[Supabase] Failed to initialize public Supabase client:", err);
 }
 
-try {
-  if (supabaseUrl && supabaseServiceRoleKey) {
-    supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+if (!globalThis.__supabaseAdminClient && supabaseUrl && supabaseServiceRoleKey) {
+  try {
+    globalThis.__supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: {
+        headers: { "x-client-info": "iskral-saas-admin" },
+      },
     });
+  } catch (err) {
+    console.warn("[Supabase] Failed to initialize admin Supabase client:", err);
   }
-} catch (err) {
-  console.warn("[Supabase] Failed to initialize admin Supabase client:", err);
 }
 
-export const supabase = supabaseClient;
-export const supabaseAdmin = supabaseAdminClient || supabaseClient;
+export const supabase = globalThis.__supabaseClient;
+export const supabaseAdmin = globalThis.__supabaseAdminClient || globalThis.__supabaseClient;
 
 /**
- * Safe & fast query to fetch store by subdomain, custom domain, or ID
+ * Robust retry helper with exponential backoff & timeout to overcome cold starts
+ */
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 300): Promise<T | null> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await Promise.race([
+        fn(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Database operation timeout")), 4500)
+        ),
+      ]);
+      if (res) return res;
+    } catch (err: any) {
+      if (i === retries - 1) {
+        console.warn(`[Supabase withRetry] Attempt ${i + 1}/${retries} failed:`, err?.message || err);
+        return null;
+      }
+      await new Promise((r) => setTimeout(r, delayMs * Math.pow(1.5, i)));
+    }
+  }
+  return null;
+}
+
+/**
+ * Safe & fast query to fetch store by subdomain, custom domain, or ID with automatic retry
  */
 export async function fetchStoreFromSupabase(subdomain: string): Promise<any | null> {
   const cleanSub = (subdomain || "").trim().toLowerCase();
   if (!cleanSub) return null;
 
-  if (supabase) {
-    try {
-      // Zapytanie 1: szukamy po subdomenie (najczęstszy przypadek)
-      const { data: bySubdomain, error: err1 } = await (supabase as any)
+  const dbClient: any = supabaseAdmin || supabase;
+
+  if (dbClient) {
+    const store = await withRetry(async () => {
+      // 1. Szukamy po subdomenie
+      const { data: bySubdomain, error: err1 } = await dbClient
         .from("stores")
         .select("*")
         .eq("subdomain", cleanSub)
@@ -68,8 +103,8 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         return bySubdomain[0];
       }
 
-      // Zapytanie 2: szukamy po własnej domenie
-      const { data: byDomain, error: err2 } = await (supabase as any)
+      // 2. Szukamy po własnej domenie
+      const { data: byDomain, error: err2 } = await dbClient
         .from("stores")
         .select("*")
         .eq("custom_domain", cleanSub)
@@ -80,8 +115,8 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         return byDomain[0];
       }
 
-      // Zapytanie 3: szukamy po ID (fallback)
-      const { data: byId, error: err3 } = await (supabase as any)
+      // 3. Szukamy po ID
+      const { data: byId, error: err3 } = await dbClient
         .from("stores")
         .select("*")
         .eq("id", cleanSub)
@@ -91,9 +126,11 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
       if (!err3 && byId && byId.length > 0) {
         return byId[0];
       }
-    } catch (err) {
-      console.warn("[Supabase] Direct store fetch error, attempting API fallback:", err);
-    }
+
+      return null;
+    }, 3, 250);
+
+    if (store) return store;
   }
 
   // Fallback: pobieranie przez wewnętrzne API serwera
@@ -115,6 +152,48 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
 }
 
 /**
+ * Safe & fast query to fetch products for a store ID with automatic retry
+ */
+export async function fetchProductsFromSupabase(storeId: string): Promise<any[]> {
+  if (!storeId) return [];
+
+  const dbClient: any = supabaseAdmin || supabase;
+
+  if (dbClient) {
+    const products = await withRetry(async () => {
+      const { data, error } = await dbClient
+        .from("products")
+        .select("*")
+        .eq("store_id", storeId);
+
+      if (!error && data) {
+        return data;
+      }
+      return null;
+    }, 3, 250);
+
+    if (products) return products;
+  }
+
+  // Fallback API
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch(`/api/stores/sync?subdomain=${encodeURIComponent(storeId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.products) {
+          return json.products;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("[Supabase] Products API fallback error:", apiErr);
+    }
+  }
+
+  return [];
+}
+
+/**
  * Fetch all stores associated with a specific user (by userId or userEmail)
  */
 export async function fetchUserStoresFromSupabase(userId?: string, userEmail?: string): Promise<any[]> {
@@ -122,7 +201,7 @@ export async function fetchUserStoresFromSupabase(userId?: string, userEmail?: s
 
   const dbClient: any = supabaseAdmin || supabase;
   if (dbClient) {
-    try {
+    const stores = await withRetry(async () => {
       let query = dbClient.from("stores").select("*").neq("status", "deleted");
 
       if (userId) {
@@ -133,9 +212,10 @@ export async function fetchUserStoresFromSupabase(userId?: string, userEmail?: s
       if (!error && data && data.length > 0) {
         return data;
       }
-    } catch (err) {
-      console.warn("[Supabase] Fetch user stores error, trying API fallback:", err);
-    }
+      return null;
+    }, 2, 300);
+
+    if (stores) return stores;
   }
 
   // API fallback
@@ -178,10 +258,11 @@ export async function checkSubdomainAvailability(
     return { available: false, reason: "Ta nazwa jest zastrzeżona przez system." };
   }
 
-  if (!supabase) return { available: true };
+  const dbClient: any = supabaseAdmin || supabase;
+  if (!dbClient) return { available: true };
 
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await dbClient
       .from("stores")
       .select("id, subdomain, status, is_active, grace_period_ends_at")
       .eq("subdomain", cleanSub)
@@ -216,49 +297,10 @@ export async function checkSubdomainAvailability(
 }
 
 /**
- * Safe & fast query to fetch products for a store ID
- */
-export async function fetchProductsFromSupabase(storeId: string): Promise<any[]> {
-  if (!storeId) return [];
-
-  if (supabase) {
-    try {
-      const { data, error } = await (supabase as any)
-        .from("products")
-        .select("*")
-        .eq("store_id", storeId);
-
-      if (!error && data) {
-        return data;
-      }
-    } catch (err) {
-      console.warn(`[Supabase] Products query warning for store '${storeId}':`, err);
-    }
-  }
-
-  // Fallback API
-  if (typeof window !== "undefined") {
-    try {
-      const res = await fetch(`/api/stores/sync?subdomain=${encodeURIComponent(storeId)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.products) {
-          return json.products;
-        }
-      }
-    } catch (apiErr) {
-      console.warn("[Supabase] Products API fallback error:", apiErr);
-    }
-  }
-
-  return [];
-}
-
-/**
  * Fast Supabase insert / update helper for store creation
  */
 export async function upsertStoreInSupabase(storeData: any, ownerId?: string): Promise<boolean> {
-  const client: any = supabaseAdminClient || supabaseClient;
+  const client: any = supabaseAdmin || supabase;
   if (!client) {
     console.warn("[Supabase] No client available for store upsert");
     return false;
