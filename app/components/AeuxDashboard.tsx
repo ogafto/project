@@ -151,7 +151,7 @@ export default function AeuxDashboard({
   message,
   setMessage,
 }: AeuxDashboardProps) {
-  // Navigation tabs with URL hash and localStorage memory on F5 refresh:
+  // Navigation tabs with URL hash (domyślnie ZAWSZE główny Pulpit po wejściu):
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "") as TabType;
@@ -176,9 +176,7 @@ export default function AeuxDashboard({
         "drop",
         "ustawienia",
       ];
-      if (validTabs.includes(hash)) return hash;
-      const saved = localStorage.getItem("iskra_dashboard_tab") as TabType;
-      if (validTabs.includes(saved)) return saved;
+      if (hash && hash !== "pulpit" && validTabs.includes(hash)) return hash;
     }
     return "pulpit";
   });
@@ -186,7 +184,6 @@ export default function AeuxDashboard({
   const setActiveTab = (tab: TabType) => {
     setActiveTabState(tab);
     if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_dashboard_tab", tab);
       try {
         window.history.replaceState(null, "", `${window.location.pathname}#${tab}`);
       } catch {}
@@ -212,29 +209,27 @@ export default function AeuxDashboard({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activeMapTooltip, setActiveMapTooltip] = useState(true);
 
-  // Product Modals & States
+  // Product Modals & States (Czysty stan bez domyślnych danych)
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productSubTab, setProductSubTab] = useState<"list" | "add">("list");
   const [prodName, setProdName] = useState("");
-  const [prodPrice, setProdPrice] = useState("249.00");
-  const [prodComparePrice, setProdComparePrice] = useState("319.00");
+  const [prodPrice, setProdPrice] = useState("");
+  const [prodComparePrice, setProdComparePrice] = useState("");
   const [prodType, setProdType] = useState<"Fizyczny" | "Cyfrowy">("Fizyczny");
-  const [isClothing, setIsClothing] = useState(true);
+  const [isClothing, setIsClothing] = useState(false);
   const [sizeStocks, setSizeStocks] = useState<Record<string, number>>({
-    XS: 5,
-    S: 15,
-    M: 25,
-    L: 20,
-    XL: 10,
-    XXL: 5,
+    XS: 0,
+    S: 0,
+    M: 0,
+    L: 0,
+    XL: 0,
+    XXL: 0,
   });
-  const [prodStock, setProdStock] = useState("75");
+  const [prodStock, setProdStock] = useState("50");
   const [prodDescription, setProdDescription] = useState("");
   const [prodImage, setProdImage] = useState("");
-  const [prodImages, setProdImages] = useState<string[]>([
-    "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80",
-  ]);
+  const [prodImages, setProdImages] = useState<string[]>([]);
   const [imageInputUrl, setImageInputUrl] = useState("");
   const [digitalFile, setDigitalFile] = useState<{ name: string; size: string; url?: string } | null>(null);
   const [isScheduledLaunch, setIsScheduledLaunch] = useState(false);
@@ -417,19 +412,8 @@ export default function AeuxDashboard({
   const [configDescription, setConfigDescription] = useState("");
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
 
-  // Active Store Management View state (Strictly scoped per user)
-  const [activeStorePackage, setActiveStorePackage] = useState<UserPackage | null>(() => {
-    if (typeof window !== "undefined" && user) {
-      const key = getUserKey(user);
-      const saved = localStorage.getItem(`iskra_active_store_${key}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return null;
-  });
+  // Active Store Management View state (domyślnie null na wejściu do panelu - użytkownik sam wybiera sklep z listy)
+  const [activeStorePackage, setActiveStorePackage] = useState<UserPackage | null>(null);
 
   // Upgrade Modal State
   const [upgradingPackage, setUpgradingPackage] = useState<UserPackage | null>(null);
@@ -766,19 +750,6 @@ export default function AeuxDashboard({
     setUserPackages(pkgs);
 
     if (typeof window !== "undefined") {
-      const savedStore = localStorage.getItem(`iskra_active_store_${key}`);
-      if (savedStore) {
-        try {
-          setActiveStorePackage(JSON.parse(savedStore));
-        } catch {}
-      } else if (pkgs.length > 0) {
-        const configured = pkgs.find((p) => p.isConfigured);
-        if (configured) setActiveStorePackage(configured);
-        else setActiveStorePackage(null);
-      } else {
-        setActiveStorePackage(null);
-      }
-
       const savedProds = localStorage.getItem(`iskra_products_${key}`);
       if (savedProds) {
         try {
@@ -866,11 +837,6 @@ export default function AeuxDashboard({
                   localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(serverPkgs));
                   return serverPkgs;
                 });
-                const configured = serverPkgs.find((p) => p.isConfigured);
-                if (configured) {
-                  setActiveStorePackage(configured);
-                  localStorage.setItem(`iskra_active_store_${key}`, JSON.stringify(configured));
-                }
               }
 
               // Synchronizuj produkty aktywnego sklepu z bazy danych
@@ -1528,6 +1494,21 @@ export default function AeuxDashboard({
     const defaultImg = prodImages[0] || prodImage || "";
     const allImages = prodImages.length > 0 ? prodImages : (defaultImg ? [defaultImg] : []);
     const targetStoreId = activeStorePackage?.id || currentStore.id;
+    const targetSubdomain = activeStorePackage?.subdomain || currentStore.subdomain;
+
+    console.log("DODAWANIE PRODUKTU DANE:", {
+      name: prodName,
+      price: prodPrice,
+      priceNum,
+      comparePrice: prodComparePrice,
+      type: prodType,
+      stock: totalStock,
+      description: prodDescription,
+      images: allImages,
+      isDigital,
+      storeId: targetStoreId,
+      subdomain: targetSubdomain,
+    });
 
     if (editingProductId) {
       let updatedProductObj: any = null;
@@ -1559,11 +1540,15 @@ export default function AeuxDashboard({
       });
       saveProductsList(updated);
 
+      if (updateProduct && updatedProductObj) {
+        updateProduct(updatedProductObj.id, updatedProductObj);
+      }
+
       if (targetStoreId && updatedProductObj) {
         fetch("/api/stores/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product: updatedProductObj, storeId: targetStoreId }),
+          body: JSON.stringify({ product: updatedProductObj, storeId: targetStoreId, subdomain: targetSubdomain }),
         }).catch((err) => console.warn("Product direct update error:", err));
       }
 
@@ -1593,11 +1578,15 @@ export default function AeuxDashboard({
       };
       saveProductsList([newProduct, ...localProducts]);
 
+      if (addProduct) {
+        addProduct(newProduct);
+      }
+
       if (targetStoreId) {
         fetch("/api/stores/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ product: newProduct, storeId: targetStoreId }),
+          body: JSON.stringify({ product: newProduct, storeId: targetStoreId, subdomain: targetSubdomain }),
         }).catch((err) => console.warn("Product direct create error:", err));
       }
 
@@ -1858,6 +1847,20 @@ export default function AeuxDashboard({
                     </button>
                   </div>
 
+                  {/* Przycisk powrotu do wszystkich pakietów w mobilnym menu */}
+                  <div className="mb-3">
+                    <button
+                      onClick={() => {
+                        setActiveStorePackage(null);
+                        setActiveTab("pulpit");
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-['Poppins',sans-serif]"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
+                      <span>Wszystkie pakiety</span>
+                    </button>
+                  </div>
+
                   {/* Karta aktywnego sklepu w mobilnym menu */}
                   <div className="mb-4">
                     <div className="p-3 bg-[#0D0E12] border border-[#17181F] rounded-2xl flex items-center gap-3">
@@ -2077,7 +2080,10 @@ export default function AeuxDashboard({
               {/* Przycisk powrotu do wszystkich pakietów */}
               <div className="px-[36px] mb-4">
                 <button
-                  onClick={() => setActiveTab("pulpit")}
+                  onClick={() => {
+                    setActiveStorePackage(null);
+                    setActiveTab("pulpit");
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-['Poppins',sans-serif]"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
