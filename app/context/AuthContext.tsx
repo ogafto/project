@@ -409,53 +409,62 @@ const DEFAULT_TEMPLATES: StoreTemplateItem[] = [
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [allUsers, setAllUsers] = useState<User[]>(() => {
-    if (typeof window !== "undefined") {
+  const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoaded, setIsAuthLoaded] = useState<boolean>(false);
+
+  // Load auth state safely after client mount (eliminates SSR hydration mismatch & mobile session drops)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      // 1. Wczytaj allUsers
+      let loadedUsers: User[] = INITIAL_USERS;
       const cookieAllUsers = getAuthCookie("iskra_all_users");
       if (cookieAllUsers) {
         try {
-          const parsed: User[] = JSON.parse(cookieAllUsers);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
+          const parsed = JSON.parse(cookieAllUsers);
+          if (Array.isArray(parsed) && parsed.length > 0) loadedUsers = parsed;
         } catch {}
       }
-      const saved = localStorage.getItem("iskra_users_v12");
-      if (saved) {
-        try {
-          const parsed: User[] = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        } catch {}
+      if (loadedUsers.length <= 1) {
+        const saved = localStorage.getItem("iskra_users_v12");
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) loadedUsers = parsed;
+          } catch {}
+        }
       }
-    }
-    return INITIAL_USERS;
-  });
+      setAllUsers(loadedUsers);
 
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
+      // 2. Wczytaj bieżącego użytkownika (sesja)
+      let loadedUser: User | null = null;
       const cookieUser = getAuthCookie("iskra_session");
       if (cookieUser) {
         try {
           const parsed = JSON.parse(cookieUser);
-          if (parsed && parsed.email) {
-            return parsed;
-          }
+          if (parsed && parsed.email) loadedUser = parsed;
         } catch {}
       }
-      const savedUser = localStorage.getItem("iskra_current_user_v12");
-      if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          if (parsed && parsed.email) {
-            return parsed;
-          }
-        } catch {}
+      if (!loadedUser) {
+        const savedUser = localStorage.getItem("iskra_current_user_v12");
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed && parsed.email) loadedUser = parsed;
+          } catch {}
+        }
       }
+      if (loadedUser) {
+        setUser(loadedUser);
+      }
+    } catch (err) {
+      console.warn("[Auth] Initialization warning:", err);
+    } finally {
+      setIsAuthLoaded(true);
     }
-    return null;
-  });
+  }, []);
 
   const [subscriptionHistory, setSubscriptionHistory] = useState<SaaSSubscriptionRecord[]>(() => {
     return DEFAULT_SUBSCRIPTION_HISTORY;

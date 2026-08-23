@@ -1,6 +1,3 @@
-export const AUTH_COOKIE_DOMAIN =
-  process.env.NODE_ENV === "production" ? ".iskral.pl" : undefined;
-
 export interface CookieOptions {
   days?: number;
   domain?: string;
@@ -8,6 +5,22 @@ export interface CookieOptions {
   sameSite?: "Lax" | "Strict" | "None";
   secure?: boolean;
 }
+
+/**
+ * Dynamically resolves cookie domain based on current host
+ * On iskral.pl / *.iskral.pl -> returns '.iskral.pl' for cross-subdomain sharing
+ * On localhost, mobile direct IPs, Vercel previews -> returns undefined to prevent browser rejection
+ */
+export function getCookieDomain(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const hostname = window.location.hostname.toLowerCase();
+  if (hostname.endsWith(".iskral.pl") || hostname === "iskral.pl") {
+    return ".iskral.pl";
+  }
+  return undefined;
+}
+
+export const AUTH_COOKIE_DOMAIN = getCookieDomain();
 
 /**
  * Helper to get the canonical store URL (e.g. https://gigant.iskral.pl or http://gigant.localhost:3000)
@@ -39,8 +52,7 @@ export function getStoreUrl(subdomain: string, customDomain?: string): string {
 }
 
 /**
- * Sets an authentication cookie with cross-subdomain support (.iskral.pl in production)
- * Default options: path='/', sameSite='Lax', secure=true in production or https
+ * Sets an authentication cookie with safe cross-subdomain and mobile support
  */
 export function setAuthCookie(
   name: string,
@@ -51,13 +63,10 @@ export function setAuthCookie(
 
   const days = options.days ?? 30;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  const domain = options.domain !== undefined ? options.domain : AUTH_COOKIE_DOMAIN;
+  const domain = options.domain !== undefined ? options.domain : getCookieDomain();
   const path = options.path ?? "/";
   const sameSite = options.sameSite ?? "Lax";
-  const isSecure =
-    options.secure ??
-    (process.env.NODE_ENV === "production" ||
-      (typeof window !== "undefined" && window.location.protocol === "https:"));
+  const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
 
   const domainAttr = domain ? `; domain=${domain}` : "";
   const secureAttr = isSecure ? "; Secure" : "";
@@ -89,12 +98,9 @@ export function deleteAuthCookie(
 ) {
   if (typeof document === "undefined") return;
 
-  const domain = options.domain !== undefined ? options.domain : AUTH_COOKIE_DOMAIN;
+  const domain = options.domain !== undefined ? options.domain : getCookieDomain();
   const path = options.path ?? "/";
-  const isSecure =
-    options.secure ??
-    (process.env.NODE_ENV === "production" ||
-      (typeof window !== "undefined" && window.location.protocol === "https:"));
+  const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
 
   const domainAttr = domain ? `; domain=${domain}` : "";
   const secureAttr = isSecure ? "; Secure" : "";
