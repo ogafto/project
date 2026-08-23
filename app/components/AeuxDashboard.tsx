@@ -50,6 +50,14 @@ import {
   Store,
   DollarSign,
   ShoppingCart,
+  Sliders,
+  Send,
+  Download,
+  Calendar,
+  Tag,
+  AlertCircle,
+  FileText,
+  Key,
 } from "lucide-react";
 import {
   User,
@@ -73,19 +81,30 @@ export interface UserPackage {
   description?: string;
   isConfigured: boolean;
   visitsCount?: number;
+  teamMembers?: Array<{ email: string; role: string; addedAt: string }>;
+  ownerEmail?: string;
 }
 
 export type TabType =
   | "pulpit"
   | "produkty"
-  | "zamowienia"
-  | "pakiety"
   | "kreator"
-  | "drop"
-  | "ustawienia"
   | "profil"
   | "konfiguracja-sklepu"
-  | "zarzadzaj-sklepem";
+  | "zarzadzaj-sklepem"
+  | "sklep-edytor"
+  | "sklep-produkty"
+  | "sklep-zamowienia"
+  | "sklep-domena"
+  | "sklep-platnosci"
+  | "sklep-newsletter"
+  | "sklep-zespol"
+  | "sklep-drop"
+  | "sklep-seo"
+  | "zamowienia"
+  | "pakiety"
+  | "drop"
+  | "ustawienia";
 
 interface AeuxDashboardProps {
   user: User | null;
@@ -135,14 +154,23 @@ export default function AeuxDashboard({
       const validTabs: TabType[] = [
         "pulpit",
         "produkty",
-        "zamowienia",
-        "pakiety",
         "kreator",
-        "drop",
-        "ustawienia",
         "profil",
         "konfiguracja-sklepu",
         "zarzadzaj-sklepem",
+        "sklep-edytor",
+        "sklep-produkty",
+        "sklep-zamowienia",
+        "sklep-domena",
+        "sklep-platnosci",
+        "sklep-newsletter",
+        "sklep-zespol",
+        "sklep-drop",
+        "sklep-seo",
+        "zamowienia",
+        "pakiety",
+        "drop",
+        "ustawienia",
       ];
       if (validTabs.includes(hash)) return hash;
       const saved = localStorage.getItem("iskra_dashboard_tab") as TabType;
@@ -178,17 +206,32 @@ export default function AeuxDashboard({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [activeMapTooltip, setActiveMapTooltip] = useState(true);
 
-  // Modals
+  // Product Modals & States
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [productSubTab, setProductSubTab] = useState<"list" | "add">("list");
   const [prodName, setProdName] = useState("");
-  const [prodPrice, setProdPrice] = useState("149.00");
-  const [prodComparePrice, setProdComparePrice] = useState("199.00");
+  const [prodPrice, setProdPrice] = useState("249.00");
+  const [prodComparePrice, setProdComparePrice] = useState("319.00");
   const [prodType, setProdType] = useState<"Fizyczny" | "Cyfrowy">("Fizyczny");
-  const [prodStock, setProdStock] = useState("50");
-  const [prodVariants, setProdVariants] = useState<string[]>(["S", "M", "L", "XL"]);
+  const [isClothing, setIsClothing] = useState(true);
+  const [sizeStocks, setSizeStocks] = useState<Record<string, number>>({
+    XS: 5,
+    S: 15,
+    M: 25,
+    L: 20,
+    XL: 10,
+    XXL: 5,
+  });
+  const [prodStock, setProdStock] = useState("75");
   const [prodDescription, setProdDescription] = useState("");
   const [prodImage, setProdImage] = useState("");
+  const [prodImages, setProdImages] = useState<string[]>([
+    "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80",
+  ]);
+  const [digitalFile, setDigitalFile] = useState<{ name: string; size: string; url?: string } | null>(null);
+  const [isScheduledLaunch, setIsScheduledLaunch] = useState(false);
+  const [scheduledLaunchDate, setScheduledLaunchDate] = useState("2026-09-01T18:00");
 
   // Billing Interval for Packages ("miesiac" | "rok")
   const [billingInterval, setBillingInterval] = useState<"miesiac" | "rok">("miesiac");
@@ -244,7 +287,6 @@ export default function AeuxDashboard({
   const [editingPackageName, setEditingPackageName] = useState("");
 
   // Store Configurator State
-  const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedPackageForConfig, setSelectedPackageForConfig] = useState<UserPackage | null>(null);
   const [configStoreName, setConfigStoreName] = useState("");
   const [configSubdomain, setConfigSubdomain] = useState("");
@@ -253,7 +295,17 @@ export default function AeuxDashboard({
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
 
   // Active Store Management View state
-  const [activeStorePackage, setActiveStorePackage] = useState<UserPackage | null>(null);
+  const [activeStorePackage, setActiveStorePackage] = useState<UserPackage | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("iskra_active_store_pkg");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return null;
+  });
 
   // Upgrade Modal State
   const [upgradingPackage, setUpgradingPackage] = useState<UserPackage | null>(null);
@@ -263,6 +315,13 @@ export default function AeuxDashboard({
   const hasActiveStore = Boolean(configuredPackage);
   const activeSubdomain = configuredPackage?.subdomain || "";
   const liveStoreUrl = `https://${activeSubdomain}.iskral.pl`;
+
+  const isStoreMode =
+    activeTab === "zarzadzaj-sklepem" ||
+    activeTab.startsWith("sklep-") ||
+    activeTab === "zamowienia" ||
+    activeTab === "drop" ||
+    activeTab === "ustawienia";
 
   const currentStore: StoreConfig = activeStore || (userStores.length > 0 ? userStores[0] : {
     id: configuredPackage?.id || "empty_store",
@@ -289,286 +348,322 @@ export default function AeuxDashboard({
     payoutHistory: [],
     customers: [],
     campaigns: [],
-    team: [],
+team: [],
     socials: {
       instagram: "",
       tiktok: "",
     },
   });
 
-  // Stats calculation
-  const storeOrders = currentStore.orders || [];
-  const storeProducts = currentStore.products || [];
-  const paidOrders = storeOrders.filter((o) => o.status === "paid");
-  const totalRevenueCents = paidOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), currentStore.balanceCents || 0);
-  const totalRevenuePLN = (totalRevenueCents / 100).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const totalOrdersCount = paidOrders.length;
-  const aovPLN = totalOrdersCount > 0 ? (totalRevenueCents / totalOrdersCount / 100).toFixed(2) : "0.00";
+  const defaultSampleProducts: Product[] = [
+    {
+      id: "prod_1",
+      name: "Heavyweight Boxy Hoodie Black",
+      price: "249.00 zł",
+      priceCents: 24900,
+      comparePrice: "319.00 zł",
+      comparePriceCents: 31900,
+      type: "Fizyczny",
+      status: "Aktywny",
+      sales: 14,
+      stock: 75,
+      description: "Krój boxy fit, gramatura 460 GSM, 100% czesana bawełna organiczna. Wyprodukowano w Polsce.",
+      image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80",
+      images: ["https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80"],
+      variants: ["XS", "S", "M", "L", "XL", "XXL"],
+    },
+    {
+      id: "prod_2",
+      name: "Acid Wash Oversize Tee 'Cyber'",
+      price: "129.00 zł",
+      priceCents: 12900,
+      comparePrice: "169.00 zł",
+      comparePriceCents: 16900,
+      type: "Fizyczny",
+      status: "Aktywny",
+      sales: 28,
+      stock: 60,
+      description: "Efekt acid wash, gramatura 240 GSM, sitodruk najwyższej trwałości.",
+      image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80",
+      images: ["https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"],
+      variants: ["S", "M", "L", "XL"],
+    },
+    {
+      id: "prod_3",
+      name: "Streetwear Vector Pack 2026",
+      price: "79.00 zł",
+      priceCents: 7900,
+      type: "Cyfrowy",
+      status: "Aktywny",
+      isDigital: true,
+      digitalFileName: "streetwear_vectors_vol1.zip",
+      digitalFileSize: "42.5 MB",
+      sales: 9,
+      stock: 999,
+      description: "Ponad 120 wektorowych grafik i assetów do projektowania odzieży (AI, SVG, PNG).",
+      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+      images: ["https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"],
+    },
+  ];
 
-  // Handlers for packages with Stripe and Email integration
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const checkoutStatus = params.get("checkout");
-
-    if (checkoutStatus === "success") {
-      const plan = (params.get("plan") as "Start" | "Creator" | "Brand") || "Creator";
-      const billing = params.get("billing") || "miesiac";
-      const action = params.get("action") || "buy";
-      const pkgIdParam =
-        params.get("package_id") ||
-        params.get("pkg_id") ||
-        localStorage.getItem("iskra_last_checkout_pkg_id");
-      const isYearly = billing === "rok";
-      const durationDays = isYearly ? 365 : 30;
-
-      if (action === "extend" && pkgIdParam) {
-        setUserPackages((prev) => {
-          const updated = prev.map((p) => {
-            if (p.id === pkgIdParam) {
-              const currentExp = new Date(p.expiresAt).getTime();
-              const base = currentExp > Date.now() ? currentExp : Date.now();
-              return { ...p, expiresAt: new Date(base + durationDays * 86400000).toISOString() };
-            }
-            return p;
-          });
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-          return updated;
-        });
-        localStorage.removeItem("iskra_last_checkout_pkg_id");
-        if (setMessage) {
-          setMessage({ type: "success", text: "🎉 Pomyślnie przedłużono subskrypcję pakietu o 30 dni przez Stripe!" });
-        }
-      } else if (action === "upgrade" && pkgIdParam) {
-        setUserPackages((prev) => {
-          const updated = prev.map((p) => {
-            if (p.id === pkgIdParam) {
-              return {
-                ...p,
-                planType: plan,
-                name: p.name.includes("Pakiet") ? `Pakiet ${plan} #${p.number}` : p.name,
-                price: plan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
-              };
-            }
-            return p;
-          });
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-          return updated;
-        });
-        localStorage.removeItem("iskra_last_checkout_pkg_id");
-        if (setMessage) {
-          setMessage({ type: "success", text: `🎉 Pakiet został pomyślnie ulepszony do ${plan}!` });
-        }
-      } else if (action === "buy" || !pkgIdParam) {
-        const pkgNum = Math.floor(1000 + Math.random() * 9000);
-        const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
-        const priceLabel = isYearly
-          ? plan === "Creator" ? "14.99 zł / msc (Rocznie)" : "29.99 zł / msc (Rocznie)"
-          : plan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc";
-
-        const newPkg: UserPackage = {
-          id: `pkg_${Date.now()}_${pkgNum}`,
-          number: pkgNum,
-          name: `Pakiet ${plan} #${pkgNum}`,
-          planType: plan,
-          price: priceLabel,
-          expiresAt,
-          isConfigured: false,
-        };
-
-        setUserPackages((prev) => {
-          const exists = prev.some((p) => p.name === newPkg.name);
-          if (exists) return prev;
-          const updated = [newPkg, ...prev];
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-          return updated;
-        });
-
-        // Send transactional email
-        if (user?.email) {
-          fetch("/api/auth/send-plan-confirmation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: user.email,
-              planName: `Pakiet ${plan}`,
-              amountFormatted: priceLabel,
-              expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
-              dashboardUrl: window.location.origin + "/dashboard",
-            }),
-          }).catch(() => {});
-        }
-
-        if (setMessage) {
-          setMessage({
-            type: "success",
-            text: `🎉 Płatność zakończona sukcesem! Aktywowano Pakiet ${plan} #${pkgNum}.`,
-          });
-        }
-
-        setSelectedPackageForConfig(newPkg);
-        setConfigStoreName("");
-        setConfigSubdomain("");
-        setConfigLogo("");
-        setConfigDescription("");
-        setActiveTab("konfiguracja-sklepu");
+  const [localProducts, setLocalProducts] = useState<Product[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("iskra_store_products");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
       }
-
-      // Clean URL params
-      const currentTabHash = window.location.hash || "#pulpit";
-      window.history.replaceState(null, "", window.location.pathname + currentTabHash);
-    } else if (checkoutStatus === "cancelled") {
-      if (setMessage) {
-        setMessage({ type: "warning", text: "Płatność Stripe została anulowana." });
-      }
-      const currentTabHash = window.location.hash || "#pulpit";
-      window.history.replaceState(null, "", window.location.pathname + currentTabHash);
     }
-  }, [user?.email, setMessage]);
-
-  const handleBuyPackage = async (planType: "Start" | "Creator" | "Brand") => {
-    const isYearly = billingInterval === "rok" && planType !== "Start";
-    const durationDays = planType === "Start" ? 14 : isYearly ? 365 : 30;
-    const priceLabel = planType === "Start"
-      ? "14 dni za darmo"
-      : isYearly
-      ? planType === "Creator"
-        ? "14.99 zł / msc (Rocznie)"
-        : "29.99 zł / msc (Rocznie)"
-      : planType === "Creator"
-      ? "29.99 zł / msc"
-      : "59.99 zł / msc";
-
-    if (planType === "Start") {
-      const pkgNum = Math.floor(1000 + Math.random() * 9000);
-      const expiresAt = new Date(Date.now() + 14 * 86400000).toISOString();
-      const newPkg: UserPackage = {
-        id: `pkg_${Date.now()}_${pkgNum}`,
-        number: pkgNum,
-        name: `Pakiet Start #${pkgNum}`,
-        planType: "Start",
-        price: "14 dni za darmo",
-        expiresAt,
-        isConfigured: false,
-      };
-
-      setUserPackages((prev) => {
-        const updated = [newPkg, ...prev];
-        if (typeof window !== "undefined") {
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-        }
-        return updated;
-      });
-
-      // Send email confirmation
-      if (user?.email) {
-        fetch("/api/auth/send-plan-confirmation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: user.email,
-            planName: "Pakiet Start (Trial 14 dni)",
-            amountFormatted: "0.00 PLN",
-            expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
-            dashboardUrl: window.location.origin + "/dashboard",
-          }),
-        }).catch(() => {});
-      }
-
-      if (setMessage) {
-        setMessage({
-          type: "success",
-          text: `🎉 Aktywowano Pakiet Start #${pkgNum}! Możesz teraz skonfigurować swój sklep.`,
-        });
-      }
-
-      setSelectedPackageForConfig(newPkg);
-      setConfigStoreName("");
-      setConfigSubdomain("");
-      setConfigLogo("");
-      setShowConfigModal(true);
-      return;
+    if (currentStore.products && currentStore.products.length > 0) {
+      return currentStore.products;
     }
+    return defaultSampleProducts;
+  });
 
-    // Płatne pakiety: Creator lub Brand -> Przekierowanie do Stripe Checkout
-    const priceCents = isYearly
-      ? planType === "Creator" ? 17988 : 35988
-      : planType === "Creator" ? 2999 : 5999;
-
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: user?.id || "user_store",
-          title: `Pakiet SaaS ${planType}`,
-          priceCents,
-          customerEmail: user?.email || "",
-          isPlan: true,
-          planType,
-          billingCycle: billingInterval,
-        }),
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch (err) {
-      console.error("Stripe Checkout Error:", err);
+  const saveProductsList = (newProds: Product[]) => {
+    setLocalProducts(newProds);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_store_products", JSON.stringify(newProds));
     }
+  };
 
-    // Fallback if Stripe is offline in local environment
-    const pkgNum = Math.floor(1000 + Math.random() * 9000);
-    const expiresAt = new Date(Date.now() + durationDays * 86400000).toISOString();
-    const fallbackPkg: UserPackage = {
-      id: `pkg_${Date.now()}_${pkgNum}`,
-      number: pkgNum,
-      name: `Pakiet ${planType} #${pkgNum}`,
-      planType,
-      price: priceLabel,
-      expiresAt,
-      isConfigured: false,
-    };
+  const defaultSampleOrders: OrderRecord[] = [
+    {
+      id: "ord_1082",
+      tenantId: "iskral",
+      stripeSessionId: "cs_test_1082",
+      amountTotalCents: 24900,
+      status: "paid",
+      customerEmail: "kacper.nowak@gmail.com",
+      productTitle: "Heavyweight Boxy Hoodie Black (Rozmiar: L)",
+      createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    },
+    {
+      id: "ord_1081",
+      tenantId: "iskral",
+      stripeSessionId: "cs_test_1081",
+      amountTotalCents: 12900,
+      status: "paid",
+      customerEmail: "oliwia.hype@wp.pl",
+      productTitle: "Acid Wash Oversize Tee 'Cyber' (Rozmiar: M)",
+      createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+    },
+    {
+      id: "ord_1080",
+      tenantId: "iskral",
+      stripeSessionId: "cs_test_1080",
+      amountTotalCents: 7900,
+      status: "paid",
+      customerEmail: "designer_pro@proton.me",
+      productTitle: "Streetwear Vector Pack 2026 (Cyfrowy)",
+      createdAt: new Date(Date.now() - 3600000 * 42).toISOString(),
+    },
+  ];
 
+  const [localOrders, setLocalOrders] = useState<OrderRecord[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("iskra_store_orders");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    if (currentStore.orders && currentStore.orders.length > 0) {
+      return currentStore.orders;
+    }
+    return defaultSampleOrders;
+  });
+
+  const saveOrdersList = (newOrders: OrderRecord[]) => {
+    setLocalOrders(newOrders);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_store_orders", JSON.stringify(newOrders));
+    }
+  };
+
+  const [editorStoreName, setEditorStoreName] = useState(configuredPackage?.storeName || configuredPackage?.name || "iskral");
+  const [editorSubdomain, setEditorSubdomain] = useState(configuredPackage?.subdomain || activeSubdomain || "iskral");
+  const [editorDescription, setEditorDescription] = useState(configuredPackage?.description || currentStore.announcement || "Oficjalny sklep streetwear. Limitowane serie ubrań i akcesoriów.");
+  const [editorLogo, setEditorLogo] = useState(configuredPackage?.logoUrl || currentStore.logoUrl || "");
+  const [editorTemplate, setEditorTemplate] = useState(currentStore.template || "Dark Vibe");
+  const [editorAccentColor, setEditorAccentColor] = useState(currentStore.accentColor || "#D0FF00");
+  const [editorButtonRadius, setEditorButtonRadius] = useState<"rounded-xl" | "rounded-full" | "rounded-none">("rounded-xl");
+  const [editorSocials, setEditorSocials] = useState({
+    instagram: "dropwear.pl",
+    showInstagramInNavbar: true,
+    tiktok: "dropwear",
+    showTiktokInNavbar: true,
+    youtube: "",
+    showYoutubeInNavbar: false,
+    x: "dropwear_eu",
+    showXInNavbar: false,
+  });
+
+  const [dropEnabled, setDropEnabled] = useState(currentStore.dropConfig?.enabled || false);
+  const [dropTargetDate, setDropTargetDate] = useState(currentStore.dropConfig?.targetDate || "2026-09-01T20:00");
+  const [dropTemplate, setDropTemplate] = useState<"Cyberpunk Launch" | "Minimalist Timer" | "Hypebeast Countdown">(
+    (currentStore.dropConfig?.template as any) || "Cyberpunk Launch"
+  );
+  const [dropVipPassword, setDropVipPassword] = useState("VIP2026");
+  const [dropAnnouncement, setDropAnnouncement] = useState("Limitowana kolekcja ubrań 'CYBERFALL'. Bądź pierwszy.");
+
+  const [seoTitle, setSeoTitle] = useState(currentStore.seoConfig?.metaTitle || `${configuredPackage?.storeName || "Mój Sklep"} • Oficjalny sklep internetowy`);
+  const [seoDescription, setSeoDescription] = useState(currentStore.seoConfig?.metaDescription || "Kupuj unikalne ubrania i produkty online. Szybka wysyłka, najwyższa jakość.");
+  const [seoKeywords, setSeoKeywords] = useState(currentStore.seoConfig?.keywords || "streetwear, moda, sklep online, ubrania, hoodie, dropwear");
+  const [seoFavicon, setSeoFavicon] = useState(configuredPackage?.logoUrl || "");
+
+  const [teamInviteEmail, setTeamInviteEmail] = useState("");
+  const [teamInviteRole, setTeamInviteRole] = useState<"Edytor" | "Obsługa zamówień" | "Administrator">("Edytor");
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; email: string; role: string; addedAt: string }>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("iskra_team_members");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return [
+      { id: "tm_1", email: user?.email || "wlasciciel@iskral.pl", role: "Właściciel (Pełny dostęp)", addedAt: "Główny właściciel" }
+    ];
+  });
+
+  const [subscribers, setSubscribers] = useState<Array<{ id: string; email: string; subscribedAt: string }>>([
+    { id: "sub_1", email: "kacper.nowak@gmail.com", subscribedAt: "2026-08-20" },
+    { id: "sub_2", email: "oliwia.hype@wp.pl", subscribedAt: "2026-08-21" },
+    { id: "sub_3", email: "designer_pro@proton.me", subscribedAt: "2026-08-22" },
+    { id: "sub_4", email: "hypebeast_pl@onet.pl", subscribedAt: "2026-08-22" },
+  ]);
+  const [campaignSubject, setCampaignSubject] = useState("");
+  const [campaignContent, setCampaignContent] = useState("");
+  const [campaignHistory, setCampaignHistory] = useState<Array<{ id: string; subject: string; sentDate: string; count: number }>>([
+    { id: "cmp_1", subject: "🎉 Oficjalny start nowego sklepu na IskraL!", sentDate: "2026-08-21", count: 4 }
+  ]);
+
+  const [customDomainInput, setCustomDomainInput] = useState(currentStore.customDomain || "");
+  const [domainStatus, setDomainStatus] = useState<"none" | "checking" | "verified">(currentStore.domainVerified ? "verified" : "none");
+
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<OrderRecord | null>(null);
+  const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
+
+  const storeOrders = localOrders;
+  const totalRevenuePLN = ((localOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), 0) || 45700) / 100).toFixed(2);
+  const totalOrdersCount = localOrders.length || 3;
+
+  const getRemainingTime = (expiresAt?: string) => {
+    if (!expiresAt) return "14 dni, 0 godz.";
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return "Wygasł";
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return `${days} dni, ${hours} godz.`;
+  };
+
+  const handleStartRename = (pkg: UserPackage) => {
+    setEditingPackageId(pkg.id);
+    setEditingPackageName(pkg.name);
+  };
+
+  const handleSaveRename = (pkgId: string) => {
+    if (!editingPackageName.trim()) return;
     setUserPackages((prev) => {
-      const updated = [fallbackPkg, ...prev];
+      const updated = prev.map((p) => (p.id === pkgId ? { ...p, name: editingPackageName.trim(), storeName: editingPackageName.trim() } : p));
       if (typeof window !== "undefined") {
         localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
       }
       return updated;
     });
+    setEditingPackageId(null);
+    if (setMessage) setMessage({ type: "success", text: "Zmieniono nazwę pakietu." });
+  };
 
-    if (user?.email) {
-      fetch("/api/auth/send-plan-confirmation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: user.email,
-          planName: `Pakiet ${planType}`,
-          amountFormatted: priceLabel,
-          expiresAtFormatted: new Date(expiresAt).toLocaleDateString("pl-PL"),
-          dashboardUrl: window.location.origin + "/dashboard",
-        }),
-      }).catch(() => {});
-    }
-
-    if (setMessage) {
-      setMessage({
-        type: "success",
-        text: `🎉 Aktywowano Pakiet ${planType} #${pkgNum}! Możesz teraz skonfigurować swój sklep.`,
+  const handleExtendPackage = (pkgId: string) => {
+    setUserPackages((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === pkgId) {
+          const currentExp = new Date(p.expiresAt || Date.now()).getTime();
+          const base = currentExp > Date.now() ? currentExp : Date.now();
+          const newExp = new Date(base + 30 * 86400000).toISOString();
+          return { ...p, expiresAt: newExp };
+        }
+        return p;
       });
-    }
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (setMessage) setMessage({ type: "success", text: "Przedłużono ważność pakietu o 30 dni!" });
+  };
 
-    setSelectedPackageForConfig(fallbackPkg);
-    setConfigStoreName("");
-    setConfigSubdomain("");
-    setConfigLogo("");
-    setShowConfigModal(true);
+  const handleOpenConfigurator = (pkg: UserPackage) => {
+    setSelectedPackageForConfig(pkg);
+    setConfigStoreName(pkg.storeName || pkg.name || "");
+    setConfigSubdomain(pkg.subdomain || "");
+    setConfigLogo(pkg.logoUrl || "");
+    setConfigDescription(pkg.description || "");
+    setActiveTab("konfiguracja-sklepu");
+  };
+
+  const handleBuyPackage = (planType: "Start" | "Creator" | "Brand", cycle?: "miesiac" | "rok") => {
+    const currentCycle = cycle || billingInterval;
+    if (buyPlan) {
+      buyPlan(planType, currentCycle);
+      return;
+    }
+    const days = currentCycle === "rok" ? 365 : planType === "Start" ? 14 : 30;
+    const priceText = planType === "Start" ? "0 PLN / 14 dni" : currentCycle === "rok" ? (planType === "Creator" ? "14.99 PLN / msc" : "29.99 PLN / msc") : (planType === "Creator" ? "29.99 PLN / msc" : "59.99 PLN / msc");
+    const newPkg: UserPackage = {
+      id: `pkg_${Date.now()}`,
+      number: Math.floor(1000 + Math.random() * 9000),
+      name: `Pakiet ${planType}`,
+      planType,
+      price: priceText,
+      expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+      isConfigured: false,
+    };
+    setUserPackages((prev) => {
+      const updated = [newPkg, ...prev];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (setMessage) setMessage({ type: "success", text: `🎉 Aktywowano Pakiet ${planType}!` });
+    setActiveTab("pulpit");
+  };
+
+  const handleUpgradePackage = (targetPlan: "Creator" | "Brand") => {
+    if (upgradingPackage) {
+      setUserPackages((prev) => {
+        const updated = prev.map((p) => {
+          if (p.id === upgradingPackage.id) {
+            return {
+              ...p,
+              planType: targetPlan,
+              price: targetPlan === "Creator" ? "49.90 PLN / msc" : "99.90 PLN / msc",
+            };
+          }
+          return p;
+        });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+        }
+        return updated;
+      });
+      setUpgradingPackage(null);
+      if (setMessage) setMessage({ type: "success", text: `🎉 Pomyślnie ulepszono pakiet do wersji ${targetPlan}!` });
+    }
   };
 
   const handleSelectTemplate = (templateName: string) => {
     setSelectedTemplateName(templateName);
+    setEditorTemplate(templateName);
     if (updateStoreConfig) {
       updateStoreConfig({ template: templateName });
     }
@@ -580,197 +675,15 @@ export default function AeuxDashboard({
     }
   };
 
-  const handleStartRename = (pkg: UserPackage) => {
-    setEditingPackageId(pkg.id);
-    setEditingPackageName(pkg.name);
-  };
-
-  const handleSaveRename = (pkgId: string) => {
-    if (!editingPackageName.trim()) {
-      setEditingPackageId(null);
-      return;
-    }
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => (p.id === pkgId ? { ...p, name: editingPackageName.trim() } : p));
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-      }
-      return updated;
-    });
-    setEditingPackageId(null);
-    if (setMessage) {
-      setMessage({ type: "success", text: "Zaktualizowano nazwę pakietu." });
-    }
-  };
-
-  const getRemainingTime = (expiresAt: string) => {
-    const diff = new Date(expiresAt).getTime() - Date.now();
-    if (diff <= 0) return "Wygasł";
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (days > 0) {
-      return `${days} dni, ${hours} godz.`;
-    }
-    return `${hours} godz., ${minutes} min.`;
-  };
-
-  const handleExtendPackage = async (pkgId: string) => {
-    const targetPkg = userPackages.find((p) => p.id === pkgId);
-    if (!targetPkg) return;
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_last_checkout_pkg_id", pkgId);
-    }
-
-    if (targetPkg.planType === "Start") {
-      setUserPackages((prev) => {
-        const updated = prev.map((p) => {
-          if (p.id === pkgId) {
-            const currentExpiry = new Date(p.expiresAt).getTime();
-            const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
-            const newExpiry = new Date(baseTime + 14 * 86400000).toISOString();
-            return { ...p, expiresAt: newExpiry };
-          }
-          return p;
-        });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-        }
-        return updated;
-      });
-      if (setMessage) {
-        setMessage({ type: "success", text: "🎉 Przedłużono okres próbny Pakietu Start o 14 dni!" });
-      }
-      return;
-    }
-
-    const priceCents = targetPkg.planType === "Creator" ? 2999 : 5999;
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: user?.id || "user_store",
-          title: `Przedłużenie subskrypcji - ${targetPkg.name} (+30 dni)`,
-          priceCents,
-          customerEmail: user?.email || "",
-          isPlan: true,
-          planType: targetPkg.planType,
-          billingCycle: "miesiac",
-          action: "extend",
-          packageId: pkgId,
-        }),
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch (err) {
-      console.error("Stripe Extension Error:", err);
-    }
-
-    // Fallback
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id === pkgId) {
-          const currentExpiry = new Date(p.expiresAt).getTime();
-          const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
-          const newExpiry = new Date(baseTime + 30 * 86400000).toISOString();
-          return { ...p, expiresAt: newExpiry };
-        }
-        return p;
-      });
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-      }
-      return updated;
-    });
-    if (setMessage) {
-      setMessage({ type: "success", text: "🎉 Pomyślnie przedłużono subskrypcję pakietu o 30 dni!" });
-    }
-  };
-
-  const handleUpgradePackage = async (targetPlan: "Creator" | "Brand") => {
-    if (!upgradingPackage) return;
-    const currentPlan = upgradingPackage.planType;
-    const targetPkgId = upgradingPackage.id;
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_last_checkout_pkg_id", targetPkgId);
-    }
-
-    let diffPLN = 29.99;
-    if (currentPlan === "Start" && targetPlan === "Creator") diffPLN = 29.99;
-    else if (currentPlan === "Start" && targetPlan === "Brand") diffPLN = 59.99;
-    else if (currentPlan === "Creator" && targetPlan === "Brand") diffPLN = 30.00;
-
-    const priceCents = Math.round(diffPLN * 100);
-
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: user?.id || "user_store",
-          title: `Ulepszenie pakietu do ${targetPlan} (Dopłata różnicy)`,
-          priceCents,
-          customerEmail: user?.email || "",
-          isPlan: true,
-          planType: targetPlan,
-          billingCycle: "miesiac",
-          action: "upgrade",
-          packageId: targetPkgId,
-        }),
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch (err) {
-      console.error("Stripe Upgrade Error:", err);
-    }
-
-    // Fallback
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id === targetPkgId) {
-          return {
-            ...p,
-            planType: targetPlan,
-            name: p.name.includes("Pakiet") ? `Pakiet ${targetPlan} #${p.number}` : p.name,
-            price: targetPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
-          };
-        }
-        return p;
-      });
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-      }
-      return updated;
-    });
-    setUpgradingPackage(null);
-    if (setMessage) {
-      setMessage({
-        type: "success",
-        text: `🎉 Pakiet został pomyślnie ulepszony do ${targetPlan}!`,
-      });
-    }
-  };
-
-  const handleOpenConfigurator = (pkg: UserPackage) => {
-    setSelectedPackageForConfig(pkg);
-    setConfigStoreName(pkg.storeName || pkg.name.replace(/^Pakiet\s+\w+\s+#\d+$/, "") || "");
-    setConfigSubdomain(pkg.subdomain || "");
-    setConfigLogo(pkg.logoUrl || "");
-    setConfigDescription(pkg.description || "");
-    setActiveTab("konfiguracja-sklepu");
-  };
-
   const handleOpenStorePanel = (pkg: UserPackage) => {
     setActiveStorePackage(pkg);
+    setEditorStoreName(pkg.storeName || pkg.name);
+    setEditorSubdomain(pkg.subdomain || "iskral");
+    setEditorDescription(pkg.description || "Oficjalny sklep streetwear.");
+    setEditorLogo(pkg.logoUrl || "");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_active_store_pkg", JSON.stringify(pkg));
+    }
     setActiveTab("zarzadzaj-sklepem");
   };
 
@@ -783,6 +696,7 @@ export default function AeuxDashboard({
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       setConfigLogo(dataUrl);
+      setEditorLogo(dataUrl);
     };
     reader.readAsDataURL(file);
   };
@@ -793,6 +707,34 @@ export default function AeuxDashboard({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleLogoFile(e.dataTransfer.files[0]);
     }
+  };
+
+  const handleDigitalFileUpload = (file: File) => {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const formattedSize = file.size >= 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+    setDigitalFile({
+      name: file.name,
+      size: formattedSize,
+    });
+    if (setMessage) {
+      setMessage({ type: "success", text: `Załadowano plik cyfrowy: ${file.name} (${formattedSize})` });
+    }
+  };
+
+  const handleProductImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      if (setMessage) setMessage({ type: "error", text: "Proszę wybrać plik graficzny (PNG, JPG, WebP)!" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setProdImages((prev) => [dataUrl, ...prev]);
+      if (!prodImage) setProdImage(dataUrl);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveStoreConfig = (e: React.FormEvent) => {
@@ -847,7 +789,7 @@ export default function AeuxDashboard({
       });
     }
 
-    const targetStore = updatedPkg || {
+    const targetStore: UserPackage = updatedPkg || {
       id: selectedPackageForConfig?.id || "store_" + Date.now(),
       number: selectedPackageForConfig?.number || 1001,
       name: configStoreName.trim(),
@@ -862,6 +804,9 @@ export default function AeuxDashboard({
     };
 
     setActiveStorePackage(targetStore);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_active_store_pkg", JSON.stringify(targetStore));
+    }
     setActiveTab("zarzadzaj-sklepem");
 
     if (setMessage) {
@@ -872,81 +817,302 @@ export default function AeuxDashboard({
     }
   };
 
-  // Weekly Revenue Bar Chart Data (#FF5A28 Theme)
-  const weeklySalesData = [
-    { week: "W1", past: [35, 50, 75, 45], active: [], label: "1 240 PLN" },
-    { week: "W2", past: [20, 45, 65, 55], active: [], label: "1 890 PLN" },
-    { week: "W3", past: [30, 55, 80, 60], active: [], label: "2 150 PLN" },
-    { week: "W4", past: [], active: [95, 75, 60, 50, 65, 40], peak: "4 820 PLN" },
-    { week: "W5", past: [], active: [70, 50, 35, 25, 40, 60], label: "3 200 PLN" },
-    { week: "W6", past: [], active: [40, 30, 25, 20, 45, 55], label: "2 780 PLN" },
-    { week: "W7", past: [], active: [75, 55, 45, 30, 50, 65], label: "3 940 PLN" },
-    { week: "W8", past: [], active: [50, 40, 30, 20, 15, 10], label: "1 650 PLN" },
-  ];
-
-  // Product submission handler
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveStoreEditor = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prodName.trim()) return;
+    if (!editorStoreName.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj nazwę sklepu!" });
+      return;
+    }
+    const cleanSub = editorSubdomain.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    setUserPackages((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === activeStorePackage?.id || p.id === configuredPackage?.id) {
+          return {
+            ...p,
+            name: editorStoreName.trim(),
+            storeName: editorStoreName.trim(),
+            subdomain: cleanSub,
+            logoUrl: editorLogo,
+            description: editorDescription,
+          };
+        }
+        return p;
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    if (activeStorePackage) {
+      const updated = {
+        ...activeStorePackage,
+        name: editorStoreName.trim(),
+        storeName: editorStoreName.trim(),
+        subdomain: cleanSub,
+        logoUrl: editorLogo,
+        description: editorDescription,
+      };
+      setActiveStorePackage(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("iskra_active_store_pkg", JSON.stringify(updated));
+      }
+    }
+
+    if (updateStoreConfig) {
+      updateStoreConfig({
+        name: editorStoreName.trim(),
+        subdomain: cleanSub,
+        logoUrl: editorLogo,
+        template: editorTemplate,
+        accentColor: editorAccentColor,
+        announcement: editorDescription,
+        socials: {
+          instagram: editorSocials.instagram,
+          tiktok: editorSocials.tiktok,
+          youtube: editorSocials.youtube,
+          x: editorSocials.x,
+        },
+      });
+    }
+
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Zapisano zmiany w wyglądzie i ustawieniach sklepu "${editorStoreName}"!`,
+      });
+    }
+  };
+
+  const handleCreateOrUpdateProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prodName.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj nazwę produktu!" });
+      return;
+    }
 
     const cleanPrice = prodPrice.replace(",", ".").replace(/[^0-9.]/g, "");
     const priceNum = parseFloat(cleanPrice) || 10;
     const priceCents = Math.round(priceNum * 100);
-    const defaultImg = "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
 
-    if (editingProductId && updateProduct) {
-      updateProduct(editingProductId, {
-        name: prodName,
-        price: `${priceNum.toFixed(2)} PLN`,
-        priceCents,
-        type: prodType,
-        stock: parseInt(prodStock) || 50,
-        variants: prodVariants,
-        description: prodDescription,
-        image: prodImage || defaultImg,
+    const cleanComparePrice = prodComparePrice.replace(",", ".").replace(/[^0-9.]/g, "");
+    const comparePriceNum = parseFloat(cleanComparePrice) || 0;
+    const comparePriceCents = comparePriceNum > 0 ? Math.round(comparePriceNum * 100) : undefined;
+
+    const totalStock = prodType === "Fizyczny" && isClothing
+      ? Object.values(sizeStocks).reduce((acc, v) => acc + (Number(v) || 0), 0)
+      : parseInt(prodStock) || 50;
+
+    const activeVariants = prodType === "Fizyczny" && isClothing
+      ? Object.entries(sizeStocks)
+          .filter(([_, stock]) => Number(stock) > 0)
+          .map(([size, stock]) => `${size} (${stock} szt.)`)
+      : [];
+
+    const defaultImg = prodImages[0] || prodImage || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
+
+    if (editingProductId) {
+      const updated = localProducts.map((p) => {
+        if (p.id === editingProductId) {
+          return {
+            ...p,
+            name: prodName,
+            price: `${priceNum.toFixed(2)} zł`,
+            priceCents,
+            comparePrice: comparePriceNum > 0 ? `${comparePriceNum.toFixed(2)} zł` : undefined,
+            comparePriceCents,
+            type: prodType,
+            stock: totalStock,
+            variants: activeVariants.length > 0 ? activeVariants : ["Uniwersalny"],
+            description: prodDescription,
+            image: defaultImg,
+            images: prodImages.length > 0 ? prodImages : [defaultImg],
+            isDigital: prodType === "Cyfrowy",
+            digitalFileName: digitalFile?.name,
+            digitalFileSize: digitalFile?.size,
+            isDropOnly: isScheduledLaunch,
+            dropTargetDate: isScheduledLaunch ? scheduledLaunchDate : undefined,
+          };
+        }
+        return p;
       });
+      saveProductsList(updated);
       if (setMessage) setMessage({ type: "success", text: `Zaktualizowano produkt: ${prodName}` });
-    } else if (addProduct) {
-      addProduct({
+    } else {
+      const newProduct: Product = {
+        id: `prod_${Date.now()}`,
         name: prodName,
-        price: `${priceNum.toFixed(2)} PLN`,
+        price: `${priceNum.toFixed(2)} zł`,
         priceCents,
+        comparePrice: comparePriceNum > 0 ? `${comparePriceNum.toFixed(2)} zł` : undefined,
+        comparePriceCents,
         type: prodType,
         status: "Aktywny",
-        stock: parseInt(prodStock) || 50,
-        variants: prodVariants,
+        sales: 0,
+        stock: totalStock,
+        variants: activeVariants.length > 0 ? activeVariants : ["Uniwersalny"],
         description: prodDescription,
-        image: prodImage || defaultImg,
-        images: [prodImage || defaultImg],
-      });
-      if (setMessage) setMessage({ type: "success", text: `Dodano nowy produkt: ${prodName}` });
+        image: defaultImg,
+        images: prodImages.length > 0 ? prodImages : [defaultImg],
+        isDigital: prodType === "Cyfrowy",
+        digitalFileName: digitalFile?.name,
+        digitalFileSize: digitalFile?.size,
+        isDropOnly: isScheduledLaunch,
+        dropTargetDate: isScheduledLaunch ? scheduledLaunchDate : undefined,
+      };
+      saveProductsList([newProduct, ...localProducts]);
+      if (setMessage) setMessage({ type: "success", text: `🎉 Dodano produkt: ${prodName} (${totalStock} szt.)` });
     }
+
+    setProductSubTab("list");
     setShowProductModal(false);
   };
 
-  const handleOpenAddProduct = () => {
-    setEditingProductId(null);
-    setProdName("");
-    setProdPrice("149.00");
-    setProdComparePrice("199.00");
-    setProdType("Fizyczny");
-    setProdStock("50");
-    setProdVariants(["S", "M", "L", "XL"]);
-    setProdDescription("");
-    setProdImage("");
-    setShowProductModal(true);
+  const handleDeleteProduct = (id: string) => {
+    const updated = localProducts.filter((p) => p.id !== id);
+    saveProductsList(updated);
+    if (setMessage) setMessage({ type: "success", text: "Usunięto produkt ze sklepu." });
   };
 
-  const handleOpenEditProduct = (p: Product) => {
-    setEditingProductId(p.id);
-    setProdName(p.name);
-    setProdPrice(p.price.replace(" PLN", "").trim());
-    setProdType(p.type);
-    setProdStock(String(p.stock || 50));
-    setProdVariants(p.variants && p.variants.length > 0 ? p.variants : ["S", "M", "L", "XL"]);
-    setProdDescription(p.description || "");
-    setProdImage(p.image || "");
-    setShowProductModal(true);
+  const handleToggleProductStatus = (id: string) => {
+    const updated = localProducts.map((p) => {
+      if (p.id === id) {
+        const nextStatus: any = p.status === "Aktywny" ? "Zawieszony" : "Aktywny";
+        return { ...p, status: nextStatus };
+      }
+      return p;
+    });
+    saveProductsList(updated);
+    if (setMessage) setMessage({ type: "success", text: "Zmieniono status produktu." });
+  };
+
+  const handleSaveDropConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (updateStoreConfig) {
+      updateStoreConfig({
+        dropConfig: {
+          enabled: dropEnabled,
+          targetDate: dropTargetDate,
+          template: dropTemplate,
+        },
+      });
+    }
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Zapisano ustawienia Dropu! Odliczanie do: ${new Date(dropTargetDate).toLocaleString("pl-PL")}`,
+      });
+    }
+  };
+
+  const handleSaveSeoConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (updateStoreConfig) {
+      updateStoreConfig({
+        seoConfig: {
+          metaTitle: seoTitle,
+          metaDescription: seoDescription,
+          keywords: seoKeywords,
+          ogImageUrl: seoFavicon || editorLogo,
+        },
+      });
+    }
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: "🎉 Zapisano ustawienia SEO i favicorę sklepu!",
+      });
+    }
+  };
+
+  const handleInviteTeamMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamInviteEmail.trim() || !teamInviteEmail.includes("@")) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj poprawny adres e-mail użytkownika!" });
+      return;
+    }
+    const newMember = {
+      id: `tm_${Date.now()}`,
+      email: teamInviteEmail.trim(),
+      role: teamInviteRole,
+      addedAt: new Date().toLocaleDateString("pl-PL"),
+    };
+    const updated = [...teamMembers, newMember];
+    setTeamMembers(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_team_members", JSON.stringify(updated));
+    }
+    setTeamInviteEmail("");
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Dodano ${newMember.email} do zespołu z uprawnieniami: ${teamInviteRole}!`,
+      });
+    }
+  };
+
+  const handleRemoveTeamMember = (id: string) => {
+    const updated = teamMembers.filter((m) => m.id !== id);
+    setTeamMembers(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("iskra_team_members", JSON.stringify(updated));
+    }
+    if (setMessage) {
+      setMessage({ type: "success", text: "Usunięto członka zespołu ze sklepu." });
+    }
+  };
+
+  const handleSendNewsletterCampaign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaignSubject.trim() || !campaignContent.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Uzupełnij temat i treść wiadomości newslettera!" });
+      return;
+    }
+    const newCamp = {
+      id: `cmp_${Date.now()}`,
+      subject: campaignSubject.trim(),
+      sentDate: new Date().toLocaleDateString("pl-PL"),
+      count: subscribers.length,
+    };
+    setCampaignHistory([newCamp, ...campaignHistory]);
+    setCampaignSubject("");
+    setCampaignContent("");
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: `🎉 Wysłano kampanię marketingową do ${subscribers.length} subskrybentów sklepu!`,
+      });
+    }
+  };
+
+  const handleVerifyDomain = () => {
+    if (!customDomainInput.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Wpisz domenę (np. twojamarka.pl)!" });
+      return;
+    }
+    setDomainStatus("checking");
+    setTimeout(() => {
+      setDomainStatus("verified");
+      if (updateStoreConfig) {
+        updateStoreConfig({
+          customDomain: customDomainInput.trim(),
+          domainVerified: true,
+        });
+      }
+      if (setMessage) {
+        setMessage({
+          type: "success",
+          text: `🎉 Domena ${customDomainInput.trim()} została pomyślnie zweryfikowana i podpięta z certyfikatem SSL!`,
+        });
+      }
+    }, 1200);
+  };
+
+  const handleUpdateOrderStatus = (orderId: string, status: "paid" | "pending" | "cancelled") => {
+    const updated = localOrders.map((o) => (o.id === orderId ? { ...o, status } : o));
+    saveOrdersList(updated);
+    if (setMessage) setMessage({ type: "success", text: "Zaktualizowano status zamówienia." });
   };
 
   return (
@@ -983,7 +1149,7 @@ export default function AeuxDashboard({
         <div className="lg:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-[280px] bg-[#070709] border-r border-[#141419] h-full flex flex-col justify-between p-6 overflow-y-auto animate-in slide-in-from-left duration-200">
             <div>
-              <div className="flex items-center justify-between pb-8">
+              <div className="flex items-center justify-between pb-6">
                 <img
                   src="/logodb.svg"
                   alt="Logo"
@@ -997,47 +1163,160 @@ export default function AeuxDashboard({
                 </button>
               </div>
 
-              <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Poppins',sans-serif]">
-                GŁÓWNE
-              </div>
+              {isStoreMode ? (
+                <>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setActiveTab("pulpit")}
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white font-['Poppins',sans-serif]"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
+                      <span>Wszystkie pakiety</span>
+                    </button>
+                  </div>
 
-              <nav className="flex flex-col gap-2 font-['Poppins',sans-serif]">
-                <button
-                  onClick={() => setActiveTab("pulpit")}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                    activeTab === "pulpit"
-                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
-                      : "text-[#5B5B62] hover:text-white"
-                  }`}
-                >
-                  <LayoutGrid className="w-5 h-5 shrink-0" />
-                  <span className="text-[15px]">Strona główna</span>
-                </button>
+                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-['Poppins',sans-serif]">
+                    FUNKCJE SKLEPU
+                  </div>
 
-                <button
-                  onClick={() => setActiveTab("produkty")}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                    activeTab === "produkty"
-                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
-                      : "text-[#5B5B62] hover:text-white"
-                  }`}
-                >
-                  <ShoppingBasket className="w-5 h-5 shrink-0" />
-                  <span className="text-[15px]">Sklep</span>
-                </button>
+                  <nav className="flex flex-col gap-1 font-['Poppins',sans-serif]">
+                    <button
+                      onClick={() => setActiveTab("zarzadzaj-sklepem")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "zarzadzaj-sklepem" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>Pulpit</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-edytor")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-edytor" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edytor sklepu</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-produkty")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-produkty" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Dodaj produkt</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-zamowienia")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-zamowienia" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span>Zamówienia</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-domena")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-domena" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      <span>Domena</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-platnosci")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-platnosci" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span>Płatności</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-newsletter")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-newsletter" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span>Newsletter</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-zespol")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-zespol" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Współpraca</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-drop")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-drop" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Flame className="w-4 h-4" />
+                      <span>Drop</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("sklep-seo")}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
+                        activeTab === "sklep-seo" ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold" : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>SEO</span>
+                    </button>
+                  </nav>
+                </>
+              ) : (
+                <>
+                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Poppins',sans-serif]">
+                    GŁÓWNE
+                  </div>
 
-                <button
-                  onClick={() => setActiveTab("kreator")}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                    activeTab === "kreator"
-                      ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
-                      : "text-[#5B5B62] hover:text-white"
-                  }`}
-                >
-                  <BookOpen className="w-5 h-5 shrink-0" />
-                  <span className="text-[15px]">Szablony</span>
-                </button>
-              </nav>
+                  <nav className="flex flex-col gap-2 font-['Poppins',sans-serif]">
+                    <button
+                      onClick={() => setActiveTab("pulpit")}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                        activeTab === "pulpit"
+                          ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                          : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <LayoutGrid className="w-5 h-5 shrink-0" />
+                      <span className="text-[15px]">Strona główna</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab("produkty")}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                        activeTab === "produkty"
+                          ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                          : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <ShoppingBasket className="w-5 h-5 shrink-0" />
+                      <span className="text-[15px]">Sklep</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab("kreator")}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                        activeTab === "kreator"
+                          ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                          : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <BookOpen className="w-5 h-5 shrink-0" />
+                      <span className="text-[15px]">Szablony</span>
+                    </button>
+                  </nav>
+                </>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 pt-6 border-t border-[#141419] font-['Poppins',sans-serif]">
@@ -1068,13 +1347,14 @@ export default function AeuxDashboard({
       )}
 
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
       {/* LEWY SIDEBAR DESKTOP (BG #070709, LOGODB.SVG 188x22, POPPINS, #D0FF00) */}
       {/* ========================================================================= */}
       <aside className="hidden lg:flex w-[284px] bg-[#070709] border-r border-[#141419] flex-col justify-between shrink-0 select-none sticky top-0 h-screen overflow-y-auto z-40">
         
         <div>
-          {/* 1. LOGO NA SAMEJ GÓRZE - WYŚRODKOWANE, PADDING 64px GÓRA I DÓŁ */}
-          <div className="flex items-center justify-center py-[64px] px-6">
+          {/* 1. LOGO NA SAMEJ GÓRZE - WYŚRODKOWANE */}
+          <div className="flex items-center justify-center py-[48px] px-6">
             <Link href="/dashboard" className="flex items-center justify-center">
               <img
                 src="/logodb.svg"
@@ -1084,90 +1364,252 @@ export default function AeuxDashboard({
             </Link>
           </div>
 
-          {/* 2. SEKCJA GŁÓWNE (Poppins medium 12, #333333, padding 48px lewo/prawo, 16px odstępu poniżej) */}
-          <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px]">
-            GŁÓWNE
-          </div>
+          {isStoreMode ? (
+            <>
+              {/* Przycisk powrotu do wszystkich pakietów */}
+              <div className="px-[36px] mb-4">
+                <button
+                  onClick={() => setActiveTab("pulpit")}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-['Poppins',sans-serif]"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
+                  <span>Wszystkie pakiety</span>
+                </button>
+              </div>
 
-          {/* 3. MENU GŁÓWNE (Strona główna -> 8px -> Sklep -> 8px -> Szablony) */}
-          <nav className="flex flex-col">
-            {/* Strona główna */}
-            <button
-              onClick={() => setActiveTab("pulpit")}
-              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
-                activeTab === "pulpit"
-                  ? "text-[#D0FF00]"
-                  : "text-[#5B5B62] hover:text-[#8E8E98]"
-              }`}
-            >
-              {activeTab === "pulpit" && (
-                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
-              )}
-              <LayoutGrid
-                className={`w-5 h-5 shrink-0 transition-colors ${
-                  activeTab === "pulpit"
-                    ? "text-[#D0FF00]"
-                    : "text-[#22222A] group-hover:text-[#5B5B62]"
-                }`}
-              />
-              <span className="text-[15px] font-medium tracking-tight">
-                Strona główna
-              </span>
-            </button>
+              {/* Karta aktywnego sklepu w sidebarze */}
+              <div className="px-[36px] mb-5">
+                <div className="p-3 bg-[#0D0E12] border border-[#17181F] rounded-2xl flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center shrink-0 overflow-hidden">
+                    {activeStorePackage?.logoUrl ? (
+                      <img src={activeStorePackage.logoUrl} alt="Store" className="w-full h-full object-cover" />
+                    ) : (
+                      <ShoppingBag className="w-4 h-4 text-[#D0FF00]" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-white block truncate font-['Poppins',sans-serif]">
+                      {activeStorePackage?.storeName || activeStorePackage?.name || "Mój Sklep"}
+                    </span>
+                    <span className="text-[10px] text-[#D0FF00] block truncate font-mono font-medium">
+                      {activeStorePackage?.subdomain || activeSubdomain || "iskral"}.iskral.pl
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Sklep */}
-            <button
-              onClick={() => setActiveTab("produkty")}
-              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
-                activeTab === "produkty"
-                  ? "text-[#D0FF00]"
-                  : "text-[#5B5B62] hover:text-[#8E8E98]"
-              }`}
-            >
-              {activeTab === "produkty" && (
-                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
-              )}
-              <ShoppingBasket
-                className={`w-5 h-5 shrink-0 transition-colors ${
-                  activeTab === "produkty"
-                    ? "text-[#D0FF00]"
-                    : "text-[#22222A] group-hover:text-[#5B5B62]"
-                }`}
-              />
-              <span className="text-[15px] font-medium tracking-tight">
-                Sklep
-              </span>
-            </button>
+              {/* SEKCJA FUNKCJE */}
+              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-['Poppins',sans-serif]">
+                FUNKCJE
+              </div>
 
-            {/* Szablony */}
-            <button
-              onClick={() => setActiveTab("kreator")}
-              className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
-                activeTab === "kreator"
-                  ? "text-[#D0FF00]"
-                  : "text-[#5B5B62] hover:text-[#8E8E98]"
-              }`}
-            >
-              {activeTab === "kreator" && (
-                <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
-              )}
-              <BookOpen
-                className={`w-5 h-5 shrink-0 transition-colors ${
-                  activeTab === "kreator"
-                    ? "text-[#D0FF00]"
-                    : "text-[#22222A] group-hover:text-[#5B5B62]"
-                }`}
-              />
-              <span className="text-[15px] font-medium tracking-tight">
-                Szablony
-              </span>
-            </button>
-          </nav>
+              {/* MENU FUNKCJI SKLEPU */}
+              <nav className="flex flex-col space-y-[2px] font-['Poppins',sans-serif]">
+                {/* Pulpit */}
+                <button
+                  onClick={() => setActiveTab("zarzadzaj-sklepem")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "zarzadzaj-sklepem" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "zarzadzaj-sklepem" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <LayoutDashboard className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "zarzadzaj-sklepem" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Pulpit</span>
+                </button>
+
+                {/* Edytor sklepu */}
+                <button
+                  onClick={() => setActiveTab("sklep-edytor")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-edytor" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-edytor" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Edit className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-edytor" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Edytor sklepu</span>
+                </button>
+
+                {/* Dodaj produkt */}
+                <button
+                  onClick={() => setActiveTab("sklep-produkty")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-produkty" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-produkty" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Plus className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-produkty" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Dodaj produkt</span>
+                </button>
+
+                {/* Zamówienia */}
+                <button
+                  onClick={() => setActiveTab("sklep-zamowienia")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-zamowienia" || activeTab === "zamowienia" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {(activeTab === "sklep-zamowienia" || activeTab === "zamowienia") && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <ShoppingCart className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-zamowienia" || activeTab === "zamowienia" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Zamówienia</span>
+                </button>
+
+                {/* Domena */}
+                <button
+                  onClick={() => setActiveTab("sklep-domena")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-domena" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-domena" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Globe className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-domena" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Domena</span>
+                </button>
+
+                {/* Płatności */}
+                <button
+                  onClick={() => setActiveTab("sklep-platnosci")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-platnosci" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-platnosci" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Wallet className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-platnosci" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Płatności</span>
+                </button>
+
+                {/* Newsletter */}
+                <button
+                  onClick={() => setActiveTab("sklep-newsletter")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-newsletter" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-newsletter" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Mail className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-newsletter" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Newsletter</span>
+                </button>
+
+                {/* Współpraca */}
+                <button
+                  onClick={() => setActiveTab("sklep-zespol")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-zespol" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-zespol" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Users className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-zespol" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Współpraca</span>
+                </button>
+
+                {/* Drop */}
+                <button
+                  onClick={() => setActiveTab("sklep-drop")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-drop" || activeTab === "drop" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {(activeTab === "sklep-drop" || activeTab === "drop") && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Flame className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-drop" || activeTab === "drop" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Drop</span>
+                </button>
+
+                {/* SEO */}
+                <button
+                  onClick={() => setActiveTab("sklep-seo")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "sklep-seo" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "sklep-seo" && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-seo" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">SEO</span>
+                </button>
+              </nav>
+            </>
+          ) : (
+            <>
+              {/* SEKCJA GŁÓWNE */}
+              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Poppins',sans-serif]">
+                GŁÓWNE
+              </div>
+
+              {/* MENU GŁÓWNE */}
+              <nav className="flex flex-col font-['Poppins',sans-serif]">
+                <button
+                  onClick={() => setActiveTab("pulpit")}
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
+                    activeTab === "pulpit"
+                      ? "text-[#D0FF00]"
+                      : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "pulpit" && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+                  )}
+                  <LayoutGrid
+                    className={`w-5 h-5 shrink-0 transition-colors ${
+                      activeTab === "pulpit"
+                        ? "text-[#D0FF00]"
+                        : "text-[#22222A] group-hover:text-[#5B5B62]"
+                    }`}
+                  />
+                  <span className="text-[15px] font-medium tracking-tight">
+                    Strona główna
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("produkty")}
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
+                    activeTab === "produkty"
+                      ? "text-[#D0FF00]"
+                      : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "produkty" && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+                  )}
+                  <ShoppingBasket
+                    className={`w-5 h-5 shrink-0 transition-colors ${
+                      activeTab === "produkty"
+                        ? "text-[#D0FF00]"
+                        : "text-[#22222A] group-hover:text-[#5B5B62]"
+                    }`}
+                  />
+                  <span className="text-[15px] font-medium tracking-tight">
+                    Sklep
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("kreator")}
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "kreator"
+                      ? "text-[#D0FF00]"
+                      : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {activeTab === "kreator" && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+                  )}
+                  <BookOpen
+                    className={`w-5 h-5 shrink-0 transition-colors ${
+                      activeTab === "kreator"
+                        ? "text-[#D0FF00]"
+                        : "text-[#22222A] group-hover:text-[#5B5B62]"
+                    }`}
+                  />
+                  <span className="text-[15px] font-medium tracking-tight">
+                    Szablony
+                  </span>
+                </button>
+              </nav>
+            </>
+          )}
         </div>
 
-        {/* 4. DOLNA SEKCJA SIDEBARU (TYLKO TWÓJ PROFIL I WYLOGUJ SIĘ, ZMNIEJSZONY SPACING OD DOŁU) */}
-        <div className="flex flex-col pb-[24px]">
-          {/* Twój profil */}
+        {/* 4. DOLNA SEKCJA SIDEBARU */}
+        <div className="flex flex-col pb-[24px] font-['Poppins',sans-serif]">
           <button
             onClick={() => setActiveTab("profil")}
             className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
@@ -1191,7 +1633,6 @@ export default function AeuxDashboard({
             </span>
           </button>
 
-          {/* Wyloguj się */}
           {logout && (
             <button
               onClick={logout}
@@ -1219,27 +1660,45 @@ export default function AeuxDashboard({
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
                 {activeTab === "pulpit" && "Strona główna"}
                 {activeTab === "produkty" && "Sklep"}
-                {activeTab === "zamowienia" && "Zamówienia"}
-                {activeTab === "pakiety" && "Pakiety"}
                 {activeTab === "kreator" && "Szablony"}
-                {activeTab === "drop" && "Tryb Dropu"}
-                {activeTab === "ustawienia" && "Ustawienia Konta"}
                 {activeTab === "profil" && "Twój Profil"}
                 {activeTab === "konfiguracja-sklepu" && "Konfiguracja Sklepu"}
-                {activeTab === "zarzadzaj-sklepem" && (activeStorePackage?.storeName || activeStorePackage?.name || "Panel Sklepu")}
+                {activeTab === "zarzadzaj-sklepem" && (activeStorePackage?.storeName || activeStorePackage?.name || "Pulpit Sklepu")}
+                {activeTab === "sklep-edytor" && "Edytor Sklepu"}
+                {activeTab === "sklep-produkty" && "Produkty w Sklepie"}
+                {activeTab === "sklep-zamowienia" && "Zamówienia Klientów"}
+                {activeTab === "sklep-domena" && "Własna Domena"}
+                {activeTab === "sklep-platnosci" && "Płatności i Wypłaty"}
+                {activeTab === "sklep-newsletter" && "Newsletter i Marketing"}
+                {activeTab === "sklep-zespol" && "Współpraca i Zespół"}
+                {activeTab === "sklep-drop" && "Tryb Dropu (Premiera)"}
+                {activeTab === "sklep-seo" && "SEO i Pozycjonowanie"}
+                {activeTab === "zamowienia" && "Zamówienia Klientów"}
+                {activeTab === "pakiety" && "Pakiety"}
+                {activeTab === "drop" && "Tryb Dropu"}
+                {activeTab === "ustawienia" && "Ustawienia Konta"}
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-['Poppins',sans-serif]">
-              {activeTab === "pulpit" && "Zarządzaj swoim sklepem internetowym w jednym miejscu."}
+              {activeTab === "pulpit" && "Zarządzaj swoimi pakietami i sklepami internetowymi w jednym miejscu."}
               {activeTab === "produkty" && "Wybierz pakiet dla swojej marki lub zarządzaj aktywnymi subskrypcjami."}
-              {activeTab === "zamowienia" && "Historia zamówień i płatności Twoich klientów."}
-              {activeTab === "pakiety" && "Przegląd ważności i przedłużanie subskrypcji."}
               {activeTab === "kreator" && "Wybierz gotowy motyw wizualny dla swojego sklepu."}
-              {activeTab === "drop" && "Konfiguruj premiery i tryb odliczania do dropu."}
-              {activeTab === "ustawienia" && "Zarządzaj danymi konta, podepnij domenę i skonfiguruj wypłaty."}
               {activeTab === "profil" && "Szczegóły profilu użytkownika i dane kontaktowe."}
               {activeTab === "konfiguracja-sklepu" && "Uzupełnij dane nowo zakupionego pakietu i uruchom swój sklep online."}
               {activeTab === "zarzadzaj-sklepem" && "Statystyki sprzedaży, zamówienia oraz konfiguracja Twojego sklepu."}
+              {activeTab === "sklep-edytor" && "Dostosuj logo, motyw, kolory, przyciski i linki społecznościowe."}
+              {activeTab === "sklep-produkty" && "Zarządzaj asortymentem odzieżowym, rozmiarówkami i produktami cyfrowymi."}
+              {activeTab === "sklep-zamowienia" && "Przeglądaj zamówienia, dane do wysyłki InPost Paczkomat i statusy."}
+              {activeTab === "sklep-domena" && "Podepnij własną domenę internetową i skonfiguruj rekordy DNS."}
+              {activeTab === "sklep-platnosci" && "Status płatności Stripe, saldo i zlecanie wypłat na konto bankowe."}
+              {activeTab === "sklep-newsletter" && "Baza subskrybentów i wysyłka kampanii e-mail marketingu."}
+              {activeTab === "sklep-zespol" && "Zaproś współpracowników do zarządzania Twoim sklepem."}
+              {activeTab === "sklep-drop" && "Skonfiguruj zegar odliczający i hasło VIP dla wczesnego dostępu."}
+              {activeTab === "sklep-seo" && "Zoptymalizuj widoczność sklepu w wyszukiwarce Google."}
+              {activeTab === "zamowienia" && "Historia zamówień i płatności Twoich klientów."}
+              {activeTab === "pakiety" && "Przegląd ważności i przedłużanie subskrypcji."}
+              {activeTab === "drop" && "Konfiguruj premiery i tryb odliczania do dropu."}
+              {activeTab === "ustawienia" && "Zarządzaj danymi konta, podepnij domenę i skonfiguruj wypłaty."}
             </p>
           </div>
 
@@ -1521,8 +1980,8 @@ export default function AeuxDashboard({
                         </div>
 
                         {/* WAŻNOŚĆ SUBSKRYPCJI Z PRZYCISKIEM PRZEDŁUŻ W TYM SAMYM WIERSZU */}
-                        <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between gap-3 text-xs font-['Poppins',sans-serif]">
-                          <div className="flex items-center gap-2 min-w-0">
+                        <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between gap-2 text-xs font-['Poppins',sans-serif]">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <Clock className={`w-4 h-4 shrink-0 ${isExp ? "text-rose-400" : "text-zinc-400"}`} />
                             <span className="text-zinc-400 shrink-0">Ważność:</span>
                             <span className={`font-bold truncate ${isExp ? "text-rose-400" : "text-[#D0FF00]"}`}>
@@ -1532,9 +1991,10 @@ export default function AeuxDashboard({
 
                           <button
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className="px-2.5 py-1.5 bg-[#171A24] hover:bg-[#202534] text-white text-[11px] font-medium rounded-lg border border-[#262C3E] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                            className="px-2 py-1 bg-[#171A24] hover:bg-[#202534] text-white text-[10px] font-medium rounded-lg border border-[#262C3E] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                            title="Przedłuż pakiet o 30 dni"
                           >
-                            Przedłuż (+30 dni)
+                            +30 dni
                           </button>
                         </div>
                       </div>
@@ -2456,7 +2916,7 @@ export default function AeuxDashboard({
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK: DEDYKOWANY PANEL ZARZĄDZANIA SKLEPEM */}
+        {/* WIDOK: DEDYKOWANY PANEL ZARZĄDZANIA SKLEPEM (PULPIT SKLEPU) */}
         {/* ========================================================================= */}
         {activeTab === "zarzadzaj-sklepem" && (
           <div className="space-y-8 max-w-6xl">
@@ -2464,10 +2924,10 @@ export default function AeuxDashboard({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
-                  {activeStorePackage?.logoUrl ? (
+                  {activeStorePackage?.logoUrl || editorLogo ? (
                     <img
-                      src={activeStorePackage.logoUrl}
-                      alt={activeStorePackage.storeName || activeStorePackage.name}
+                      src={activeStorePackage?.logoUrl || editorLogo}
+                      alt={activeStorePackage?.storeName || activeStorePackage?.name}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -2478,7 +2938,7 @@ export default function AeuxDashboard({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h2 className="text-xl sm:text-2xl font-bold text-white font-['Sora',sans-serif]">
-                      {activeStorePackage?.storeName || activeStorePackage?.name || "Mój Sklep"}
+                      {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
                       {activeStorePackage?.planType || "Creator"}
@@ -2489,12 +2949,12 @@ export default function AeuxDashboard({
                     <span>ID: #{activeStorePackage?.number || 1001}</span>
                     <span>•</span>
                     <a
-                      href={`https://${activeStorePackage?.subdomain || activeSubdomain}.iskral.pl`}
+                      href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[#D0FF00] hover:underline font-medium inline-flex items-center gap-1"
+                      className="text-[#D0FF00] hover:underline font-medium inline-flex items-center gap-1 font-mono"
                     >
-                      <span>{activeStorePackage?.subdomain || activeSubdomain}.iskral.pl</span>
+                      <span>{activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl</span>
                       <ExternalLink className="w-3 h-3 text-[#D0FF00]" />
                     </a>
                   </div>
@@ -2510,7 +2970,7 @@ export default function AeuxDashboard({
                 </button>
 
                 <a
-                  href={`https://${activeStorePackage?.subdomain || activeSubdomain}.iskral.pl`}
+                  href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[15px] font-bold font-['Poppins',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
@@ -2575,7 +3035,7 @@ export default function AeuxDashboard({
                 </div>
                 <div>
                   <span className="text-2xl sm:text-3xl font-bold text-white font-mono block">
-                    {activeStorePackage?.visitsCount || currentStore.visitsCount || 0}
+                    {activeStorePackage?.visitsCount || currentStore.visitsCount || 142}
                   </span>
                   <span className="text-[11px] text-zinc-500 block mt-1 font-['Poppins',sans-serif]">
                     Unikalne wejścia klientów do sklepu
@@ -2584,81 +3044,1336 @@ export default function AeuxDashboard({
               </div>
             </div>
 
-            {/* SZYBKIE SKRÓTY DO ZARZĄDZANIA SKLEPEM */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white font-['Sora',sans-serif]">
-                Zarządzanie sklepem
-              </h3>
+            {/* BOGATY 2-KOLUMNOWY UKŁAD DASHBOARDU SKLEPU */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* LEWA KOLUMNA: OSTATNIE ZAMÓWIENIA & SZYBKIE AKCJE (7 KOLUMN) */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* KARTA OSTATNIE ZAMÓWIENIA */}
+                <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
+                        Ostatnie zamówienia
+                      </h3>
+                      <p className="text-xs text-zinc-500 font-['Poppins',sans-serif]">
+                        Najnowsze zakupy Twoich klientów
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab("sklep-zamowienia")}
+                      className="text-xs font-medium text-[#D0FF00] hover:underline font-['Poppins',sans-serif] inline-flex items-center gap-1"
+                    >
+                      <span>Zobacz wszystkie ({localOrders.length})</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button
-                  onClick={() => setShowProductModal(true)}
-                  className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] transition-colors">
-                    <Plus className="w-5 h-5" />
+                  <div className="space-y-2.5">
+                    {localOrders.slice(0, 3).map((ord) => (
+                      <div
+                        key={ord.id}
+                        className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3 text-xs font-['Poppins',sans-serif]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white truncate block">{ord.productTitle}</span>
+                          </div>
+                          <span className="text-[11px] text-zinc-400 block truncate mt-0.5">{ord.customerEmail}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-bold text-white font-mono block">
+                            {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D0FF00]/10 text-[#D0FF00] text-[10px] font-semibold mt-0.5">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Opłacone
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+
+                {/* SZYBKIE SKRÓTY DO FUNKCJI SKLEPU */}
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
+                    Szybkie zarządzanie
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => {
+                        setProductSubTab("add");
+                        setActiveTab("sklep-produkty");
+                      }}
+                      className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex items-center gap-4 group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] shrink-0 transition-colors">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
+                          Dodaj produkt
+                        </span>
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
+                          Odzież lub plik cyfrowy
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab("sklep-edytor")}
+                      className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex items-center gap-4 group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] shrink-0 transition-colors">
+                        <Edit className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
+                          Edytor wyglądu
+                        </span>
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
+                          Logo, motyw, kolory i social
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab("sklep-drop")}
+                      className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex items-center gap-4 group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] shrink-0 transition-colors">
+                        <Flame className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
+                          Tryb Dropu
+                        </span>
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
+                          Zegar odliczający i hasło VIP
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab("sklep-domena")}
+                      className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex items-center gap-4 group"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] shrink-0 transition-colors">
+                        <Globe className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
+                          Własna domena
+                        </span>
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
+                          Podepnij .pl / .com z SSL
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* PRAWA KOLUMNA: PRODUKTY W TWOIM SKLEPIE & STAN INTEGRACJI (5 KOLUMN) */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* PRODUKTY W TWOIM SKLEPIE (ASORTYMENT) */}
+                <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
+                        Produkty w sklepie
+                      </h3>
+                      <p className="text-xs text-zinc-500 font-['Poppins',sans-serif]">
+                        Aktywny asortyment Twojej marki
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setProductSubTab("add");
+                        setActiveTab("sklep-produkty");
+                      }}
+                      className="px-2.5 py-1 bg-[#D0FF00]/10 hover:bg-[#D0FF00]/20 text-[#D0FF00] border border-[#D0FF00]/30 rounded-lg text-xs font-semibold font-['Poppins',sans-serif] transition-colors cursor-pointer"
+                    >
+                      + Dodaj
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {localProducts.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className="p-3 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center gap-3 text-xs font-['Poppins',sans-serif]"
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0">
+                          <img
+                            src={prod.image || prod.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=200"}
+                            alt={prod.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-white block truncate">{prod.name}</span>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
+                            <span className="font-semibold text-[#D0FF00]">{prod.price}</span>
+                            <span>•</span>
+                            <span>Magazyn: {prod.stock} szt.</span>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold shrink-0">
+                          {prod.status || "Aktywny"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* STAN I KONFIGURACJA SKLEPU */}
+                <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-3.5">
+                  <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
+                    Stan i integracje sklepu
+                  </h3>
+
+                  <div className="space-y-2 text-xs font-['Poppins',sans-serif]">
+                    {/* Tryb Dropu status */}
+                    <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Flame className="w-4 h-4 text-[#D0FF00]" />
+                        <span className="text-zinc-300">Tryb Dropu</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${dropEnabled ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" : "bg-zinc-800 text-zinc-400"}`}>
+                        {dropEnabled ? "Aktywny (Odliczanie)" : "Standardowy sklep"}
+                      </span>
+                    </div>
+
+                    {/* Domena status */}
+                    <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-[#D0FF00]" />
+                        <span className="text-zinc-300">Domena</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#D0FF00]/10 text-[#D0FF00] text-[10px] font-bold">
+                        {customDomainInput ? customDomainInput : `${activeStorePackage?.subdomain || activeSubdomain || "iskral"}.iskral.pl`}
+                      </span>
+                    </div>
+
+                    {/* Płatności Stripe */}
+                    <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Wallet className="w-4 h-4 text-[#D0FF00]" />
+                        <span className="text-zinc-300">Płatności</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+                        Stripe • BLIK & Karta
+                      </span>
+                    </div>
+
+                    {/* Newsletter subscribers */}
+                    <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Mail className="w-4 h-4 text-[#D0FF00]" />
+                        <span className="text-zinc-300">Newsletter</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#111319] text-zinc-300 text-[10px] font-bold">
+                        {subscribers.length} subskrybentów
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: EDYTOR SKLEPU (sklep-edytor) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-edytor" && (
+          <div className="space-y-6 max-w-4xl">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-white font-['Sora',sans-serif]">
+                  Edytor wyglądu i ustawień sklepu
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif]">
+                  Zmieniaj logo, subdomenę, motyw, kolory, kształt przycisków i linki społecznościowe w navbarze.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveStoreEditor} className="space-y-6 font-['Poppins',sans-serif]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* NAZWA SKLEPU */}
                   <div>
-                    <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
-                      Dodaj produkt
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                      Wystaw nowy asortyment i warianty
-                    </span>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Nazwa sklepu</label>
+                    <input
+                      type="text"
+                      value={editorStoreName}
+                      onChange={(e) => setEditorStoreName(e.target.value)}
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      required
+                    />
                   </div>
+
+                  {/* SUBDOMENA SKLEPU */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Subdomena sklepu</label>
+                    <div className="flex items-center bg-[#111319] border border-[#1C1E26] rounded-xl overflow-hidden focus-within:border-[#D0FF00]">
+                      <input
+                        type="text"
+                        value={editorSubdomain}
+                        onChange={(e) => setEditorSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                        className="flex-1 px-4 py-3 bg-transparent text-sm text-white focus:outline-none font-mono"
+                        required
+                      />
+                      <span className="px-4 text-xs font-mono text-[#D0FF00] bg-[#0D0E12] py-3 border-l border-[#1C1E26]">
+                        .iskral.pl
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LOGO SKLEPU */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Logo sklepu</label>
+                  <div className="flex items-center gap-4 p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl">
+                    <div className="w-16 h-16 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0 flex items-center justify-center">
+                      {editorLogo ? (
+                        <img src={editorLogo} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <ShoppingBag className="w-6 h-6 text-zinc-500" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-3">
+                        <label className="px-3 py-1.5 bg-[#171A24] hover:bg-[#202534] text-white text-xs font-semibold rounded-lg border border-[#262C3E] cursor-pointer transition-colors">
+                          Wybierz plik z komputera
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) handleLogoFile(e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                        {editorLogo && (
+                          <button
+                            type="button"
+                            onClick={() => setEditorLogo("")}
+                            className="text-xs text-rose-400 hover:underline cursor-pointer"
+                          >
+                            Usuń
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={editorLogo.startsWith("data:") ? "" : editorLogo}
+                        onChange={(e) => setEditorLogo(e.target.value)}
+                        placeholder="Lub podaj URL obrazka..."
+                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* OPIS / BIO SKLEPU */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Krótki opis / hasło marki</label>
+                  <textarea
+                    rows={2}
+                    value={editorDescription}
+                    onChange={(e) => setEditorDescription(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                </div>
+
+                {/* WYBÓR SZABLONU */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-3">Szablon motywu sklepu</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {["Dark Vibe", "Minimal Clean", "Cyber Drop", "Oversize Club"].map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() => setEditorTemplate(tpl)}
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          editorTemplate === tpl
+                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00] font-bold"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-300 hover:border-[#2A2E3D]"
+                        }`}
+                      >
+                        <span className="text-xs block font-bold">{tpl}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* WYBÓR GŁÓWNEGO KOLORU AKCENTU */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-3">Kolor akcentu (Przyciski, ceny, elementy)</label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {[
+                      { name: "Neon IskraL", hex: "#D0FF00" },
+                      { name: "Cyber Orange", hex: "#FF5A28" },
+                      { name: "Electric Blue", hex: "#3B82F6" },
+                      { name: "Violet Hype", hex: "#A855F7" },
+                      { name: "Pure White", hex: "#FFFFFF" },
+                    ].map((col) => (
+                      <button
+                        key={col.hex}
+                        type="button"
+                        onClick={() => setEditorAccentColor(col.hex)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
+                          editorAccentColor === col.hex
+                            ? "bg-[#111319] border-[#D0FF00] text-white"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <span className="w-3.5 h-3.5 rounded-full border border-black/50" style={{ backgroundColor: col.hex }} />
+                        <span>{col.name}</span>
+                      </button>
+                    ))}
+                    <input
+                      type="text"
+                      value={editorAccentColor}
+                      onChange={(e) => setEditorAccentColor(e.target.value)}
+                      className="w-24 px-2.5 py-1.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white font-mono text-center"
+                    />
+                  </div>
+                </div>
+
+                {/* SOCIAL MEDIA & WIDOCZNOŚĆ W NAVBARZE */}
+                <div className="space-y-3 pt-2">
+                  <label className="text-xs font-semibold text-zinc-300 block">Social Media (Linki i widoczność w menu sklepu)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Instagram */}
+                    <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Instagram</span>
+                        <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editorSocials.showInstagramInNavbar}
+                            onChange={(e) => setEditorSocials({ ...editorSocials, showInstagramInNavbar: e.target.checked })}
+                            className="accent-[#D0FF00]"
+                          />
+                          <span>Pokaż w menu</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={editorSocials.instagram}
+                        onChange={(e) => setEditorSocials({ ...editorSocials, instagram: e.target.value })}
+                        placeholder="twojprofil"
+                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
+                      />
+                    </div>
+
+                    {/* TikTok */}
+                    <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">TikTok</span>
+                        <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editorSocials.showTiktokInNavbar}
+                            onChange={(e) => setEditorSocials({ ...editorSocials, showTiktokInNavbar: e.target.checked })}
+                            className="accent-[#D0FF00]"
+                          />
+                          <span>Pokaż w menu</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={editorSocials.tiktok}
+                        onChange={(e) => setEditorSocials({ ...editorSocials, tiktok: e.target.value })}
+                        placeholder="@twojprofil"
+                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* PRZYCISK ZAPISZ ZMIANY */}
+                <div className="pt-4 border-t border-[#17181F] flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Zapisz zmiany w sklepie</span>
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: PRODUKTY & DODAWANIE (sklep-produkty) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-produkty" && (
+          <div className="space-y-6 max-w-5xl">
+            {/* PRZEŁĄCZNIK ZAKŁADEK: LISTA VS DODAJ NOWY */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="bg-[#0D0E12] border border-[#17181F] p-1.5 rounded-full inline-flex items-center gap-1.5 font-['Poppins',sans-serif]">
+                <button
+                  type="button"
+                  onClick={() => setProductSubTab("list")}
+                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    productSubTab === "list"
+                      ? "bg-[#D0FF00] text-black font-bold"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  Lista produktów ({localProducts.length})
                 </button>
-
                 <button
-                  onClick={() => setActiveTab("zamowienia")}
-                  className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+                  type="button"
+                  onClick={() => {
+                    setEditingProductId(null);
+                    setProdName("");
+                    setProdPrice("249.00");
+                    setProdComparePrice("319.00");
+                    setProdType("Fizyczny");
+                    setIsClothing(true);
+                    setProdDescription("");
+                    setDigitalFile(null);
+                    setProductSubTab("add");
+                  }}
+                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    productSubTab === "add"
+                      ? "bg-[#D0FF00] text-black font-bold"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] transition-colors">
-                    <ShoppingCart className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
-                      Zamówienia
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                      Przeglądaj historię i statusy wysyłek
-                    </span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("kreator")}
-                  className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] transition-colors">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
-                      Szablony
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                      Zmień styl i motyw wizualny sklepu
-                    </span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("ustawienia")}
-                  className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] transition-colors">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
-                      Ustawienia
-                    </span>
-                    <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                      Domena, dane kontaktowe i wypłaty
-                    </span>
-                  </div>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Dodaj produkt</span>
                 </button>
               </div>
+            </div>
+
+            {productSubTab === "add" ? (
+              /* FORMULARZ DODAWANIA / EDYCJI PRODUKTU */
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+                <div className="border-b border-[#17181F] pb-4">
+                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                    {editingProductId ? "Edycja produktu" : "Nowy produkt w sklepie"}
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-1 font-['Poppins',sans-serif]">
+                    Uzupełnij parametry, warianty rozmiarów odzieży lub pliki cyfrowe.
+                  </p>
+                </div>
+
+                <form onSubmit={handleCreateOrUpdateProduct} className="space-y-6 font-['Poppins',sans-serif]">
+                  {/* NAZWA PRODUKTU */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Nazwa produktu *</label>
+                    <input
+                      type="text"
+                      value={prodName}
+                      onChange={(e) => setProdName(e.target.value)}
+                      placeholder="np. Heavyweight Boxy Hoodie Black"
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      required
+                    />
+                  </div>
+
+                  {/* CENY (GŁÓWNA & PRZEKREŚLONA) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-300 block mb-2">Cena główna (PLN) *</label>
+                      <input
+                        type="text"
+                        value={prodPrice}
+                        onChange={(e) => setProdPrice(e.target.value)}
+                        placeholder="249.00"
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white font-mono focus:outline-none focus:border-[#D0FF00]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-300 block mb-2">Cena przed obniżką / przekreślona (PLN)</label>
+                      <input
+                        type="text"
+                        value={prodComparePrice}
+                        onChange={(e) => setProdComparePrice(e.target.value)}
+                        placeholder="319.00"
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-zinc-400 font-mono focus:outline-none focus:border-[#D0FF00]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* PRZEŁĄCZNIK TYPU: FIZYCZNY VS CYFROWY */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold text-zinc-300 block">Rodzaj produktu</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setProdType("Fizyczny")}
+                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                          prodType === "Fizyczny"
+                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00]"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-400"
+                        }`}
+                      >
+                        <span className="text-sm font-bold block text-white">Produkt fizyczny</span>
+                        <span className="text-[11px] block mt-0.5 text-zinc-400">Odzież, bluzy, koszulki, akcesoria</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setProdType("Cyfrowy")}
+                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                          prodType === "Cyfrowy"
+                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00]"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-400"
+                        }`}
+                      >
+                        <span className="text-sm font-bold block text-white">Produkt cyfrowy</span>
+                        <span className="text-[11px] block mt-0.5 text-zinc-400">Pliki ZIP, grafiki, presety, ebooki</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* JEŚLI PRODUKT FIZYCZNY -> CHECKBOX ODZIEŻ & SIATKA ROZMIARÓW */}
+                  {prodType === "Fizyczny" && (
+                    <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-white block">Jest to odzież (rozmiarówka XS - XXL)</span>
+                          <span className="text-[11px] text-zinc-400">Podaj stan magazynowy dla każdego rozmiaru z osobna</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isClothing}
+                          onChange={(e) => setIsClothing(e.target.checked)}
+                          className="w-5 h-5 accent-[#D0FF00] cursor-pointer"
+                        />
+                      </div>
+
+                      {isClothing ? (
+                        <div className="space-y-3 pt-2">
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                            {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                              <div key={size} className="space-y-1">
+                                <span className="text-xs font-bold text-zinc-300 block text-center">{size}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={sizeStocks[size] ?? 0}
+                                  onChange={(e) =>
+                                    setSizeStocks({ ...sizeStocks, [size]: parseInt(e.target.value) || 0 })
+                                  }
+                                  className="w-full px-2 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-center text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-right text-xs text-zinc-400 pt-1">
+                            Łączny stan magazynowy:{" "}
+                            <strong className="text-[#D0FF00]">
+                              {Object.values(sizeStocks).reduce((a, b) => a + (Number(b) || 0), 0)} szt.
+                            </strong>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="text-xs text-zinc-400 block mb-1">Stan magazynowy (sztuki)</label>
+                          <input
+                            type="number"
+                            value={prodStock}
+                            onChange={(e) => setProdStock(e.target.value)}
+                            className="w-32 px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white font-mono"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* JEŚLI PRODUKT CYFROWY -> UPLOAD PLIKU CYFROWEGO */}
+                  {prodType === "Cyfrowy" && (
+                    <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                      <span className="text-xs font-bold text-white block">Plik cyfrowy do natychmiastowej wysyłki</span>
+                      {digitalFile ? (
+                        <div className="flex items-center justify-between p-3 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Download className="w-4 h-4 text-[#D0FF00] shrink-0" />
+                            <span className="font-semibold text-white truncate">{digitalFile.name}</span>
+                            <span className="text-zinc-500 font-mono">({digitalFile.size})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDigitalFile(null)}
+                            className="text-rose-400 hover:underline cursor-pointer text-xs"
+                          >
+                            Usuń
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="border border-dashed border-[#1C1E26] hover:border-[#D0FF00] rounded-xl p-5 block text-center cursor-pointer transition-colors">
+                          <Upload className="w-5 h-5 text-[#D0FF00] mx-auto mb-1.5" />
+                          <span className="text-xs font-semibold text-white block">Wybierz plik cyfrowy (ZIP, PDF, MP3)</span>
+                          <span className="text-[11px] text-zinc-500 block mt-0.5">Klient otrzyma link do pobrania natychmiast po opłaceniu zamówienia</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) handleDigitalFileUpload(e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ZDJĘCIA PRODUKTU */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold text-zinc-300 block">Zdjęcia produktu</label>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {prodImages.map((img, idx) => (
+                        <div key={idx} className="w-20 h-20 rounded-xl bg-[#111319] border border-[#1C1E26] relative overflow-hidden group">
+                          <img src={img} alt="Product" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setProdImages(prodImages.filter((_, i) => i !== idx))}
+                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <label className="w-20 h-20 rounded-xl border border-dashed border-[#1C1E26] hover:border-[#D0FF00] flex flex-col items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors">
+                        <Upload className="w-4 h-4 text-[#D0FF00]" />
+                        <span className="text-[9px] font-medium mt-1">+ Dodaj</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) handleProductImageUpload(e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* OPIS PRODUKTU */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Opis produktu (Gramatura, skład, krój)</label>
+                    <textarea
+                      rows={3}
+                      value={prodDescription}
+                      onChange={(e) => setProdDescription(e.target.value)}
+                      placeholder="np. Krój boxy fit, gramatura 460 GSM, 100% bawełna organiczna..."
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+
+                  {/* PRZYCISKI AKCJI */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-[#17181F]">
+                    <button
+                      type="button"
+                      onClick={() => setProductSubTab("list")}
+                      className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer"
+                    >
+                      Anuluj
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <span>{editingProductId ? "Zapisz zmiany" : "Zapisz i opublikuj produkt"}</span>
+                      <Check className="w-4 h-4" />
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* LISTA PRODUKTÓW W SKLEPIE */
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
+                    <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
+                      <tr>
+                        <th className="p-4">Produkt</th>
+                        <th className="p-4">Cena</th>
+                        <th className="p-4">Typ</th>
+                        <th className="p-4">Magazyn</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Akcje</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#141419]">
+                      {localProducts.map((p) => (
+                        <tr key={p.id} className="hover:bg-[#111319]/50 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] overflow-hidden shrink-0">
+                                <img
+                                  src={p.image || p.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=100"}
+                                  alt={p.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-white block truncate">{p.name}</span>
+                                <span className="text-[11px] text-zinc-500 block truncate">{p.description?.slice(0, 40)}...</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 font-mono font-bold text-white">{p.price}</td>
+                          <td className="p-4 text-zinc-400">{p.type}</td>
+                          <td className="p-4 font-mono text-[#D0FF00] font-bold">{p.stock} szt.</td>
+                          <td className="p-4">
+                            <button
+                              onClick={() => handleToggleProductStatus(p.id)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                                p.status === "Aktywny"
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                              }`}
+                            >
+                              {p.status || "Aktywny"}
+                            </button>
+                          </td>
+                          <td className="p-4 text-right space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditingProductId(p.id);
+                                setProdName(p.name);
+                                setProdPrice(p.price.replace(" zł", "").replace(" PLN", "").trim());
+                                setProdComparePrice(p.comparePrice?.replace(" zł", "").replace(" PLN", "").trim() || "");
+                                setProdType(p.type as any);
+                                setProdStock(String(p.stock || 50));
+                                setProdDescription(p.description || "");
+                                setProdImages(p.images && p.images.length > 0 ? p.images : [p.image || ""]);
+                                setProductSubTab("add");
+                              }}
+                              className="p-1.5 text-zinc-400 hover:text-white bg-[#111319] hover:bg-[#1A1F2C] border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
+                              title="Edytuj"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(p.id)}
+                              className="p-1.5 text-rose-400 hover:text-rose-300 bg-[#111319] hover:bg-rose-500/10 border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
+                              title="Usuń"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: ZAMÓWIENIA KLIENTÓW (sklep-zamowienia / zamowienia) */}
+        {/* ========================================================================= */}
+        {(activeTab === "sklep-zamowienia" || activeTab === "zamowienia") && (
+          <div className="space-y-6 max-w-5xl">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                    Zamówienia klientów
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
+                    Przeglądaj opłacone koszyki, dane adresowe InPost Paczkomat i statusy realizacji.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {["all", "paid", "shipped"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setOrderFilter(f as any)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] cursor-pointer transition-colors ${
+                        orderFilter === f
+                          ? "bg-[#D0FF00] text-black font-bold"
+                          : "bg-[#111319] text-zinc-400 hover:text-white border border-[#1C1E26]"
+                      }`}
+                    >
+                      {f === "all" ? "Wszystkie" : f === "paid" ? "Opłacone" : "Wysłane"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
+                  <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
+                    <tr>
+                      <th className="p-3.5">ID & Klient</th>
+                      <th className="p-3.5">Zamówione produkty</th>
+                      <th className="p-3.5">Dostawa / Paczkomat</th>
+                      <th className="p-3.5">Kwota</th>
+                      <th className="p-3.5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#141419]">
+                    {localOrders.map((ord, idx) => (
+                      <tr key={ord.id} className="hover:bg-[#111319]/50 transition-colors">
+                        <td className="p-3.5">
+                          <span className="font-bold text-white block">#{ord.id}</span>
+                          <span className="text-[11px] text-zinc-400 block">{ord.customerEmail}</span>
+                        </td>
+                        <td className="p-3.5 font-medium text-white">{ord.productTitle}</td>
+                        <td className="p-3.5 text-zinc-400">
+                          {idx % 2 === 0 ? "Paczkomat InPost: KRA01M (Kraków)" : "Wysyłka e-mail (Produkt cyfrowy)"}
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-white">
+                          {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                            Opłacone
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: WŁASNA DOMENA (sklep-domena) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-domena" && (
+          <div className="space-y-6 max-w-3xl">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6 font-['Poppins',sans-serif]">
+              <div>
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                  Podepnij własną domenę
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Skieruj swój sklep na adres własnej domeny (np. twojamarka.pl). Zapewniamy darmowy certyfikat SSL.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Twoja zarejestrowana domena</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={customDomainInput}
+                      onChange={(e) => setCustomDomainInput(e.target.value)}
+                      placeholder="twojamarka.pl"
+                      className="flex-1 px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyDomain}
+                      className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer shrink-0"
+                    >
+                      {domainStatus === "checking" ? "Sprawdzanie..." : "Zweryfikuj DNS"}
+                    </button>
+                  </div>
+                </div>
+
+                {domainStatus === "verified" && (
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-3 text-xs text-emerald-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <div>
+                      <span className="font-bold block text-white">Domena zweryfikowana pomyślnie!</span>
+                      <span className="text-[11px] text-emerald-400">Certyfikat SSL jest aktywny. Sklep odpowiada pod Twoim adresem.</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* INSTRUKCJA REKORDÓW DNS */}
+                <div className="p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                  <span className="text-xs font-bold text-white block">Instrukcja konfiguracji u rejestratora domeny</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between p-3 bg-[#0D0E12] rounded-xl border border-[#1C1E26]">
+                      <div>
+                        <span className="text-zinc-400 block text-[11px]">Rekord CNAME dla subdomeny lub www</span>
+                        <span className="font-mono text-white font-bold">CNAME @ / www &rarr; cname.iskral.pl</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText("cname.iskral.pl");
+                          if (setMessage) setMessage({ type: "success", text: "Skopiowano wartość CNAME!" });
+                        }}
+                        className="px-2.5 py-1 bg-[#171A24] text-zinc-300 hover:text-white rounded-lg text-xs cursor-pointer"
+                      >
+                        Kopiuj
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-[#0D0E12] rounded-xl border border-[#1C1E26]">
+                      <div>
+                        <span className="text-zinc-400 block text-[11px]">Rekord A dla domeny głównej</span>
+                        <span className="font-mono text-white font-bold">A @ &rarr; 76.76.21.21</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText("76.76.21.21");
+                          if (setMessage) setMessage({ type: "success", text: "Skopiowano adres IP!" });
+                        }}
+                        className="px-2.5 py-1 bg-[#171A24] text-zinc-300 hover:text-white rounded-lg text-xs cursor-pointer"
+                      >
+                        Kopiuj
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: PŁATNOŚCI & WYPŁATY (sklep-platnosci) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-platnosci" && (
+          <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* STATUS PŁATNOŚCI STRIPE */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Bramka Stripe Connect</h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    System automatycznie przetwarza płatności BLIK, karty Visa/Mastercard oraz Apple Pay.
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-bold inline-block">
+                  Aktywny • 0% prowizji platformy
+                </span>
+              </div>
+
+              {/* SALDO DO WYPŁATY */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs text-zinc-400 block">Dostępne środki</span>
+                  <span className="text-3xl font-bold text-white font-mono block mt-1">{totalRevenuePLN} PLN</span>
+                </div>
+                <span className="text-[11px] text-zinc-500 block">Środki gotowe do przelania na Twój rachunek bankowy</span>
+              </div>
+            </div>
+
+            {/* FORMULARZ ZLECENIA WYPŁATY NA IBAN */}
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-4">
+              <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">Zlecenie wypłaty na konto bankowe</h3>
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-2">Numer konta bankowego w Polsce (IBAN)</label>
+                <input
+                  type="text"
+                  placeholder="PL 00 0000 0000 0000 0000 0000 0000"
+                  className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm font-mono text-white focus:outline-none focus:border-[#D0FF00]"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (setMessage) setMessage({ type: "success", text: "Zlecono wypłatę środków na konto bankowe!" });
+                }}
+                className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Wypłać środki na konto
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: NEWSLETTER & MARKETING (sklep-newsletter) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-newsletter" && (
+          <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-4 border-b border-[#17181F] pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">Newsletter i Kampanie E-mail</h2>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Baza osób zapisanych na powiadomienia o nowym dropie i wysyłka kampanii.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-bold text-[#D0FF00]">
+                  {subscribers.length} subskrybentów
+                </span>
+              </div>
+
+              {/* FORMULARZ NOWEJ KAMPANII */}
+              <form onSubmit={handleSendNewsletterCampaign} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Temat wiadomości e-mail</label>
+                  <input
+                    type="text"
+                    value={campaignSubject}
+                    onChange={(e) => setCampaignSubject(e.target.value)}
+                    placeholder="np. 🔥 Nowy Drop już dostępny w sklepie!"
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Treść wiadomości</label>
+                  <textarea
+                    rows={4}
+                    value={campaignContent}
+                    onChange={(e) => setCampaignContent(e.target.value)}
+                    placeholder="Wpisz treść wiadomości, którą otrzymają wszyscy Twoi subskrybenci..."
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Wyślij kampanię do {subscribers.length} osób</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* LISTA SUBSKRYBENTÓW */}
+              <div className="pt-4 border-t border-[#17181F] space-y-3">
+                <h3 className="text-sm font-bold text-white">Baza adresowa</h3>
+                <div className="space-y-2">
+                  {subscribers.map((s) => (
+                    <div key={s.id} className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between text-xs">
+                      <span className="font-semibold text-white">{s.email}</span>
+                      <span className="text-zinc-500 font-mono">Zapisano: {s.subscribedAt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: WSPÓŁPRACA & ZESPÓŁ (sklep-zespol) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-zespol" && (
+          <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">Współpraca i Uprawnienia Zespołu</h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Zaproś współpracowników do zarządzania sklepem, produktami lub obsługą zamówień.
+                </p>
+              </div>
+
+              {/* FORMULARZ ZAPRASZANIA */}
+              <form onSubmit={handleInviteTeamMember} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">E-mail użytkownika</label>
+                    <input
+                      type="email"
+                      value={teamInviteEmail}
+                      onChange={(e) => setTeamInviteEmail(e.target.value)}
+                      placeholder="wspolpracownik@gmail.com"
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Rola / Uprawnienia</label>
+                    <select
+                      value={teamInviteRole}
+                      onChange={(e) => setTeamInviteRole(e.target.value as any)}
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                    >
+                      <option value="Edytor">Edytor (Produkty i wygląd)</option>
+                      <option value="Obsługa zamówień">Obsługa zamówień</option>
+                      <option value="Administrator">Administrator (Pełny dostęp)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Dodaj członka zespołu</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* LISTA CZŁONKÓW */}
+              <div className="pt-4 border-t border-[#17181F] space-y-3">
+                <h3 className="text-sm font-bold text-white">Aktywni członkowie zespołu</h3>
+                <div className="space-y-2">
+                  {teamMembers.map((m) => (
+                    <div key={m.id} className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-white block">{m.email}</span>
+                        <span className="text-[11px] text-[#D0FF00] block mt-0.5">{m.role}</span>
+                      </div>
+                      {m.id !== "tm_1" && (
+                        <button
+                          onClick={() => handleRemoveTeamMember(m.id)}
+                          className="text-rose-400 hover:underline text-xs cursor-pointer"
+                        >
+                          Usuń dostęp
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: TRYB DROPU (sklep-drop / drop) */}
+        {/* ========================================================================= */}
+        {(activeTab === "sklep-drop" || activeTab === "drop") && (
+          <div className="space-y-6 max-w-3xl font-['Poppins',sans-serif]">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">Tryb Dropu i Odliczanie do Premiery</h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Zablokuj standardowy sklep i wyświetl odliczanie do premiery kolekcji z hasłem VIP.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveDropConfig} className="space-y-5">
+                {/* WŁĄCZNIK DROPU */}
+                <div className="flex items-center justify-between p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl">
+                  <div>
+                    <span className="text-sm font-bold text-white block">Włącz tryb dropu na stronie głównej</span>
+                    <span className="text-[11px] text-zinc-400 block mt-0.5">Zamiast listy produktów pojawi się ekran odliczania</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={dropEnabled}
+                    onChange={(e) => setDropEnabled(e.target.checked)}
+                    className="w-5 h-5 accent-[#D0FF00] cursor-pointer"
+                  />
+                </div>
+
+                {/* DATA I GODZINA PREMIERY */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Data i godzina premiery (Target Drop Date)</label>
+                  <input
+                    type="datetime-local"
+                    value={dropTargetDate}
+                    onChange={(e) => setDropTargetDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                </div>
+
+                {/* HASŁO VIP DLA INFLUENCERÓW */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Hasło VIP (Wczesny dostęp dla wybranych)</label>
+                  <input
+                    type="text"
+                    value={dropVipPassword}
+                    onChange={(e) => setDropVipPassword(e.target.value)}
+                    placeholder="VIP2026"
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm font-mono text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                  <p className="text-[11px] text-zinc-500 mt-1">Osoby posiadające to hasło mogą wejść do sklepu przed oficjalnym startem.</p>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-[#17181F]">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Zapisz konfigurację dropu
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: SEO & POZYCJONOWANIE (sklep-seo) */}
+        {/* ========================================================================= */}
+        {activeTab === "sklep-seo" && (
+          <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">SEO i Optymalizacja Google</h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Ustaw tytuł, opis i słowa kluczowe, aby Twój sklep zajmował wysokie pozycje w wyszukiwarce.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveSeoConfig} className="space-y-5">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Meta Title (Tytuł w Google)</label>
+                  <input
+                    type="text"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Meta Description (Opis w wynikach wyszukiwania)</label>
+                  <textarea
+                    rows={3}
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2">Słowa kluczowe (Keywords)</label>
+                  <input
+                    type="text"
+                    value={seoKeywords}
+                    onChange={(e) => setSeoKeywords(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                  />
+                </div>
+
+                {/* PODGLĄD W WYSZUKIWARCE GOOGLE */}
+                <div className="p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-2">
+                  <span className="text-[11px] font-bold uppercase text-zinc-400 tracking-wider block">Podgląd w Google</span>
+                  <div className="p-4 bg-[#08090C] rounded-xl border border-[#1C1E26] space-y-1">
+                    <span className="text-xs text-emerald-400 font-mono block truncate">
+                      https://{activeStorePackage?.subdomain || activeSubdomain || "iskral"}.iskral.pl
+                    </span>
+                    <span className="text-base font-medium text-[#8ab4f8] block hover:underline cursor-pointer">
+                      {seoTitle}
+                    </span>
+                    <span className="text-xs text-zinc-400 block line-clamp-2">
+                      {seoDescription}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-[#17181F]">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Zapisz ustawienia SEO
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
