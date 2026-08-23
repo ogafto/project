@@ -1243,6 +1243,26 @@ export default function AeuxDashboard({
     }
   };
 
+  const getStoreOnlineUrl = (sub?: string) => {
+    const clean = (sub || activeStorePackage?.subdomain || activeSubdomain || editorSubdomain || "iskral").toLowerCase().trim();
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      const host = window.location.host;
+      const protocol = window.location.protocol;
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return `http://localhost:3000/${clean}`;
+      }
+      if (hostname.endsWith(".vercel.app")) {
+        return `${protocol}//${host}/${clean}`;
+      }
+      if (hostname === "iskral.pl" || hostname === "www.iskral.pl") {
+        return `https://${clean}.iskral.pl`;
+      }
+      return `/${clean}`;
+    }
+    return `https://${clean}.iskral.pl`;
+  };
+
   const handleSaveStoreEditor = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editorStoreName.trim()) {
@@ -1327,17 +1347,19 @@ export default function AeuxDashboard({
     const comparePriceNum = parseFloat(cleanComparePrice) || 0;
     const comparePriceCents = comparePriceNum > 0 ? Math.round(comparePriceNum * 100) : undefined;
 
-    const totalStock = prodType === "Fizyczny" && isClothing
+    const isDigital = prodType === "Cyfrowy";
+    const totalStock = !isDigital && isClothing
       ? Object.values(sizeStocks).reduce((acc, v) => acc + (Number(v) || 0), 0)
-      : parseInt(prodStock) || 50;
+      : parseInt(prodStock) || (isDigital ? 999 : 50);
 
-    const activeVariants = prodType === "Fizyczny" && isClothing
+    const activeVariants = !isDigital && isClothing
       ? Object.entries(sizeStocks)
           .filter(([_, stock]) => Number(stock) > 0)
           .map(([size, stock]) => `${size} (${stock} szt.)`)
       : [];
 
     const defaultImg = prodImages[0] || prodImage || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
+    const allImages = prodImages.length > 0 ? prodImages : [defaultImg];
 
     if (editingProductId) {
       const updated = localProducts.map((p) => {
@@ -1350,12 +1372,13 @@ export default function AeuxDashboard({
             comparePrice: comparePriceNum > 0 ? `${comparePriceNum.toFixed(2)} zł` : undefined,
             comparePriceCents,
             type: prodType,
+            isClothing: !isDigital && isClothing,
             stock: totalStock,
-            variants: activeVariants.length > 0 ? activeVariants : ["Uniwersalny"],
+            variants: !isDigital && isClothing && activeVariants.length > 0 ? activeVariants : [],
             description: prodDescription,
             image: defaultImg,
-            images: prodImages.length > 0 ? prodImages : [defaultImg],
-            isDigital: prodType === "Cyfrowy",
+            images: allImages,
+            isDigital,
             digitalFileName: digitalFile?.name,
             digitalFileSize: digitalFile?.size,
             isDropOnly: isScheduledLaunch,
@@ -1377,12 +1400,13 @@ export default function AeuxDashboard({
         type: prodType,
         status: "Aktywny",
         sales: 0,
+        isClothing: !isDigital && isClothing,
         stock: totalStock,
-        variants: activeVariants.length > 0 ? activeVariants : ["Uniwersalny"],
+        variants: !isDigital && isClothing && activeVariants.length > 0 ? activeVariants : [],
         description: prodDescription,
         image: defaultImg,
-        images: prodImages.length > 0 ? prodImages : [defaultImg],
-        isDigital: prodType === "Cyfrowy",
+        images: allImages,
+        isDigital,
         digitalFileName: digitalFile?.name,
         digitalFileSize: digitalFile?.size,
         isDropOnly: isScheduledLaunch,
@@ -3658,7 +3682,7 @@ export default function AeuxDashboard({
 
                   <button
                     type="submit"
-                    className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2"
+                    className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2"
                   >
                     <span>Stwórz sklep i przejdź do panelu</span>
                     <ArrowUpRight className="w-4 h-4" />
@@ -3674,7 +3698,7 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {activeTab === "zarzadzaj-sklepem" && (
           <div className="space-y-8 max-w-6xl">
-            {/* GÓRNY PASEK SKLEPU (LOGO, NAZWA, ID, IP, PAKIET, WAŻNOŚĆ, OTWARCIE ONLINE, PRZEDŁUŻENIE, UPGRADE) */}
+            {/* GÓRNY PASEK SKLEPU (LOGO, NAZWA, ID, PAKIET, WAŻNOŚĆ, OTWARCIE ONLINE, PRZEDŁUŻENIE, UPGRADE) */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-7 shadow-xl">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
@@ -3703,14 +3727,10 @@ export default function AeuxDashboard({
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-zinc-400 font-['Poppins',sans-serif] flex-wrap">
-                    <span>ID: #{activeStorePackage?.number || 1001}</span>
-                    <span>•</span>
-                    <span className="font-mono text-zinc-300">IP: 76.76.21.21</span>
-                    <span>•</span>
-                    <span className="font-mono text-zinc-300">DNS: iskral.pl</span>
+                    <span>ID: #{activeStorePackage?.number || 1000}</span>
                     <span>•</span>
                     <a
-                      href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
+                      href={getStoreOnlineUrl(activeStorePackage?.subdomain || activeSubdomain || editorSubdomain)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[#D0FF00] hover:underline font-medium inline-flex items-center gap-1 font-mono"
@@ -3748,7 +3768,7 @@ export default function AeuxDashboard({
 
                 {/* PRZYCISK OTWARCIA SKLEPU ONLINE */}
                 <a
-                  href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
+                  href={getStoreOnlineUrl(activeStorePackage?.subdomain || activeSubdomain || editorSubdomain)}
                   target="_blank"
                   rel="noreferrer"
                   className="px-[20px] py-[10px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
@@ -4472,43 +4492,43 @@ export default function AeuxDashboard({
 
                   {/* PRZEŁĄCZNIK TYPU: FIZYCZNY VS CYFROWY */}
                   <div className="space-y-3">
-                    <label className="text-xs font-semibold text-zinc-300 block">Rodzaj produktu</label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-zinc-300 block">Rodzaj produktu *</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         type="button"
                         onClick={() => setProdType("Fizyczny")}
-                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                           prodType === "Fizyczny"
-                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00]"
-                            : "bg-[#111319] border-[#1C1E26] text-zinc-400"
+                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00] shadow-sm"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-400 hover:border-zinc-700"
                         }`}
                       >
-                        <span className="text-sm font-bold block text-white">Produkt fizyczny</span>
-                        <span className="text-[11px] block mt-0.5 text-zinc-400">Odzież, bluzy, koszulki, akcesoria</span>
+                        <span className="text-sm font-bold block text-white">📦 Produkt fizyczny</span>
+                        <span className="text-[11px] block mt-1 text-zinc-400">Odzież, akcesoria itp.</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setProdType("Cyfrowy")}
-                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                           prodType === "Cyfrowy"
-                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00]"
-                            : "bg-[#111319] border-[#1C1E26] text-zinc-400"
+                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00] shadow-sm"
+                            : "bg-[#111319] border-[#1C1E26] text-zinc-400 hover:border-zinc-700"
                         }`}
                       >
-                        <span className="text-sm font-bold block text-white">Produkt cyfrowy</span>
-                        <span className="text-[11px] block mt-0.5 text-zinc-400">Pliki ZIP, grafiki, presety, ebooki</span>
+                        <span className="text-sm font-bold block text-white">💻 Produkt cyfrowy</span>
+                        <span className="text-[11px] block mt-1 text-zinc-400">Pliki, grafiki, presety, ebooki, dane itp.</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* JEŚLI PRODUKT FIZYCZNY -> CHECKBOX ODZIEŻ & SIATKA ROZMIARÓW */}
+                  {/* JEŚLI PRODUKT FIZYCZNY -> WYBÓR CZY TO ODZIEŻ CZY INNY PRODUKT */}
                   {prodType === "Fizyczny" && (
-                    <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-4">
+                    <div className="p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xs font-bold text-white block">Jest to odzież (rozmiarówka XS - XXL)</span>
-                          <span className="text-[11px] text-zinc-400">Podaj stan magazynowy dla każdego rozmiaru z osobna</span>
+                          <span className="text-xs font-bold text-white block">Produkt to odzież (z rozmiarówką XS - XXL)</span>
+                          <span className="text-[11px] text-zinc-400">Zaznacz, jeśli produkt posiada warianty rozmiarów. Jeśli to akcesoria/gadżet – odznacz.</span>
                         </div>
                         <input
                           type="checkbox"
@@ -4519,7 +4539,8 @@ export default function AeuxDashboard({
                       </div>
 
                       {isClothing ? (
-                        <div className="space-y-3 pt-2">
+                        <div className="space-y-3 pt-2 border-t border-[#1C1E26]/60">
+                          <span className="text-xs font-semibold text-zinc-300 block">Stan magazynowy dla każdego rozmiaru:</span>
                           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                             {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
                               <div key={size} className="space-y-1">
@@ -4531,7 +4552,7 @@ export default function AeuxDashboard({
                                   onChange={(e) =>
                                     setSizeStocks({ ...sizeStocks, [size]: parseInt(e.target.value) || 0 })
                                   }
-                                  className="w-full px-2 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-center text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
+                                  className="w-full px-2 py-2 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-center text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
                                 />
                               </div>
                             ))}
@@ -4544,74 +4565,100 @@ export default function AeuxDashboard({
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          <label className="text-xs text-zinc-400 block mb-1">Stan magazynowy (sztuki)</label>
+                        <div className="pt-2 border-t border-[#1C1E26]/60">
+                          <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Stan magazynowy (dostępna liczba sztuk)</label>
                           <input
                             type="number"
+                            min="0"
                             value={prodStock}
                             onChange={(e) => setProdStock(e.target.value)}
-                            className="w-32 px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white font-mono"
+                            placeholder="np. 50"
+                            className="w-48 px-3.5 py-2 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
                           />
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* JEŚLI PRODUKT CYFROWY -> UPLOAD PLIKU CYFROWEGO */}
+                  {/* JEŚLI PRODUKT CYFROWY -> PLIK I STAN MAGAZYNOWY/LIMIT */}
                   {prodType === "Cyfrowy" && (
-                    <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
-                      <span className="text-xs font-bold text-white block">Plik cyfrowy do natychmiastowej wysyłki</span>
-                      {digitalFile ? (
-                        <div className="flex items-center justify-between p-3 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Download className="w-4 h-4 text-[#D0FF00] shrink-0" />
-                            <span className="font-semibold text-white truncate">{digitalFile.name}</span>
-                            <span className="text-zinc-500 font-mono">({digitalFile.size})</span>
+                    <div className="p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-4">
+                      <div>
+                        <span className="text-xs font-bold text-white block mb-1">Plik cyfrowy do natychmiastowej wysyłki</span>
+                        <span className="text-[11px] text-zinc-400 block mb-3">Klient otrzyma link do pobrania natychmiast po opłaceniu zamówienia.</span>
+                        {digitalFile ? (
+                          <div className="flex items-center justify-between p-3.5 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <Download className="w-4 h-4 text-[#D0FF00] shrink-0" />
+                              <span className="font-semibold text-white truncate">{digitalFile.name}</span>
+                              <span className="text-zinc-500 font-mono">({digitalFile.size})</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDigitalFile(null)}
+                              className="text-rose-400 hover:underline cursor-pointer text-xs"
+                            >
+                              Usuń
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setDigitalFile(null)}
-                            className="text-rose-400 hover:underline cursor-pointer text-xs"
-                          >
-                            Usuń
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="border border-dashed border-[#1C1E26] hover:border-[#D0FF00] rounded-xl p-5 block text-center cursor-pointer transition-colors">
-                          <Upload className="w-5 h-5 text-[#D0FF00] mx-auto mb-1.5" />
-                          <span className="text-xs font-semibold text-white block">Wybierz plik cyfrowy (ZIP, PDF, MP3)</span>
-                          <span className="text-[11px] text-zinc-500 block mt-0.5">Klient otrzyma link do pobrania natychmiast po opłaceniu zamówienia</span>
-                          <input
-                            type="file"
-                            className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) handleDigitalFileUpload(e.target.files[0]);
-                            }}
-                          />
-                        </label>
-                      )}
+                        ) : (
+                          <label className="border border-dashed border-[#1C1E26] hover:border-[#D0FF00] rounded-xl p-5 block text-center cursor-pointer transition-colors">
+                            <Upload className="w-5 h-5 text-[#D0FF00] mx-auto mb-1.5" />
+                            <span className="text-xs font-semibold text-white block">Wybierz plik cyfrowy (ZIP, PDF, MP3, grafiki, presety)</span>
+                            <span className="text-[11px] text-zinc-500 block mt-0.5">Maksymalny rozmiar: 500 MB</span>
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) handleDigitalFileUpload(e.target.files[0]);
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-[#1C1E26]/60">
+                        <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Stan magazynowy / Dostępna liczba licencji (szt.)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={prodStock}
+                          onChange={(e) => setProdStock(e.target.value)}
+                          placeholder="np. 999"
+                          className="w-48 px-3.5 py-2 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
+                        />
+                      </div>
                     </div>
                   )}
 
-                  {/* ZDJĘCIA PRODUKTU */}
+                  {/* ZDJĘCIA PRODUKTU (WIĘCEJ ZDJĘĆ / GALERIA) */}
                   <div className="space-y-3">
-                    <label className="text-xs font-semibold text-zinc-300 block">Zdjęcia produktu</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-zinc-300 block">Zdjęcia produktu (Galeria) *</label>
+                      <span className="text-[11px] text-zinc-500">Możesz dodać wiele zdjęć – pierwsze będzie głównym</span>
+                    </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       {prodImages.map((img, idx) => (
-                        <div key={idx} className="w-20 h-20 rounded-xl bg-[#111319] border border-[#1C1E26] relative overflow-hidden group">
-                          <img src={img} alt="Product" className="w-full h-full object-cover" />
+                        <div key={idx} className="w-24 h-24 rounded-2xl bg-[#111319] border border-[#1C1E26] relative overflow-hidden group shadow-md">
+                          <img src={img} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                          {idx === 0 && (
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[9px] font-bold text-[#D0FF00]">
+                              Główne
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => setProdImages(prodImages.filter((_, i) => i !== idx))}
-                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 w-6 h-6 bg-black/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                            title="Usuń zdjęcie"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
-                      <label className="w-20 h-20 rounded-xl border border-dashed border-[#1C1E26] hover:border-[#D0FF00] flex flex-col items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors">
-                        <Upload className="w-4 h-4 text-[#D0FF00]" />
-                        <span className="text-[9px] font-medium mt-1">+ Dodaj</span>
+                      <label className="w-24 h-24 rounded-2xl border border-dashed border-[#1C1E26] hover:border-[#D0FF00] flex flex-col items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors bg-[#0D0E12]/50">
+                        <Upload className="w-5 h-5 text-[#D0FF00]" />
+                        <span className="text-[10px] font-medium mt-1.5">+ Dodaj zdjęcie</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -4624,20 +4671,23 @@ export default function AeuxDashboard({
                     </div>
                   </div>
 
-                  {/* OPIS PRODUKTU */}
+                  {/* DUŻY OPIS PRODUKTU */}
                   <div>
-                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Opis produktu (Gramatura, skład, krój)</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-semibold text-zinc-300 block">Dłuższy opis produktu (Specyfikacja, materiały, instrukcja)</label>
+                      <span className="text-[11px] text-zinc-500">Widoczny po wejściu w szczegóły produktu</span>
+                    </div>
                     <textarea
-                      rows={3}
+                      rows={5}
                       value={prodDescription}
                       onChange={(e) => setProdDescription(e.target.value)}
-                      placeholder="np. Krój boxy fit, gramatura 460 GSM, 100% bawełna organiczna..."
-                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                      placeholder="Wprowadź szczegółowy opis produktu np. krój, skład materiałowy, gramaturę, zawartość paczki plików cyfrowych, licencję lub instrukcję instalacji..."
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white leading-relaxed focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
 
                   {/* ZAPLANOWANA PREMIERA (DROP) */}
-                  <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                  <div className="p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <Flame className={`w-4 h-4 ${isScheduledLaunch ? "text-[#D0FF00]" : "text-zinc-500"}`} />
@@ -4672,13 +4722,13 @@ export default function AeuxDashboard({
                     <button
                       type="button"
                       onClick={() => setProductSubTab("list")}
-                      className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer"
+                      className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer transition-colors"
                     >
                       Anuluj
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                      className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <span>{editingProductId ? "Zapisz zmiany" : "Zapisz i opublikuj produkt"}</span>
                       <Check className="w-4 h-4" />

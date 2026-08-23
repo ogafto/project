@@ -42,17 +42,17 @@ export default function SubdomainError({ error, reset }: ErrorProps) {
           </div>
         )}
 
-        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center font-['Poppins',sans-serif]">
           <button
             onClick={() => reset()}
-            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] hover:from-[#e04f20] hover:to-[#e07520] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-[#FF5B28]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black font-semibold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>🔄 Spróbuj ponownie</span>
           </button>
 
           <a
-            href="https://iskral.pl"
-            className="w-full sm:w-auto px-6 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs rounded-xl border border-white/10 transition-all flex items-center justify-center text-center"
+            href="/"
+            className="w-full sm:w-auto px-6 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 font-medium text-xs rounded-xl border border-white/10 transition-all flex items-center justify-center text-center"
           >
             Strona główna platformy
           </a>

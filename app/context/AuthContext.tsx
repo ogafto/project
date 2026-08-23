@@ -34,6 +34,7 @@ export interface Product {
   sales: number;
   stock: number;
   variants?: string[];
+  isClothing?: boolean;
   description: string;
   image?: string;
   images?: string[];

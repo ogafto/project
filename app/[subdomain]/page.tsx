@@ -3,24 +3,37 @@
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useParams } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import { useAuth, Product, Category, StoreConfig, User } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 import NotFoundPage from "@/app/not-found";
 
 interface PageProps {
-  params: Promise<{ subdomain: string }> | { subdomain: string };
+  params?: Promise<{ subdomain: string }> | { subdomain: string };
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default function TenantStorePage({ params }: PageProps) {
-  // 1. ALL HOOKS MUST BE UNCONDITIONALLY EXECUTED AT THE TOP (Rules of Hooks)
-  const resolvedParams =
-    params && typeof (params as any).then === "function"
-      ? use(params as Promise<{ subdomain: string }>)
-      : (params as { subdomain: string });
-  const rawSubdomain = resolvedParams?.subdomain || "";
-  const subdomain = decodeURIComponent(rawSubdomain).toLowerCase().trim();
+  // 1. ALL HOOKS UNCONDITIONALLY AT THE TOP
+  const urlParams = useParams();
+  let rawSub = "";
+  if (urlParams && typeof urlParams.subdomain === "string") {
+    rawSub = urlParams.subdomain;
+  } else if (params) {
+    if (typeof (params as any).then === "function") {
+      try {
+        const p = use(params as Promise<{ subdomain: string }>);
+        rawSub = p?.subdomain || "";
+      } catch {
+        rawSub = "";
+      }
+    } else if (typeof params === "object" && "subdomain" in params) {
+      rawSub = (params as any).subdomain || "";
+    }
+  }
+
+  const subdomain = decodeURIComponent(rawSub || "").toLowerCase().trim();
 
   const { allUsers = [], createStripeCheckout, recordOrder } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
@@ -34,7 +47,11 @@ export default function TenantStorePage({ params }: PageProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // 2. Load store & products from Supabase + track visits
+  // Product detail modal state
+  const [selectedProductModal, setSelectedProductModal] = useState<Product | null>(null);
+  const [activeModalImageIdx, setActiveModalImageIdx] = useState<number>(0);
+
+  // 2. Track real visits
   useEffect(() => {
     if (!subdomain) return;
     try {
@@ -49,6 +66,7 @@ export default function TenantStorePage({ params }: PageProps) {
     } catch {}
   }, [subdomain]);
 
+  // 3. Load store & products from Supabase
   useEffect(() => {
     async function loadFromDB() {
       if (!subdomain) {
@@ -62,35 +80,40 @@ export default function TenantStorePage({ params }: PageProps) {
           try {
             dbProducts = (await fetchProductsFromSupabase(dbData.id)) || [];
           } catch (prodErr) {
-            console.error("Błąd ładowania produktów sklepu:", prodErr);
+            console.error("Błąd ładowania produktów sklepu z bazy:", prodErr);
           }
 
           const mappedProducts: Product[] = Array.isArray(dbProducts)
-            ? dbProducts.map((p: any) => ({
-                id: p?.id || `p_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                tenantId: dbData?.id || "",
-                categoryId: p?.category_id || undefined,
-                name: p?.name || "Produkt",
-                description: p?.description || "",
-                price: p?.price || `${(((p?.price_cents ?? 0) / 100) || 0).toFixed(2)} PLN`,
-                priceCents: typeof p?.price_cents === "number" ? p.price_cents : 0,
-                comparePrice: p?.compare_price || undefined,
-                comparePriceCents: p?.compare_price_cents || undefined,
-                type: p?.type === "Cyfrowy" ? "Cyfrowy" : "Fizyczny",
-                status: p?.status === "Nieaktywny" || p?.status === "Zawieszony" ? "Zawieszony" : "Aktywny",
-                isDropOnly: Boolean(p?.is_drop_only),
-                dropTargetDate: p?.drop_target_date || undefined,
-                sales: p?.sales ?? 0,
-                stock: typeof p?.stock === "number" ? p.stock : 50,
-                variants: Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants : ["S", "M", "L", "XL"],
-                image: p?.image_url || p?.image || "",
-                imageUrl: p?.image_url || p?.image || "",
-                images: Array.isArray(p?.images) && p.images.length > 0 ? p.images : [p?.image_url || p?.image || ""].filter(Boolean),
-                isDigital: Boolean(p?.is_digital || p?.type === "Cyfrowy"),
-                digitalFileName: p?.digital_file_name || undefined,
-                digitalFileSize: p?.digital_file_size || undefined,
-                digitalFileUrl: p?.digital_file_url || undefined,
-              }))
+            ? dbProducts.map((p: any) => {
+                const isDig = Boolean(p?.is_digital || p?.type === "Cyfrowy");
+                const hasClothing = Boolean(p?.is_clothing || (Array.isArray(p?.variants) && p.variants.some((v: string) => ["XS", "S", "M", "L", "XL", "XXL"].includes(v.split(" ")[0]))));
+                return {
+                  id: p?.id || `p_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                  tenantId: dbData?.id || "",
+                  categoryId: p?.category_id || undefined,
+                  name: p?.name || "Produkt",
+                  description: p?.description || "",
+                  price: p?.price || `${(((p?.price_cents ?? 0) / 100) || 0).toFixed(2)} PLN`,
+                  priceCents: typeof p?.price_cents === "number" ? p.price_cents : 0,
+                  comparePrice: p?.compare_price || undefined,
+                  comparePriceCents: p?.compare_price_cents || undefined,
+                  type: isDig ? "Cyfrowy" : "Fizyczny",
+                  status: p?.status === "Nieaktywny" || p?.status === "Zawieszony" ? "Zawieszony" : "Aktywny",
+                  isDropOnly: Boolean(p?.is_drop_only),
+                  dropTargetDate: p?.drop_target_date || undefined,
+                  sales: p?.sales ?? 0,
+                  stock: typeof p?.stock === "number" ? p.stock : (isDig ? 999 : 50),
+                  isClothing: !isDig && hasClothing,
+                  variants: !isDig && hasClothing && Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants : [],
+                  image: p?.image_url || p?.image || "",
+                  imageUrl: p?.image_url || p?.image || "",
+                  images: Array.isArray(p?.images) && p.images.length > 0 ? p.images : [p?.image_url || p?.image || ""].filter(Boolean),
+                  isDigital: isDig,
+                  digitalFileName: p?.digital_file_name || undefined,
+                  digitalFileSize: p?.digital_file_size || undefined,
+                  digitalFileUrl: p?.digital_file_url || undefined,
+                };
+              })
             : [];
 
           setAsyncStore({
@@ -132,7 +155,7 @@ export default function TenantStorePage({ params }: PageProps) {
     loadFromDB();
   }, [subdomain]);
 
-  // 3. Resolve targetStore
+  // 4. Resolve targetStore
   let targetStore: StoreConfig | undefined;
   let ownerUser: User | undefined;
 
@@ -157,19 +180,20 @@ export default function TenantStorePage({ params }: PageProps) {
     targetStore = asyncStore;
   }
 
-  // Local storage fallback for newly configured store / testing
+  // Local storage fallback for offline/development testing
   if (!targetStore && typeof window !== "undefined") {
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.startsWith("iskra_active_store_") || k.startsWith("iskra_user_packages_"))) {
+        if (k && (k.startsWith("iskra_active_store_") || k.startsWith("iskra_user_packages_") || k.startsWith("iskra_stores_"))) {
           const raw = localStorage.getItem(k);
           if (raw) {
             const parsed = JSON.parse(raw);
             const list = Array.isArray(parsed) ? parsed : [parsed];
-            const match = list.find((item: any) => item?.subdomain?.toLowerCase() === subdomain);
+            const match = list.find((item: any) => item?.subdomain?.toLowerCase() === subdomain || item?.id === subdomain);
             if (match) {
-              const prodsRaw = localStorage.getItem(`iskra_products_${k.replace("iskra_active_store_", "").replace("iskra_user_packages_", "")}`);
+              const suffix = k.replace("iskra_active_store_", "").replace("iskra_user_packages_", "").replace("iskra_stores_", "");
+              const prodsRaw = localStorage.getItem(`iskra_products_${suffix}`);
               const prods = prodsRaw ? JSON.parse(prodsRaw) : [];
               targetStore = {
                 id: match.id || `st_${subdomain}`,
@@ -179,8 +203,8 @@ export default function TenantStorePage({ params }: PageProps) {
                 domainVerified: false,
                 logoUrl: match.logoUrl || "",
                 description: match.description || "",
-                announcement: match.description || "",
-                niche: "Streetwear & Moda",
+                announcement: match.announcement || match.description || "",
+                niche: "Streetwear & E-Commerce",
                 template: "Dark Vibe",
                 accentColor: "#D0FF00",
                 stripeStatus: "connected",
@@ -196,7 +220,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 campaigns: [],
                 team: [],
                 dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
-                socials: {},
+                socials: match.socials || {},
               };
               break;
             }
@@ -215,7 +239,7 @@ export default function TenantStorePage({ params }: PageProps) {
       new Date(targetStore.dropConfig.targetDate).getTime() > Date.now()
   );
 
-  // 4. Drop mode timer effect - MUST BE CALLED UNCONDITIONALLY BEFORE ANY RETURNS
+  // 5. Drop mode timer effect
   useEffect(() => {
     if (!isDropActive || !targetStore?.dropConfig?.targetDate) return;
     const targetTime = new Date(targetStore.dropConfig.targetDate).getTime();
@@ -242,7 +266,7 @@ export default function TenantStorePage({ params }: PageProps) {
   }, [isDropActive, targetStore?.dropConfig?.targetDate]);
 
   // ==========================================
-  // CONDITIONAL RENDERING STARTS HERE (SAFE)
+  // SAFE CONDITIONAL RENDERING
   // ==========================================
 
   const isOwnerActive = ownerUser
@@ -256,7 +280,7 @@ export default function TenantStorePage({ params }: PageProps) {
       targetStore.planStatus !== "suspended"
     : false;
 
-  // Suspended store condition
+  // Suspended store screen
   if (targetStore && !isStoreActive) {
     return (
       <div className="min-h-screen bg-[#090A0C] text-white flex flex-col items-center justify-center px-4 relative overflow-hidden font-sans">
@@ -268,18 +292,18 @@ export default function TenantStorePage({ params }: PageProps) {
           <h1 className="text-2xl font-bold text-white tracking-tight">
             Ten sklep jest chwilowo niedostępny
           </h1>
-          <p className="text-zinc-400 text-sm leading-relaxed">
-            Okres rozliczeniowy lub darmowy trial tego sklepu dobiegł końca. Subdomena oraz zasoby sklepu pozostają zarezerwowane dla właściciela w okresie karencji.
+          <p className="text-zinc-400 text-sm leading-relaxed font-['Poppins',sans-serif]">
+            Okres rozliczeniowy lub darmowy trial tego sklepu dobiegł końca. Subdomena oraz zasoby sklepu pozostają zarezerwowane dla właściciela.
           </p>
-          <div className="pt-2 flex flex-col gap-3">
+          <div className="pt-2 flex flex-col gap-3 font-['Poppins',sans-serif]">
             <a
-              href="https://iskral.pl/logowanie"
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#FF5B28] to-[#FF8C38] text-white font-bold text-sm hover:opacity-90 transition shadow-lg shadow-[#FF5B28]/20 flex items-center justify-center gap-2 text-center"
+              href="/logowanie"
+              className="w-full py-3.5 px-6 rounded-xl bg-[#D0FF00] hover:bg-[#bce600] text-black font-semibold text-sm transition shadow-lg flex items-center justify-center gap-2 text-center"
             >
               Właścicielu? Zaloguj się i opłać pakiet
             </a>
             <a
-              href="https://iskral.pl"
+              href="/"
               className="w-full py-3 px-6 rounded-xl bg-white/5 border border-white/10 text-zinc-300 font-medium text-sm hover:bg-white/10 transition flex items-center justify-center text-center"
             >
               Strona główna platformy
@@ -290,9 +314,27 @@ export default function TenantStorePage({ params }: PageProps) {
     );
   }
 
-  // Not found after loading finishes
+  // Not found
   if (!isDBLoading && (!targetStore || !isOwnerActive)) {
-    return <NotFoundPage />;
+    return (
+      <div className="min-h-screen bg-[#0A0B0D] text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-2xl mb-4">
+          🏪
+        </div>
+        <h1 className="text-2xl font-bold font-['Sora',sans-serif]">Sklep nie został jeszcze aktywowany</h1>
+        <p className="text-sm text-zinc-400 mt-2 max-w-md font-['Poppins',sans-serif]">
+          Subdomena <strong className="text-[#D0FF00] font-mono">{subdomain}</strong> oczekuje na dokończenie konfiguracji w panelu użytkownika.
+        </p>
+        <div className="mt-6 flex items-center gap-3 font-['Poppins',sans-serif]">
+          <Link
+            href="/dashboard"
+            className="px-6 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-medium rounded-xl transition shadow-sm"
+          >
+            Przejdź do Panelu Klienta
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   // Loading spinner
@@ -300,7 +342,7 @@ export default function TenantStorePage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-[#090A0C] text-white flex items-center justify-center p-6 font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#FF5B28] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#D0FF00] border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-mono text-zinc-400">Ładowanie sklepu: {subdomain}...</span>
         </div>
       </div>
@@ -313,12 +355,12 @@ export default function TenantStorePage({ params }: PageProps) {
 
   const store: StoreConfig = targetStore;
   const storeName = store.name || `Sklep ${subdomain || ""}`;
-  const accentColor = store.accentColor || "#FF5B28";
+  const accentColor = store.accentColor || "#D0FF00";
   const logoUrl = store.logoUrl || "";
   const announcement = store.announcement || "";
   const niche = store.niche || "Sklep Internetowy";
   const categories = store.categories ?? [];
-  const products = (store.products ?? []).filter((p) => p.status !== "Zawieszony");
+  const products = (store.products ?? []).filter((p) => p && p.status !== "Zawieszony");
 
   const filteredProducts =
     selectedCategoryId === "all"
@@ -329,7 +371,7 @@ export default function TenantStorePage({ params }: PageProps) {
     setSelectedVariants((prev) => ({ ...prev, [productId]: variant }));
   };
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, chosenVariant?: string) => {
     if (!product) return;
     if (
       product.isDropOnly &&
@@ -341,20 +383,24 @@ export default function TenantStorePage({ params }: PageProps) {
       return;
     }
 
-    const currentChosenVariant = selectedVariants[product.id] || (product.variants && product.variants[0]) || undefined;
+    const isDigital = Boolean(product.isDigital || product.type === "Cyfrowy");
+    const isClothing = Boolean(!isDigital && product.isClothing);
+    const finalVariant = isClothing
+      ? (chosenVariant || selectedVariants[product.id] || (product.variants && product.variants[0]) || undefined)
+      : undefined;
 
     setCart((prev) => {
       const existing = prev.find(
-        (item) => item.product?.id === product.id && item.selectedVariant === currentChosenVariant
+        (item) => item.product?.id === product.id && item.selectedVariant === finalVariant
       );
       if (existing) {
         return prev.map((item) =>
-          item.product?.id === product.id && item.selectedVariant === currentChosenVariant
+          item.product?.id === product.id && item.selectedVariant === finalVariant
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, { product, quantity: 1, selectedVariant: currentChosenVariant }];
+      return [...prev, { product, quantity: 1, selectedVariant: finalVariant }];
     });
     setIsCartOpen(true);
   };
@@ -435,74 +481,61 @@ export default function TenantStorePage({ params }: PageProps) {
     }
   };
 
-  // FULLSCREEN DROP MODE COUNTDOWN SCREEN (HYPEBEAST / STREETWEAR AESTHETIC)
+  // FULLSCREEN DROP MODE COUNTDOWN SCREEN
   if (isDropActive) {
     return (
       <main className="relative min-h-screen w-full bg-[#08080A] text-white flex flex-col items-center justify-center p-6 overflow-hidden select-none">
         <BackgroundVideo />
 
-        {/* Ambient Glowing Orbs */}
         <div
           className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none opacity-20"
           style={{ backgroundColor: accentColor }}
         />
 
-        <div
-          className="relative z-10 max-w-3xl w-full bg-[#111216]/90 backdrop-blur-2xl border rounded-[36px] p-8 sm:p-14 text-center flex flex-col items-center shadow-2xl ring-1 ring-white/10"
-          style={{ borderColor: `${accentColor}40` }}
-        >
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 border text-xs font-black rounded-full uppercase tracking-widest animate-pulse"
-            style={{
-              backgroundColor: `${accentColor}20`,
-              borderColor: `${accentColor}50`,
-              color: accentColor,
-            }}
-          >
+        <div className="relative z-10 flex flex-col items-center max-w-2xl w-full text-center">
+          {logoUrl ? (
+            <img src={logoUrl} alt={storeName} className="h-16 w-auto max-w-[240px] object-contain mb-6 drop-shadow-2xl" />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl mb-6 shadow-2xl"
+              style={{ backgroundColor: accentColor, color: accentColor === "#D0FF00" ? "#000" : "#FFF" }}
+            >
+              {(storeName || "S").charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-mono tracking-widest uppercase mb-4">
             <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: accentColor }} />
-            <span>DROP MODE ACTIVE • PREMIERA</span>
+            <span>Nadchodzący Drop • Premiera wkrótce</span>
           </div>
 
-          <h1 className="mt-6 text-4xl sm:text-6xl font-black tracking-tight text-white uppercase italic">
+          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white mb-4">
             {storeName}
           </h1>
-
-          <p className="mt-3 text-xs sm:text-sm text-zinc-400 max-w-md font-medium">
-            Sklep jest obecnie zablokowany przed nowym dropem. Licznik bije na żywo — koszyk i zakupy zostaną odblokowane dokładnie w sekundzie premiery.
+          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-10 leading-relaxed font-['Poppins',sans-serif]">
+            {store.description || "Przygotuj się na unikalny drop. Zapisz się do powiadomień lub bądź gotowy przed wyprzedaniem asortymentu."}
           </p>
 
-          {/* Hypebeast Live Ticking Countdown Timer */}
-          <div className="mt-10 grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-xl">
-            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <span className="text-3xl sm:text-6xl font-black font-mono tracking-tight" style={{ color: accentColor }}>
-                {String(timeLeft.days).padStart(2, "0")}
-              </span>
-              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">DNI</span>
+          <div className="grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-lg mb-10">
+            <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.days).padStart(2, "0")}</span>
+              <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>DNI</span>
             </div>
-
-            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
-                {String(timeLeft.hours).padStart(2, "0")}
-              </span>
-              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">GODZ</span>
+            <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.hours).padStart(2, "0")}</span>
+              <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>GODZ</span>
             </div>
-
-            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
-                {String(timeLeft.minutes).padStart(2, "0")}
-              </span>
-              <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">MIN</span>
+            <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.minutes).padStart(2, "0")}</span>
+              <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>MIN</span>
             </div>
-
-            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <span className="text-3xl sm:text-6xl font-black font-mono tracking-tight" style={{ color: accentColor }}>
-                {String(timeLeft.seconds).padStart(2, "0")}
-              </span>
+            <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.seconds).padStart(2, "0")}</span>
               <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>SEK</span>
             </div>
           </div>
 
-          <div className="mt-8 p-4 bg-[#090A0C]/80 border border-white/10 rounded-2xl text-xs text-zinc-400 flex items-center gap-2">
+          <div className="p-4 bg-[#090A0C]/80 border border-white/10 rounded-2xl text-xs text-zinc-400 flex items-center gap-2">
             <span>🔒</span>
             <span>Zapraszamy w dniu premiery: <strong>{targetStore?.dropConfig?.targetDate ? new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL") : "Wkrótce"}</strong></span>
           </div>
@@ -521,7 +554,7 @@ export default function TenantStorePage({ params }: PageProps) {
       {/* Announcement Top Bar */}
       {announcement && (
         <div
-          className="relative z-20 w-full py-2.5 text-white text-center text-xs font-black tracking-wide shadow-md"
+          className="relative z-20 w-full py-2.5 text-center text-xs font-black tracking-wide shadow-md font-['Poppins',sans-serif]"
           style={{ backgroundColor: accentColor, color: accentColor === "#D0FF00" ? "#000" : "#FFF" }}
         >
           {announcement}
@@ -529,13 +562,13 @@ export default function TenantStorePage({ params }: PageProps) {
       )}
 
       {/* Navbar Header */}
-      <header className="relative z-10 w-full px-6 xl:px-[140px] py-6 flex items-center justify-between border-b border-white/[0.08] bg-[#0E0E11]/80 backdrop-blur-md">
-        <div className="flex items-center gap-3">
+      <header className="relative z-10 w-full px-6 xl:px-[140px] py-5 flex items-center justify-between border-b border-white/[0.08] bg-[#0E0E11]/90 backdrop-blur-md">
+        <div className="flex items-center gap-3.5">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={storeName}
-              className="h-10 w-auto max-w-[180px] object-contain rounded-lg"
+              className="h-10 w-auto max-w-[180px] object-contain rounded-lg shadow-sm"
             />
           ) : (
             <div
@@ -549,15 +582,15 @@ export default function TenantStorePage({ params }: PageProps) {
             </div>
           )}
           <div>
-            <h1 className="text-xl font-black tracking-tight">{storeName}</h1>
-            <span className="text-xs text-zinc-500 font-medium">
-              {niche ? `${niche} • Sklep Internetowy` : "Oficjalny Sklep Internetowy"}
+            <h1 className="text-xl font-bold tracking-tight font-['Sora',sans-serif]">{storeName}</h1>
+            <span className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
+              {niche ? `${niche} • Oficjalny Sklep` : "Oficjalny Sklep Internetowy"}
             </span>
           </div>
         </div>
 
         {/* Social Media & Cart */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 font-['Poppins',sans-serif]">
           {/* Social Media Icons */}
           {socials.instagram && (
             <a
@@ -606,12 +639,12 @@ export default function TenantStorePage({ params }: PageProps) {
 
           <button
             onClick={() => setIsCartOpen(true)}
-            className="px-5 py-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
+            className="px-4 py-2 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors"
           >
             <span>🛒 Koszyk</span>
             {cart.length > 0 && (
               <span
-                className="w-5 h-5 rounded-full text-black text-[11px] font-black flex items-center justify-center"
+                className="w-5 h-5 rounded-full text-black text-[11px] font-bold flex items-center justify-center shadow-sm"
                 style={{ backgroundColor: accentColor }}
               >
                 {cart.reduce((s, i) => s + (i.quantity || 1), 0)}
@@ -622,16 +655,16 @@ export default function TenantStorePage({ params }: PageProps) {
       </header>
 
       {/* Main Content Area */}
-      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 xl:px-[140px] pt-10 flex flex-col gap-8">
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 xl:px-[140px] pt-8 flex flex-col gap-8">
         
         {/* Category Filter Pills */}
         {categories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 font-['Poppins',sans-serif]">
             <button
               onClick={() => setSelectedCategoryId("all")}
-              className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 selectedCategoryId === "all"
-                  ? "text-black shadow-lg"
+                  ? "text-black shadow-lg font-bold"
                   : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
               }`}
               style={{
@@ -645,9 +678,9 @@ export default function TenantStorePage({ params }: PageProps) {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategoryId(cat.id)}
-                className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                   selectedCategoryId === cat.id
-                    ? "text-black shadow-lg"
+                    ? "text-black shadow-lg font-bold"
                     : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
                 }`}
                 style={{
@@ -663,13 +696,13 @@ export default function TenantStorePage({ params }: PageProps) {
 
         {/* Product Grid */}
         {filteredProducts.length === 0 ? (
-          <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl flex flex-col items-center">
+          <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl flex flex-col items-center font-['Poppins',sans-serif]">
             <span className="text-3xl mb-3">📦</span>
             <p className="text-sm font-bold text-white">Brak dostępnych produktów w sklepie.</p>
             <p className="text-xs text-zinc-500 mt-1">Wkrótce pojawią się nowe kolekcje.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-['Poppins',sans-serif]">
             {filteredProducts.map((prod) => {
               if (!prod) return null;
               const isLockedProductDrop = Boolean(
@@ -679,50 +712,81 @@ export default function TenantStorePage({ params }: PageProps) {
                   new Date(prod.dropTargetDate).getTime() > Date.now()
               );
 
+              const isDigital = Boolean(prod.isDigital || prod.type === "Cyfrowy");
+              const isClothing = Boolean(!isDigital && prod.isClothing);
               const currentVariant = selectedVariants[prod.id] || (prod.variants && prod.variants[0]) || "";
+              const prodImgs = Array.isArray(prod.images) && prod.images.length > 0
+                ? prod.images
+                : [prod.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"];
 
               return (
                 <div
                   key={prod.id}
-                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-white/30 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
+                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-white/25 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
                 >
                   <div>
-                    {/* Image Container */}
-                    <div className="relative w-full h-56 rounded-2xl bg-[#0E0E11] overflow-hidden">
+                    {/* Image Container - Clickable to open modal */}
+                    <div
+                      onClick={() => {
+                        setSelectedProductModal(prod);
+                        setActiveModalImageIdx(0);
+                      }}
+                      className="relative w-full h-60 rounded-2xl bg-[#0E0E11] overflow-hidden cursor-pointer"
+                    >
                       <img
-                        src={
-                          prod.image ||
-                          (Array.isArray(prod.images) && prod.images[0]) ||
-                          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"
-                        }
+                        src={prodImgs[0]}
                         alt={prod.name || "Produkt"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold backdrop-blur-md ${
-                            prod.isDigital ? "bg-cyan-500/80 text-white" : "bg-purple-500/80 text-white"
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
+                            isDigital ? "bg-cyan-500/90 text-white" : "bg-purple-500/90 text-white"
                           }`}
                         >
-                          {prod.isDigital ? "💻 Cyfrowy" : "📦 Fizyczny"}
+                          {isDigital ? "💻 Cyfrowy" : (isClothing ? "👕 Odzież" : "📦 Fizyczny")}
                         </span>
                         {isLockedProductDrop && (
-                          <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black backdrop-blur-md">
+                          <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold backdrop-blur-md">
                             🔒 Drop Only
                           </span>
                         )}
                       </div>
+
+                      {prodImgs.length > 1 && (
+                        <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/75 rounded-md text-[10px] text-zinc-300 font-mono backdrop-blur-sm">
+                          📷 {prodImgs.length} zdjęć
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="mt-4 font-black text-lg text-white group-hover:text-[#D0FF00] transition-colors">
+                    <h3
+                      onClick={() => {
+                        setSelectedProductModal(prod);
+                        setActiveModalImageIdx(0);
+                      }}
+                      className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-['Sora',sans-serif]"
+                    >
                       {prod.name}
                     </h3>
-                    <p className="mt-1 text-xs text-zinc-400 line-clamp-2">{prod.description}</p>
 
-                    {/* Variant / Size Picker Pills */}
-                    {prod.variants && prod.variants.length > 0 && (
-                      <div className="mt-4">
-                        <span className="text-[10px] font-extrabold uppercase text-zinc-500 block mb-1.5">Wybierz Wariant / Rozmiar:</span>
+                    {/* Stan magazynowy / Dostępność */}
+                    <div className="mt-1 flex items-center justify-between text-xs text-zinc-400">
+                      <span>
+                        {isDigital ? (
+                          <span className="text-emerald-400 font-medium">⚡ Dostęp natychmiastowy</span>
+                        ) : (
+                          <span>Stan: <strong className="text-zinc-200">{prod.stock ?? 50} szt.</strong></span>
+                        )}
+                      </span>
+                    </div>
+
+                    <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{prod.description}</p>
+
+                    {/* Variant / Size Picker Pills - ONLY IF CLOTHING */}
+                    {isClothing && prod.variants && prod.variants.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 block mb-1.5">Wybierz Rozmiar:</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {prod.variants.map((v) => (
                             <button
@@ -746,6 +810,7 @@ export default function TenantStorePage({ params }: PageProps) {
                       </div>
                     )}
 
+                    {/* CENA */}
                     <div className="mt-4 flex items-baseline gap-3">
                       <span className="text-2xl font-black font-mono" style={{ color: accentColor }}>
                         {prod.price}
@@ -758,17 +823,32 @@ export default function TenantStorePage({ params }: PageProps) {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => addToCart(prod)}
-                    disabled={isLockedProductDrop}
-                    className="mt-6 w-full py-3.5 font-bold text-[14px] font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-                    style={{
-                      backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : accentColor,
-                      color: isLockedProductDrop ? "#71717A" : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
-                    }}
-                  >
-                    <span>{isLockedProductDrop ? "🔒 Oczekuje na Premierę Dropu" : "Dodaj do Koszyka"}</span>
-                  </button>
+                  {/* PRZYCISKI AKCJI (ZOBACZ PRODUKT + DODAJ DO KOSZYKA) */}
+                  <div className="mt-5 grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProductModal(prod);
+                        setActiveModalImageIdx(0);
+                      }}
+                      className="py-2.5 px-3 bg-[#111319] hover:bg-[#181B24] border border-white/10 rounded-xl text-zinc-300 hover:text-white text-[13px] font-medium transition-colors cursor-pointer text-center"
+                    >
+                      Zobacz produkt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => addToCart(prod)}
+                      disabled={isLockedProductDrop}
+                      className="py-2.5 px-3 font-medium text-[13px] rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      style={{
+                        backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : accentColor,
+                        color: isLockedProductDrop ? "#71717A" : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
+                      }}
+                    >
+                      <span>{isLockedProductDrop ? "🔒 Zablokowany" : "Do koszyka"}</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -776,16 +856,177 @@ export default function TenantStorePage({ params }: PageProps) {
         )}
       </div>
 
+      {/* MODAL SZCZEGÓŁÓW PRODUKTU (WIĘCEJ ZDJĘĆ, DUŻY OPIS, STAN MAGAZYNOWY, KUPNO) */}
+      {selectedProductModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          onClick={() => setSelectedProductModal(null)}
+        >
+          <div
+            className="w-full max-w-4xl bg-[#141418] border border-white/15 rounded-[28px] p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200 relative my-auto font-['Poppins',sans-serif]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedProductModal(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold cursor-pointer transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Lewa kolumna: Galeria zdjęć */}
+              <div className="space-y-4">
+                {(() => {
+                  const mImgs = Array.isArray(selectedProductModal.images) && selectedProductModal.images.length > 0
+                    ? selectedProductModal.images
+                    : [selectedProductModal.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"];
+                  const curImg = mImgs[activeModalImageIdx] || mImgs[0];
+
+                  return (
+                    <>
+                      <div className="relative w-full h-80 sm:h-96 rounded-2xl bg-[#090A0C] border border-white/10 overflow-hidden">
+                        <img src={curImg} alt={selectedProductModal.name} className="w-full h-full object-cover" />
+                        <div className="absolute top-3 left-3 flex gap-2">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              selectedProductModal.isDigital || selectedProductModal.type === "Cyfrowy"
+                                ? "bg-cyan-500 text-white"
+                                : "bg-purple-500 text-white"
+                            }`}
+                          >
+                            {selectedProductModal.isDigital || selectedProductModal.type === "Cyfrowy" ? "💻 Produkt Cyfrowy" : (selectedProductModal.isClothing ? "👕 Odzież" : "📦 Produkt Fizyczny")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {mImgs.length > 1 && (
+                        <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                          {mImgs.map((img, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveModalImageIdx(idx)}
+                              className={`w-16 h-16 rounded-xl bg-[#090A0C] border overflow-hidden shrink-0 transition-all cursor-pointer ${
+                                activeModalImageIdx === idx ? "border-[#D0FF00] scale-105" : "border-white/10 opacity-60 hover:opacity-100"
+                              }`}
+                            >
+                              <img src={img} alt={`Miniaturka ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Prawa kolumna: Tytuł, opis, stan, warianty, dodawanie do koszyka */}
+              <div className="flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-['Sora',sans-serif]">
+                      {selectedProductModal.name}
+                    </h2>
+                    <div className="mt-2 flex items-center gap-3">
+                      <span className="text-3xl font-black font-mono" style={{ color: accentColor }}>
+                        {selectedProductModal.price}
+                      </span>
+                      {selectedProductModal.comparePrice && (
+                        <span className="text-sm text-zinc-500 line-through font-mono">
+                          {selectedProductModal.comparePrice}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stan magazynowy / Dostępność */}
+                  <div className="p-3.5 bg-[#0E0E11] border border-white/10 rounded-xl text-xs flex items-center justify-between">
+                    <span className="text-zinc-400">Dostępność produktu:</span>
+                    <span className="font-semibold text-white">
+                      {selectedProductModal.isDigital || selectedProductModal.type === "Cyfrowy" ? (
+                        <span className="text-emerald-400 font-bold">⚡ Plik gotowy do pobrania od ręki</span>
+                      ) : (
+                        <span>W magazynie: <strong className="text-[#D0FF00] font-mono">{selectedProductModal.stock ?? 50} sztuk</strong></span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Rozmiary jeśli odzież */}
+                  {selectedProductModal.isClothing && selectedProductModal.variants && selectedProductModal.variants.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-zinc-300 block uppercase tracking-wider">Wybierz rozmiar:</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedProductModal.variants.map((v) => {
+                          const isSel = (selectedVariants[selectedProductModal.id] || selectedProductModal.variants![0]) === v;
+                          return (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => handleSelectVariant(selectedProductModal.id, v)}
+                              className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                                isSel ? "text-black shadow-lg" : "bg-[#0E0E11] text-zinc-400 hover:text-white border border-white/10"
+                              }`}
+                              style={{
+                                backgroundColor: isSel ? accentColor : undefined,
+                              }}
+                            >
+                              {v}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Długi opis produktu */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-zinc-300 block uppercase tracking-wider">Opis i specyfikacja:</span>
+                    <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line bg-[#0E0E11]/60 p-4 rounded-2xl border border-white/5 max-h-48 overflow-y-auto">
+                      {selectedProductModal.description || "Brak dodatkowego opisu dla tego produktu."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Przyciski zakupowe */}
+                <div className="space-y-2.5 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart(selectedProductModal);
+                      setSelectedProductModal(null);
+                    }}
+                    className="w-full py-3.5 font-bold text-[14px] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                    style={{
+                      backgroundColor: accentColor,
+                      color: accentColor === "#D0FF00" ? "#000" : "#FFF",
+                    }}
+                  >
+                    <span>Dodaj do koszyka</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductModal(null)}
+                    className="w-full py-2.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white text-xs font-medium rounded-xl transition-colors cursor-pointer text-center"
+                  >
+                    Wróć do przeglądania sklepu
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl">
+          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-['Poppins',sans-serif]">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <h2 className="text-lg font-black text-white">Twój Koszyk ({cart.length})</h2>
+                <h2 className="text-lg font-bold text-white font-['Sora',sans-serif]">Twój Koszyk ({cart.length})</h2>
                 <button
                   onClick={() => setIsCartOpen(false)}
-                  className="text-xs text-zinc-400 hover:text-white font-bold cursor-pointer"
+                  className="text-xs text-zinc-400 hover:text-white font-medium cursor-pointer"
                 >
                   Zamknij ✕
                 </button>
@@ -801,19 +1042,19 @@ export default function TenantStorePage({ params }: PageProps) {
                       className="p-4 bg-[#0E0E11] border border-white/10 rounded-2xl flex items-center justify-between"
                     >
                       <div>
-                        <h4 className="font-extrabold text-xs text-white">{item.product?.name}</h4>
+                        <h4 className="font-bold text-xs text-white">{item.product?.name}</h4>
                         {item.selectedVariant && (
                           <span className="text-[10px] font-mono text-zinc-400 block mt-0.5">
                             Wariant: <strong className="text-white">{item.selectedVariant}</strong>
                           </span>
                         )}
-                        <span className="text-xs font-black font-mono mt-1 block" style={{ color: accentColor }}>
+                        <span className="text-xs font-bold font-mono mt-1 block" style={{ color: accentColor }}>
                           {item.product?.price} x {item.quantity}
                         </span>
                       </div>
                       <button
                         onClick={() => removeFromCart(item.product?.id || "", item.selectedVariant)}
-                        className="text-xs text-red-400 font-bold hover:underline cursor-pointer"
+                        className="text-xs text-rose-400 font-medium hover:underline cursor-pointer"
                       >
                         Usuń
                       </button>
@@ -834,7 +1075,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 <button
                   onClick={handleStripeCheckout}
                   disabled={checkoutLoading}
-                  className="w-full py-4 font-bold text-[14px] font-['Poppins',sans-serif] rounded-xl transition-colors cursor-pointer shadow-lg"
+                  className="w-full py-3.5 font-medium text-[14px] rounded-xl transition-colors cursor-pointer shadow-lg"
                   style={{
                     backgroundColor: accentColor,
                     color: accentColor === "#D0FF00" ? "#000" : "#FFF",
@@ -851,11 +1092,11 @@ export default function TenantStorePage({ params }: PageProps) {
       {/* DIGITAL FILE DOWNLOAD SUCCESS MODAL */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#18181B] border border-emerald-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-lg bg-[#18181B] border border-emerald-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-200 font-['Poppins',sans-serif]">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-3xl mb-4">
               🎉
             </div>
-            <h2 className="text-2xl font-black text-white">Dziękujemy za zakup!</h2>
+            <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif]">Dziękujemy za zakup!</h2>
             <p className="text-xs text-zinc-400 mt-1 max-w-md">
               Płatność Stripe została zaksięgowana. Poniżej znajduje się Twój zakupiony plik cyfrowy gotowy do natychmiastowego pobrania:
             </p>
@@ -878,7 +1119,7 @@ export default function TenantStorePage({ params }: PageProps) {
                   <a
                     href={prod.digitalFileUrl || "#"}
                     download={prod.digitalFileName || "Pobierz_Plik.pdf"}
-                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>⬇️ Pobierz Plik</span>
                   </a>
@@ -888,7 +1129,7 @@ export default function TenantStorePage({ params }: PageProps) {
 
             <button
               onClick={() => setShowSuccessModal(false)}
-              className="mt-6 px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl cursor-pointer"
+              className="mt-6 px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-xl cursor-pointer transition-colors"
             >
               Zamknij Okno
             </button>
