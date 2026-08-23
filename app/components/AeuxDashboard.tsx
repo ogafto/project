@@ -2363,7 +2363,7 @@ export default function AeuxDashboard({
                   <div className="pt-7">
                     <button
                       onClick={() => setActiveTab("produkty")}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Przejdź dalej</span>
                       <ArrowUpRight className="w-4 h-4" />
@@ -2393,7 +2393,7 @@ export default function AeuxDashboard({
                       onClick={() => {
                         setActiveTab("produkty");
                       }}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Wypróbuj za darmo (14 dni)</span>
                       <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
@@ -2412,112 +2412,88 @@ export default function AeuxDashboard({
                   return (
                     <div
                       key={pkg.id}
-                      className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-6 flex flex-col justify-between transition-all space-y-6"
+                      className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all space-y-6"
                     >
-                      <div className="space-y-4">
-                        {/* GÓRA KARTY: LOGO ORAZ BADGE + MINIMALISTYCZNY PRZYCISK ULEPSZ */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
-                            {pkg.logoUrl ? (
-                              <img src={pkg.logoUrl} alt={pkg.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="text-center p-1">
-                                <ShoppingBag className="w-5 h-5 text-zinc-500 mx-auto" />
-                                <span className="text-[9px] text-zinc-500 font-medium block mt-0.5 leading-none font-['Poppins',sans-serif]">
-                                  Brak logo
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-[11px] font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
-                              {pkg.planType}
-                            </span>
-                            {pkg.planType !== "Brand" && (
-                              <button
-                                onClick={() => setUpgradingPackage(pkg)}
-                                className="px-2.5 py-1 rounded-full bg-[#D0FF00]/10 hover:bg-[#D0FF00]/20 border border-[#D0FF00]/30 text-[11px] font-semibold text-[#D0FF00] transition-colors cursor-pointer inline-flex items-center gap-1 font-['Poppins',sans-serif]"
-                                title="Ulepsz pakiet"
-                              >
-                                <span>Ulepsz</span>
-                                <ArrowUpRight className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* NAZWA PAKIETU / SKLEPU ORAZ STATUS */}
-                        <div className="space-y-1">
-                          {editingPackageId === pkg.id ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={editingPackageName}
-                                onChange={(e) => setEditingPackageName(e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-[#111319] border border-[#2A2E3D] rounded-lg text-xs font-semibold text-white focus:outline-none focus:border-[#D0FF00] font-['Poppins',sans-serif]"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleSaveRename(pkg.id)}
-                                className="px-3 py-1 bg-[#D0FF00] text-black text-xs font-bold rounded-lg cursor-pointer shrink-0 font-['Poppins',sans-serif]"
-                              >
-                                Zapisz
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 group">
-                              <h3 className="text-lg font-bold text-white font-['Poppins',sans-serif]">
-                                {pkg.name}
-                              </h3>
-                              <button
-                                onClick={() => handleStartRename(pkg)}
-                                className="text-zinc-500 hover:text-white transition-colors cursor-pointer p-1 rounded"
-                                title="Zmień nazwę"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                      {/* HEADER KARTY: BADGE PAKIETU + DYSKRETNY UPGRADE */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-white font-['Poppins',sans-serif]">
+                            Pakiet {pkg.planType}
+                          </span>
+                          
+                          {/* MINIMALISTYCZNY PRZYCISK ULEPSZ PAKIET OBOK BADGE CREATOR */}
+                          {pkg.planType !== "Brand" && (
+                            <button
+                              type="button"
+                              onClick={() => setUpgradingPackage(pkg)}
+                              className="text-[11px] font-medium text-zinc-400 hover:text-[#D0FF00] hover:underline transition-colors flex items-center gap-1 cursor-pointer font-['Poppins',sans-serif]"
+                              title="Ulepsz pakiet do wyższej wersji"
+                            >
+                              <span>Ulepsz</span>
+                              <ArrowUpRight className="w-3 h-3 text-[#D0FF00]" />
+                            </button>
                           )}
-
-                          <div className="text-xs text-zinc-500 font-['Poppins',sans-serif]">
-                            ID: #{pkg.number} •{" "}
-                            {pkg.isConfigured && pkg.subdomain ? (
-                              <span className="text-[#D0FF00] font-medium inline-flex items-center gap-1">
-                                {pkg.subdomain}.iskral.pl
-                              </span>
-                            ) : (
-                              <span>Nie skonfigurowano</span>
-                            )}
-                          </div>
                         </div>
 
-                        {/* WAŻNOŚĆ SUBSKRYPCJI Z PRZYCISKIEM PRZEDŁUŻ W TYM SAMYM WIERSZU */}
-                        <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] flex items-center justify-between gap-2 text-xs font-['Poppins',sans-serif]">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <Clock className={`w-4 h-4 shrink-0 ${isExp ? "text-rose-400" : "text-zinc-400"}`} />
-                            <span className="text-zinc-400 shrink-0">Ważność:</span>
-                            <span className={`font-bold truncate ${isExp ? "text-rose-400" : "text-[#D0FF00]"}`}>
-                              {remaining}
-                            </span>
-                          </div>
+                        <span className="text-xs font-mono text-zinc-500">
+                          #{pkg.number}
+                        </span>
+                      </div>
 
+                      {/* TYTUŁ / NAZWA SKLEPU */}
+                      <div className="space-y-1.5">
+                        <h2 className="text-xl font-bold text-white tracking-tight font-['Sora',sans-serif]">
+                          {pkg.storeName || pkg.name}
+                        </h2>
+                        {pkg.isConfigured && pkg.subdomain ? (
+                          <a
+                            href={`https://${pkg.subdomain}.iskral.pl`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-mono text-[#D0FF00] hover:underline block truncate"
+                          >
+                            https://{pkg.subdomain}.iskral.pl
+                          </a>
+                        ) : (
+                          <p className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
+                            Pakiet nie został jeszcze skonfigurowany.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* WAŻNOŚĆ SKLEPU + PRZYCISK PRZEDŁUŻ (+30 DNI) */}
+                      <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-['Poppins',sans-serif]">
+                            Ważność sklepu
+                          </span>
+                          <span
+                            className={`text-xs font-medium truncate block font-['Poppins',sans-serif] mt-0.5 ${
+                              isExp ? "text-rose-400 font-bold" : "text-white"
+                            }`}
+                          >
+                            {remaining}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center shrink-0">
                           <button
+                            type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className="px-2 py-1 bg-[#171A24] hover:bg-[#202534] text-white text-[10px] font-medium rounded-lg border border-[#262C3E] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-                            title="Przedłuż pakiet o 30 dni"
+                            className="px-2.5 py-1 rounded-lg bg-[#181B24] hover:bg-[#202430] text-zinc-300 hover:text-white border border-[#262B3B] text-[11px] font-medium font-['Poppins',sans-serif] transition-colors cursor-pointer"
+                            title="Przedłuż ważność pakietu o 30 dni"
                           >
                             +30 dni
                           </button>
                         </div>
                       </div>
 
-                      {/* JEDYNY GŁÓWNY PRZYCISK: FONT SIZE 16 MEDIUM POPPINS */}
+                      {/* JEDYNY GŁÓWNY PRZYCISK: FONT SIZE 14 MEDIUM POPPINS */}
                       <div className="pt-2">
                         {pkg.isConfigured ? (
                           <button
                             onClick={() => handleOpenStorePanel(pkg)}
-                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                           >
                             <span>Przejdź do sklepu</span>
                             <ArrowUpRight className="w-4 h-4" />
@@ -2525,7 +2501,7 @@ export default function AeuxDashboard({
                         ) : (
                           <button
                             onClick={() => handleOpenConfigurator(pkg)}
-                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                           >
                             <span>Przejdź dalej</span>
                             <ArrowUpRight className="w-4 h-4" />
@@ -2548,33 +2524,29 @@ export default function AeuxDashboard({
           <div className="space-y-8 max-w-6xl">
               
               {/* PRZEŁĄCZNIK MIESIĄC / ROK (-50%) - WYRÓWNANY DO LEWEJ, W KOLORYSTYCE CREATORA (#D0FF00) */}
-              <div className="flex justify-start items-center">
-                <div className="bg-[#0D0E12] border border-[#181A22] p-1.5 rounded-full inline-flex items-center gap-1.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="inline-flex p-1 bg-[#0D0E12] border border-[#17181F] rounded-2xl">
                   <button
-                    type="button"
                     onClick={() => setBillingInterval("miesiac")}
-                    className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer ${
+                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer ${
                       billingInterval === "miesiac"
-                        ? "bg-[#D0FF00] text-black shadow-sm font-bold"
+                        ? "bg-[#D0FF00] text-black font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
                     }`}
                   >
-                    Miesiąc
+                    Miesięcznie
                   </button>
                   <button
-                    type="button"
                     onClick={() => setBillingInterval("rok")}
-                    className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer flex items-center gap-2 ${
+                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer flex items-center gap-1.5 ${
                       billingInterval === "rok"
-                        ? "bg-[#D0FF00] text-black shadow-sm font-bold"
+                        ? "bg-[#D0FF00] text-black font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
                     }`}
                   >
-                    <span>Rok</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                      billingInterval === "rok"
-                        ? "bg-black text-[#D0FF00]"
-                        : "bg-[#D0FF00] text-black"
+                    <span>Rocznie</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      billingInterval === "rok" ? "bg-black text-[#D0FF00]" : "bg-[#D0FF00]/15 text-[#D0FF00]"
                     }`}>
                       -50%
                     </span>
@@ -3702,9 +3674,9 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {activeTab === "zarzadzaj-sklepem" && (
           <div className="space-y-8 max-w-6xl">
-            {/* GÓRNY PASEK SKLEPU */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6">
-              <div className="flex items-center gap-4">
+            {/* GÓRNY PASEK SKLEPU (LOGO, NAZWA, ID, IP, PAKIET, WAŻNOŚĆ, OTWARCIE ONLINE, PRZEDŁUŻENIE, UPGRADE) */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-7 shadow-xl">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] overflow-hidden flex items-center justify-center shrink-0">
                   {activeStorePackage?.logoUrl || editorLogo ? (
                     <img
@@ -3713,22 +3685,29 @@ export default function AeuxDashboard({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <ShoppingBag className="w-6 h-6 text-[#D0FF00]" />
+                    <ShoppingBag className="w-7 h-7 text-[#D0FF00]" />
                   )}
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-xl sm:text-2xl font-bold text-white font-['Sora',sans-serif]">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white font-['Sora',sans-serif] truncate">
                       {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                     </h2>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-['Poppins',sans-serif]">
-                      {activeStorePackage?.planType || "Creator"}
+                      Pakiet {activeStorePackage?.planType || "Creator"}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-['Poppins',sans-serif]">
+                      Ważność: <strong className="text-white">{getRemainingTime(activeStorePackage?.expiresAt)}</strong>
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-zinc-400 font-['Poppins',sans-serif]">
+                  <div className="flex items-center gap-2 text-xs text-zinc-400 font-['Poppins',sans-serif] flex-wrap">
                     <span>ID: #{activeStorePackage?.number || 1001}</span>
+                    <span>•</span>
+                    <span className="font-mono text-zinc-300">IP: 76.76.21.21</span>
+                    <span>•</span>
+                    <span className="font-mono text-zinc-300">DNS: iskral.pl</span>
                     <span>•</span>
                     <a
                       href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
@@ -3743,19 +3722,36 @@ export default function AeuxDashboard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                {/* PRZYCISK PRZEDŁUŻ (+30 DNI) */}
                 <button
-                  onClick={() => setActiveTab("pulpit")}
-                  className="px-4 py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-white text-xs font-medium font-['Poppins',sans-serif] rounded-xl border border-[#1C1E26] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => activeStorePackage && handleExtendPackage(activeStorePackage.id)}
+                  className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer"
+                  title="Przedłuż o 30 dni"
                 >
-                  ← Wszystkie pakiety
+                  +30 dni
                 </button>
 
+                {/* PRZYCISK ULEPSZ PAKIET */}
+                {activeStorePackage && activeStorePackage.planType !== "Brand" && (
+                  <button
+                    type="button"
+                    onClick={() => setUpgradingPackage(activeStorePackage)}
+                    className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-[#D0FF00] text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center gap-1.5"
+                    title="Ulepsz pakiet sklepu"
+                  >
+                    <span>Ulepsz pakiet</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* PRZYCISK OTWARCIA SKLEPU ONLINE */}
                 <a
                   href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[15px] font-bold font-['Poppins',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  className="px-[20px] py-[10px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
                   <span>Otwórz sklep online</span>
                   <ExternalLink className="w-4 h-4" />
@@ -4195,24 +4191,40 @@ export default function AeuxDashboard({
                   />
                 </div>
 
-                {/* WYBÓR SZABLONU */}
+                {/* WYBÓR SZABLONU (1 GŁÓWNY SZABLON PODSTAWOWY + PODGLĄD DEMO) */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-3">Szablon motywu sklepu</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {["Dark Vibe", "Minimal Clean", "Cyber Drop", "Oversize Club"].map((tpl) => (
-                      <button
-                        key={tpl}
-                        type="button"
-                        onClick={() => setEditorTemplate(tpl)}
-                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                          editorTemplate === tpl
-                            ? "bg-[#D0FF00]/10 border-[#D0FF00] text-[#D0FF00] font-bold"
-                            : "bg-[#111319] border-[#1C1E26] text-zinc-300 hover:border-[#2A2E3D]"
-                        }`}
-                      >
-                        <span className="text-xs block font-bold">{tpl}</span>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold text-zinc-300 block">Szablon motywu sklepu</label>
+                    <span className="text-[11px] text-zinc-500 font-medium">1 aktywny szablon bazowy</span>
+                  </div>
+                  
+                  <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-[#0D0E12] border border-[#D0FF00]/40 flex items-center justify-center text-[#D0FF00] font-bold text-sm shrink-0">
+                        ⚡
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white block">Dark Vibe (Standard)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-[#D0FF00]/10 text-[#D0FF00] text-[10px] font-bold border border-[#D0FF00]/30">
+                            Aktywny
+                          </span>
+                        </div>
+                        <span className="text-xs text-zinc-400 block mt-0.5">
+                          Nowoczesny, ciemny design z dynamicznym akcentem kolorystycznym, koszykiem i siatką produktów.
+                        </span>
+                      </div>
+                    </div>
+
+                    <a
+                      href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white text-xs font-medium font-['Poppins',sans-serif] rounded-xl border border-[#2A2E3D] transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <span>Podgląd wersji demo</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-[#D0FF00]" />
+                    </a>
                   </div>
                 </div>
 
@@ -4250,7 +4262,7 @@ export default function AeuxDashboard({
                   </div>
                 </div>
 
-                {/* SOCIAL MEDIA & WIDOCZNOŚĆ W NAVBARZE */}
+                {/* SOCIAL MEDIA & WIDOCZNOŚĆ W NAVBARZE (INSTAGRAM, TIKTOK, FACEBOOK, DISCORD) */}
                 <div className="space-y-3 pt-2">
                   <label className="text-xs font-semibold text-zinc-300 block">Social Media (Linki i widoczność w menu sklepu)</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4272,7 +4284,7 @@ export default function AeuxDashboard({
                         type="text"
                         value={editorSocials.instagram}
                         onChange={(e) => setEditorSocials({ ...editorSocials, instagram: e.target.value })}
-                        placeholder="twojprofil"
+                        placeholder="twojprofil lub link"
                         className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
                       />
                     </div>
@@ -4295,7 +4307,53 @@ export default function AeuxDashboard({
                         type="text"
                         value={editorSocials.tiktok}
                         onChange={(e) => setEditorSocials({ ...editorSocials, tiktok: e.target.value })}
-                        placeholder="@twojprofil"
+                        placeholder="@twojprofil lub link"
+                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
+                      />
+                    </div>
+
+                    {/* Facebook */}
+                    <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Facebook</span>
+                        <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean((editorSocials as any).showFacebookInNavbar)}
+                            onChange={(e) => setEditorSocials({ ...editorSocials, showFacebookInNavbar: e.target.checked } as any)}
+                            className="accent-[#D0FF00]"
+                          />
+                          <span>Pokaż w menu</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={(editorSocials as any).facebook || ""}
+                        onChange={(e) => setEditorSocials({ ...editorSocials, facebook: e.target.value } as any)}
+                        placeholder="twojastrona lub link"
+                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
+                      />
+                    </div>
+
+                    {/* Discord */}
+                    <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Discord</span>
+                        <label className="flex items-center gap-1.5 text-[11px] text-zinc-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean((editorSocials as any).showDiscordInNavbar)}
+                            onChange={(e) => setEditorSocials({ ...editorSocials, showDiscordInNavbar: e.target.checked } as any)}
+                            className="accent-[#D0FF00]"
+                          />
+                          <span>Pokaż w menu</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={(editorSocials as any).discord || ""}
+                        onChange={(e) => setEditorSocials({ ...editorSocials, discord: e.target.value } as any)}
+                        placeholder="kod zaproszenia lub link"
                         className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white"
                       />
                     </div>
@@ -4306,7 +4364,7 @@ export default function AeuxDashboard({
                 <div className="pt-4 border-t border-[#17181F] flex justify-end">
                   <button
                     type="submit"
-                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Zapisz zmiany w sklepie</span>
                     <Check className="w-4 h-4" />

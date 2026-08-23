@@ -34,7 +34,21 @@ export default function TenantStorePage({ params }: PageProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // 2. Load store & products from Supabase
+  // 2. Load store & products from Supabase + track visits
+  useEffect(() => {
+    if (!subdomain) return;
+    try {
+      fetch("/api/stores/visits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subdomain }),
+      }).catch(() => {});
+      const visitKey = `iskra_visits_${subdomain}`;
+      const cur = Number(localStorage.getItem(visitKey) || "0");
+      localStorage.setItem(visitKey, String(cur + 1));
+    } catch {}
+  }, [subdomain]);
+
   useEffect(() => {
     async function loadFromDB() {
       if (!subdomain) {
@@ -90,7 +104,7 @@ export default function TenantStorePage({ params }: PageProps) {
             announcement: dbData?.announcement || "",
             niche: dbData?.niche || "Sklep Internetowy",
             template: dbData?.template || "Dark Vibe",
-            accentColor: dbData?.accent_color || "#FF5B28",
+            accentColor: dbData?.accent_color || "#D0FF00",
             stripeStatus: dbData?.stripe_status || "disconnected",
             balanceCents: typeof dbData?.balance_cents === "number" ? dbData.balance_cents : 0,
             planType: dbData?.plan_type || "Start",
@@ -377,6 +391,31 @@ export default function TenantStorePage({ params }: PageProps) {
       } else {
         if (store.id && firstItem?.id) {
           recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
+          fetch("/api/stores/order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenantId: store.id,
+              productId: firstItem.id,
+              customerEmail: "klient@iskral.pl",
+              amountTotalCents: cartTotalCents,
+            }),
+          }).catch(() => {});
+
+          try {
+            const ordKey = `iskra_orders_${store.id}`;
+            const existing = JSON.parse(localStorage.getItem(ordKey) || "[]");
+            const newOrd = {
+              id: `ord_${Date.now()}`,
+              tenantId: store.id,
+              stripeSessionId: `cs_local_${Date.now()}`,
+              amountTotalCents: cartTotalCents,
+              status: "paid",
+              customerEmail: "klient@iskral.pl",
+              createdAt: new Date().toISOString(),
+            };
+            localStorage.setItem(ordKey, JSON.stringify([newOrd, ...existing]));
+          } catch {}
         }
         setCart([]);
         setIsCartOpen(false);
@@ -385,7 +424,7 @@ export default function TenantStorePage({ params }: PageProps) {
           setPurchasedDigitalItems(digitalItems);
           setShowSuccessModal(true);
         } else {
-          alert("🎉 Zamówienie opłacone pomyślnie przez Stripe! Transakcja trafiła do panelu sklepu.");
+          alert("🎉 Zamówienie opłacone pomyślnie! Transakcja i przychód trafiły do panelu Twojego sklepu.");
         }
       }
     } catch (checkoutErr) {
@@ -403,13 +442,24 @@ export default function TenantStorePage({ params }: PageProps) {
         <BackgroundVideo />
 
         {/* Ambient Glowing Orbs */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#FF5B28]/15 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none opacity-20"
+          style={{ backgroundColor: accentColor }}
+        />
 
-        <div className="relative z-10 max-w-3xl w-full bg-[#111216]/90 backdrop-blur-2xl border border-[#FF5B28]/40 rounded-[36px] p-8 sm:p-14 text-center flex flex-col items-center shadow-2xl ring-1 ring-white/10">
-          
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#FF5B28]/20 border border-[#FF5B28]/50 text-[#FF5B28] text-xs font-black rounded-full uppercase tracking-widest animate-pulse shadow-lg shadow-[#FF5B28]/20">
-            <span className="w-2 h-2 rounded-full bg-[#FF5B28] animate-ping" />
+        <div
+          className="relative z-10 max-w-3xl w-full bg-[#111216]/90 backdrop-blur-2xl border rounded-[36px] p-8 sm:p-14 text-center flex flex-col items-center shadow-2xl ring-1 ring-white/10"
+          style={{ borderColor: `${accentColor}40` }}
+        >
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 border text-xs font-black rounded-full uppercase tracking-widest animate-pulse"
+            style={{
+              backgroundColor: `${accentColor}20`,
+              borderColor: `${accentColor}50`,
+              color: accentColor,
+            }}
+          >
+            <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: accentColor }} />
             <span>DROP MODE ACTIVE • PREMIERA</span>
           </div>
 
@@ -424,15 +474,13 @@ export default function TenantStorePage({ params }: PageProps) {
           {/* Hypebeast Live Ticking Countdown Timer */}
           <div className="mt-10 grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-xl">
             <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FF5B28] to-transparent opacity-80" />
-              <span className="text-3xl sm:text-6xl font-black text-[#FF5B28] font-mono tracking-tight">
+              <span className="text-3xl sm:text-6xl font-black font-mono tracking-tight" style={{ color: accentColor }}>
                 {String(timeLeft.days).padStart(2, "0")}
               </span>
               <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">DNI</span>
             </div>
 
             <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-40" />
               <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
                 {String(timeLeft.hours).padStart(2, "0")}
               </span>
@@ -440,25 +488,23 @@ export default function TenantStorePage({ params }: PageProps) {
             </div>
 
             <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-40" />
               <span className="text-3xl sm:text-6xl font-black text-white font-mono tracking-tight">
                 {String(timeLeft.minutes).padStart(2, "0")}
               </span>
               <span className="text-[10px] sm:text-xs text-zinc-500 mt-2 font-black uppercase tracking-wider">MIN</span>
             </div>
 
-            <div className="p-4 sm:p-6 bg-[#090A0C] border border-[#FF5B28]/30 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group bg-gradient-to-b from-[#18181B] to-[#090A0C]">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FF5B28] to-transparent opacity-100 animate-pulse" />
-              <span className="text-3xl sm:text-6xl font-black text-[#FF5B28] font-mono tracking-tight">
+            <div className="p-4 sm:p-6 bg-[#090A0C] border border-white/10 rounded-2xl sm:rounded-3xl flex flex-col items-center shadow-2xl relative overflow-hidden group">
+              <span className="text-3xl sm:text-6xl font-black font-mono tracking-tight" style={{ color: accentColor }}>
                 {String(timeLeft.seconds).padStart(2, "0")}
               </span>
-              <span className="text-[10px] sm:text-xs text-[#FF5B28] mt-2 font-black uppercase tracking-wider">SEK</span>
+              <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>SEK</span>
             </div>
           </div>
 
           <div className="mt-8 p-4 bg-[#090A0C]/80 border border-white/10 rounded-2xl text-xs text-zinc-400 flex items-center gap-2">
             <span>🔒</span>
-            <span>Zapraszamy w dniu premiery: <strong>{new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL")}</strong></span>
+            <span>Zapraszamy w dniu premiery: <strong>{targetStore?.dropConfig?.targetDate ? new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL") : "Wkrótce"}</strong></span>
           </div>
         </div>
       </main>
@@ -466,6 +512,8 @@ export default function TenantStorePage({ params }: PageProps) {
   }
 
   // LIVE PUBLIC STOREFRONT SCREEN
+  const socials = store.socials || {};
+
   return (
     <main className="relative min-h-screen w-full bg-[#0E0E11] text-white flex flex-col pb-24 font-sans">
       <BackgroundVideo />
@@ -474,7 +522,7 @@ export default function TenantStorePage({ params }: PageProps) {
       {announcement && (
         <div
           className="relative z-20 w-full py-2.5 text-white text-center text-xs font-black tracking-wide shadow-md"
-          style={{ backgroundColor: accentColor }}
+          style={{ backgroundColor: accentColor, color: accentColor === "#D0FF00" ? "#000" : "#FFF" }}
         >
           {announcement}
         </div>
@@ -491,8 +539,11 @@ export default function TenantStorePage({ params }: PageProps) {
             />
           ) : (
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg"
-              style={{ backgroundColor: accentColor }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg shadow-lg"
+              style={{
+                backgroundColor: accentColor,
+                color: accentColor === "#D0FF00" ? "#000" : "#FFF",
+              }}
             >
               {(storeName || "S").charAt(0).toUpperCase()}
             </div>
@@ -505,20 +556,69 @@ export default function TenantStorePage({ params }: PageProps) {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="px-5 py-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
-        >
-          <span>🛒 Koszyk</span>
-          {cart.length > 0 && (
-            <span
-              className="w-5 h-5 rounded-full text-white text-[11px] font-black flex items-center justify-center"
-              style={{ backgroundColor: accentColor }}
+        {/* Social Media & Cart */}
+        <div className="flex items-center gap-3">
+          {/* Social Media Icons */}
+          {socials.instagram && (
+            <a
+              href={socials.instagram.startsWith("http") ? socials.instagram : `https://instagram.com/${socials.instagram.replace("@", "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="Instagram"
             >
-              {cart.reduce((s, i) => s + (i.quantity || 1), 0)}
-            </span>
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
           )}
-        </button>
+          {socials.tiktok && (
+            <a
+              href={socials.tiktok.startsWith("http") ? socials.tiktok : `https://tiktok.com/@${socials.tiktok.replace("@", "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="TikTok"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-3.04-1.52z"/></svg>
+            </a>
+          )}
+          {socials.facebook && (
+            <a
+              href={socials.facebook.startsWith("http") ? socials.facebook : `https://facebook.com/${socials.facebook}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="Facebook"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.688 5H18V0h-3.808C10.592 0 9 1.583 9 4.615V8z"/></svg>
+            </a>
+          )}
+          {socials.discord && (
+            <a
+              href={socials.discord.startsWith("http") ? socials.discord : `https://discord.gg/${socials.discord}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="Discord"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+            </a>
+          )}
+
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="px-5 py-2.5 bg-[#18181B] hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <span>🛒 Koszyk</span>
+            {cart.length > 0 && (
+              <span
+                className="w-5 h-5 rounded-full text-black text-[11px] font-black flex items-center justify-center"
+                style={{ backgroundColor: accentColor }}
+              >
+                {cart.reduce((s, i) => s + (i.quantity || 1), 0)}
+              </span>
+            )}
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -531,7 +631,7 @@ export default function TenantStorePage({ params }: PageProps) {
               onClick={() => setSelectedCategoryId("all")}
               className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 selectedCategoryId === "all"
-                  ? "text-white shadow-lg"
+                  ? "text-black shadow-lg"
                   : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
               }`}
               style={{
@@ -547,7 +647,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 onClick={() => setSelectedCategoryId(cat.id)}
                 className={`px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   selectedCategoryId === cat.id
-                    ? "text-white shadow-lg"
+                    ? "text-black shadow-lg"
                     : "bg-[#18181B] text-zinc-400 hover:text-white border border-white/10"
                 }`}
                 style={{
@@ -584,7 +684,7 @@ export default function TenantStorePage({ params }: PageProps) {
               return (
                 <div
                   key={prod.id}
-                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-[#FF5B28]/50 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
+                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-white/30 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
                 >
                   <div>
                     {/* Image Container */}
@@ -614,7 +714,7 @@ export default function TenantStorePage({ params }: PageProps) {
                       </div>
                     </div>
 
-                    <h3 className="mt-4 font-black text-lg text-white group-hover:text-[#FF5B28] transition-colors">
+                    <h3 className="mt-4 font-black text-lg text-white group-hover:text-[#D0FF00] transition-colors">
                       {prod.name}
                     </h3>
                     <p className="mt-1 text-xs text-zinc-400 line-clamp-2">{prod.description}</p>
@@ -631,9 +731,13 @@ export default function TenantStorePage({ params }: PageProps) {
                               onClick={() => handleSelectVariant(prod.id, v)}
                               className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                                 currentVariant === v
-                                  ? "bg-[#FF5B28] text-white shadow-md shadow-[#FF5B28]/25 border border-[#FF5B28]"
+                                  ? "text-black shadow-md border"
                                   : "bg-[#0E0E11] text-zinc-400 hover:text-white border border-white/10"
                               }`}
+                              style={{
+                                backgroundColor: currentVariant === v ? accentColor : undefined,
+                                borderColor: currentVariant === v ? accentColor : undefined,
+                              }}
                             >
                               {v}
                             </button>
@@ -643,7 +747,7 @@ export default function TenantStorePage({ params }: PageProps) {
                     )}
 
                     <div className="mt-4 flex items-baseline gap-3">
-                      <span className="text-2xl font-black text-[#FF5B28] font-mono">
+                      <span className="text-2xl font-black font-mono" style={{ color: accentColor }}>
                         {prod.price}
                       </span>
                       {prod.comparePrice && (
@@ -657,11 +761,11 @@ export default function TenantStorePage({ params }: PageProps) {
                   <button
                     onClick={() => addToCart(prod)}
                     disabled={isLockedProductDrop}
-                    className={`mt-6 w-full py-3.5 font-black text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
-                      isLockedProductDrop
-                        ? "bg-white/10 text-zinc-500 cursor-not-allowed"
-                        : "bg-[#FF5B28] hover:bg-[#e04f20] text-white shadow-[#FF5B28]/20"
-                    }`}
+                    className="mt-6 w-full py-3.5 font-bold text-[14px] font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                    style={{
+                      backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : accentColor,
+                      color: isLockedProductDrop ? "#71717A" : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
+                    }}
                   >
                     <span>{isLockedProductDrop ? "🔒 Oczekuje na Premierę Dropu" : "Dodaj do Koszyka"}</span>
                   </button>
@@ -703,7 +807,7 @@ export default function TenantStorePage({ params }: PageProps) {
                             Wariant: <strong className="text-white">{item.selectedVariant}</strong>
                           </span>
                         )}
-                        <span className="text-xs font-black text-[#FF5B28] font-mono mt-1 block">
+                        <span className="text-xs font-black font-mono mt-1 block" style={{ color: accentColor }}>
                           {item.product?.price} x {item.quantity}
                         </span>
                       </div>
@@ -723,14 +827,18 @@ export default function TenantStorePage({ params }: PageProps) {
               <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
                 <div className="flex items-center justify-between text-sm font-bold">
                   <span className="text-zinc-400">Suma do zapłaty:</span>
-                  <span className="text-2xl font-black text-emerald-400 font-mono">
+                  <span className="text-2xl font-black font-mono" style={{ color: accentColor }}>
                     {(cartTotalCents / 100).toFixed(2)} PLN
                   </span>
                 </div>
                 <button
                   onClick={handleStripeCheckout}
                   disabled={checkoutLoading}
-                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-black font-black text-xs rounded-xl transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                  className="w-full py-4 font-bold text-[14px] font-['Poppins',sans-serif] rounded-xl transition-colors cursor-pointer shadow-lg"
+                  style={{
+                    backgroundColor: accentColor,
+                    color: accentColor === "#D0FF00" ? "#000" : "#FFF",
+                  }}
                 >
                   {checkoutLoading ? "Przetwarzanie..." : "💳 Kup przez Stripe (Bezpieczna Płatność)"}
                 </button>

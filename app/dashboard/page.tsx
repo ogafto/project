@@ -31,6 +31,16 @@ export default function DashboardPage() {
   } = useAuth();
   const router = useRouter();
 
+  // Auto-dismiss Toast notification after 4 seconds
+  React.useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, setMessage]);
+
   return (
     <div className="min-h-screen w-full bg-[#0A0B0D]">
       {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #D0FF00) */}
@@ -59,20 +69,20 @@ export default function DashboardPage() {
         setMessage={setMessage}
       />
 
-      {/* NOWOCZESNE POWIADOMIENIE TOAST W PRAWYM GÓRNYM ROGU (POPPINS 15PX, BG BLUR, SLIDE-IN) */}
+      {/* MINIMALISTYCZNE POWIADOMIENIE TOAST (BEZ CIENI/GLOW, SLIDE-IN Z PRAWEJ, POPPINS 14PX, AUTO-DISMISS) */}
       {message && (
-        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-6 fade-in duration-300">
+        <div className="fixed top-6 right-6 z-50 transition-all ease-out duration-500 animate-in slide-in-from-right-8 fade-in">
           <div
-            className={`px-5 py-4 rounded-2xl text-[15px] font-medium font-['Poppins',sans-serif] flex items-center gap-3.5 border shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${
+            className={`px-4 py-3.5 rounded-2xl text-[14px] font-medium font-['Poppins',sans-serif] flex items-center gap-3 border backdrop-blur-xl bg-[#0E1015]/95 ${
               message.type === "success"
-                ? "bg-[#0D0F14]/95 text-white border-[#D0FF00]/30 shadow-[#D0FF00]/5"
+                ? "text-white border-[#D0FF00]/30"
                 : message.type === "warning"
-                ? "bg-[#0D0F14]/95 text-white border-amber-500/30"
-                : "bg-[#0D0F14]/95 text-white border-rose-500/30"
+                ? "text-white border-amber-500/30"
+                : "text-white border-rose-500/30"
             }`}
           >
             <div
-              className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${
+              className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${
                 message.type === "success"
                   ? "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/30"
                   : message.type === "warning"
@@ -82,10 +92,10 @@ export default function DashboardPage() {
             >
               {message.type === "success" ? "✓" : "!"}
             </div>
-            <span className="max-w-sm text-zinc-100 leading-snug">{message.text}</span>
+            <span className="max-w-sm text-zinc-200 leading-snug">{message.text}</span>
             <button
               onClick={() => setMessage(null)}
-              className="p-1.5 text-zinc-500 hover:text-white rounded-lg cursor-pointer ml-3 transition-colors hover:bg-white/5"
+              className="p-1 text-zinc-500 hover:text-white rounded-lg cursor-pointer ml-2 transition-colors hover:bg-white/5"
               aria-label="Zamknij powiadomienie"
             >
               <X className="w-4 h-4" />

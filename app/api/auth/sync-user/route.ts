@@ -87,6 +87,23 @@ export async function GET(req: NextRequest) {
           dropTargetDate: p.drop_target_date,
         }));
 
+        // Pobierz zamówienia sklepu
+        const { data: storeOrders } = await dbClient
+          .from("orders")
+          .select("*")
+          .eq("tenant_id", st.id)
+          .order("created_at", { ascending: false });
+
+        const mappedOrders = (storeOrders || []).map((o: any) => ({
+          id: o.id || `ord_${Date.now()}`,
+          tenantId: o.tenant_id,
+          stripeSessionId: o.stripe_session_id || "",
+          amountTotalCents: o.amount_total_cents || 0,
+          status: o.status || "paid",
+          customerEmail: o.customer_email || "klient@iskral.pl",
+          createdAt: o.created_at || new Date().toISOString(),
+        }));
+
         return {
           id: st.id,
           name: st.name,
@@ -102,10 +119,12 @@ export async function GET(req: NextRequest) {
           planStatus: st.plan_status || "active",
           status: st.status || "active",
           isActive: st.is_active,
+          visitsCount: typeof st.visits_count === "number" ? st.visits_count : 0,
+          balanceCents: typeof st.balance_cents === "number" ? st.balance_cents : 0,
           socials: st.social_links || {},
           dropConfig: st.drop_config || { enabled: false },
           products: mappedProducts,
-          orders: [],
+          orders: mappedOrders,
         };
       })
     );
