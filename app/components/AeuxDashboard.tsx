@@ -59,6 +59,7 @@ import {
   FileText,
   Key,
   Palette,
+  BellOff,
 } from "lucide-react";
 import {
   User,
@@ -124,6 +125,7 @@ interface AeuxDashboardProps {
   toggleProductStatus?: (id: string) => void;
   requestPayoutWithIBAN?: (amountPLN: number, iban: string) => boolean;
   createOrUpdateStoreFull?: (params: any) => any;
+  createStripeCheckout?: (params: any) => Promise<string | null>;
   message?: { type: "success" | "error" | "warning"; text: string } | null;
   setMessage?: (msg: any) => void;
 }
@@ -145,6 +147,7 @@ export default function AeuxDashboard({
   toggleProductStatus,
   requestPayoutWithIBAN,
   createOrUpdateStoreFull,
+  createStripeCheckout,
   message,
   setMessage,
 }: AeuxDashboardProps) {
@@ -240,6 +243,16 @@ export default function AeuxDashboard({
   // Template Filter for Szablony tab ("Darmowe" | "Premium")
   const [templateFilter, setTemplateFilter] = useState<"Darmowe" | "Premium">("Darmowe");
   const [selectedTemplateName, setSelectedTemplateName] = useState<string>("Dark Vibe");
+  const [demoPreviewTemplate, setDemoPreviewTemplate] = useState<{
+    id: string;
+    name: string;
+    tag: string;
+    tier: string;
+    badgeText: string;
+    desc: string;
+    image: string;
+  } | null>(null);
+  const [demoViewport, setDemoViewport] = useState<"desktop" | "mobile">("desktop");
 
   // User Storage Key (Strictly isolated per user ID or email)
   const getUserKey = (u: User | null) => {
@@ -248,6 +261,90 @@ export default function AeuxDashboard({
   };
 
   const userKey = getUserKey(user);
+
+  // Profile Management State
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [profileEmail, setProfileEmail] = useState(user?.email || "");
+  const [profilePhone, setProfilePhone] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      return localStorage.getItem(`iskra_profile_phone_${userKey}`) || "+48 500 123 456";
+    }
+    return "+48 500 123 456";
+  });
+  const [profileStreet, setProfileStreet] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      return localStorage.getItem(`iskra_profile_street_${userKey}`) || "ul. Floriańska 12/4";
+    }
+    return "ul. Floriańska 12/4";
+  });
+  const [profileZip, setProfileZip] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      return localStorage.getItem(`iskra_profile_zip_${userKey}`) || "31-021";
+    }
+    return "31-021";
+  });
+  const [profileCity, setProfileCity] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      return localStorage.getItem(`iskra_profile_city_${userKey}`) || "Kraków";
+    }
+    return "Kraków";
+  });
+  const [profileCountry, setProfileCountry] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      return localStorage.getItem(`iskra_profile_country_${userKey}`) || "Polska";
+    }
+    return "Polska";
+  });
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [is2FAActive, setIs2FAActive] = useState(user?.is2FAEnabled || false);
+
+  // Notification center state (Dismissable, clear all, empty state)
+  const [notificationsList, setNotificationsList] = useState<Array<{ id: string; title: string; text: string; time: string; type: "info" | "success" | "sale" }>>(() => {
+    if (typeof window !== "undefined" && user) {
+      const saved = localStorage.getItem(`iskra_notifications_${userKey}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {}
+      }
+    }
+    return [
+      {
+        id: "notif_1",
+        title: "🟢 System IskraL",
+        text: "Witaj ponownie w panelu! Twój sklep jest gotowy do konfiguracji.",
+        time: "Przed chwilą",
+        type: "info",
+      },
+      {
+        id: "notif_2",
+        title: "💳 Płatności online",
+        text: "Płatności Stripe oraz BLIK są włączone dla Twoich klientów.",
+        time: "Dziś",
+        type: "success",
+      },
+    ];
+  });
+
+  const handleDismissNotification = (notifId: string) => {
+    setNotificationsList((prev) => {
+      const updated = prev.filter((n) => n.id !== notifId);
+      if (typeof window !== "undefined" && user) {
+        localStorage.setItem(`iskra_notifications_${userKey}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotificationsList([]);
+    if (typeof window !== "undefined" && user) {
+      localStorage.setItem(`iskra_notifications_${userKey}`, JSON.stringify([]));
+    }
+  };
 
   // Helper to load user packages strictly for the current user
   const getUserPackages = (currentUser: User | null, currentStores: StoreConfig[]): UserPackage[] => {
@@ -372,7 +469,7 @@ export default function AeuxDashboard({
     payoutHistory: [],
     customers: [],
     campaigns: [],
-team: [],
+    team: [],
     socials: {
       instagram: "",
       tiktok: "",
@@ -401,6 +498,47 @@ team: [],
     if (typeof window !== "undefined" && user) {
       const key = getUserKey(user);
       localStorage.setItem(`iskra_products_${key}`, JSON.stringify(newProds));
+    }
+
+    if (updateStoreConfig) {
+      updateStoreConfig({ products: newProds });
+    }
+
+    const stSubdomain = activeStorePackage?.subdomain || currentStore.subdomain;
+    const stId = activeStorePackage?.id || currentStore.id;
+    const stName = activeStorePackage?.storeName || activeStorePackage?.name || currentStore.name;
+
+    if (stSubdomain) {
+      fetch("/api/stores/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store: {
+            id: stId,
+            subdomain: stSubdomain,
+            name: stName,
+            products: newProds,
+          },
+          owner_id: user?.id,
+        }),
+      }).catch(console.warn);
+
+      fetch("/api/auth/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: {
+            ...user,
+            stores: [{
+              ...currentStore,
+              id: stId,
+              subdomain: stSubdomain,
+              name: stName,
+              products: newProds,
+            }],
+          },
+        }),
+      }).catch(console.warn);
     }
   };
 
@@ -636,6 +774,79 @@ team: [],
     syncRemoteUserResources();
   }, [user?.id, user?.email, user?.services?.length, userStores.length]);
 
+  // Handle return from Stripe Checkout (?checkout=success)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      const plan = (params.get("plan") as any) || "Creator";
+      const billing = (params.get("billing") as any) || "miesiac";
+      const action = params.get("action") || "buy";
+      const pkgId = params.get("package_id");
+
+      if (action === "buy") {
+        const days = billing === "rok" ? 365 : 30;
+        const priceText =
+          billing === "rok"
+            ? plan === "Creator"
+              ? "14.99 PLN / msc"
+              : "29.99 PLN / msc"
+            : plan === "Creator"
+            ? "29.99 PLN / msc"
+            : "59.99 PLN / msc";
+
+        const newPkg: UserPackage = {
+          id: `pkg_${Date.now()}`,
+          number: Math.floor(1000 + Math.random() * 9000),
+          name: `Pakiet ${plan}`,
+          planType: plan,
+          price: priceText,
+          expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+          isConfigured: false,
+        };
+
+        setUserPackages((prev) => {
+          const updated = [newPkg, ...prev];
+          if (user) {
+            const key = getUserKey(user);
+            localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
+
+        if (buyPlan) {
+          buyPlan(plan, billing);
+        }
+      } else if (action === "extend" && pkgId) {
+        setUserPackages((prev) => {
+          const updated = prev.map((p) => {
+            if (p.id === pkgId) {
+              const currentExp = new Date(p.expiresAt || Date.now()).getTime();
+              const base = currentExp > Date.now() ? currentExp : Date.now();
+              return { ...p, expiresAt: new Date(base + 30 * 86400000).toISOString() };
+            }
+            return p;
+          });
+          if (user) {
+            const key = getUserKey(user);
+            localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+
+      if (setMessage) {
+        setMessage({
+          type: "success",
+          text: "🎉 Płatność Stripe zakończona sukcesem! Twój pakiet został pomyślnie aktywowany.",
+        });
+      }
+
+      // Clean query parameter from address bar
+      window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    }
+  }, [user?.email, user?.id]);
+
   const getRemainingTime = (expiresAt?: string) => {
     if (!expiresAt) return "14 dni, 0 godz.";
     const diff = new Date(expiresAt).getTime() - Date.now();
@@ -662,7 +873,42 @@ team: [],
     if (setMessage) setMessage({ type: "success", text: "Zmieniono nazwę pakietu." });
   };
 
-  const handleExtendPackage = (pkgId: string) => {
+  const handleExtendPackage = async (pkgId: string) => {
+    const pkg = userPackages.find((p) => p.id === pkgId);
+    if (!pkg) return;
+
+    if (pkg.planType === "Start") {
+      setUpgradingPackage(pkg);
+      return;
+    }
+
+    try {
+      if (setMessage) setMessage({ type: "success", text: "Inicjalizacja przedłużenia pakietu przez Stripe..." });
+      const priceCents = pkg.planType === "Creator" ? 2999 : 5999;
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Przedłużenie Pakietu ${pkg.planType} (+30 dni)`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType: pkg.planType,
+          packageId: pkg.id,
+          action: "extend",
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.warn("Extend package checkout error, falling back locally:", err);
+    }
+
+    // Local fallback
     const updated = userPackages.map((p) => {
       if (p.id === pkgId) {
         const currentExp = new Date(p.expiresAt || Date.now()).getTime();
@@ -689,52 +935,132 @@ team: [],
     setActiveTab("konfiguracja-sklepu");
   };
 
-  const handleBuyPackage = (planType: "Start" | "Creator" | "Brand", cycle?: "miesiac" | "rok") => {
+  const handleBuyPackage = async (planType: "Start" | "Creator" | "Brand", cycle?: "miesiac" | "rok") => {
     const currentCycle = cycle || billingInterval;
-    if (buyPlan) {
-      buyPlan(planType, currentCycle);
-    }
-    const days = currentCycle === "rok" ? 365 : planType === "Start" ? 14 : 30;
-    const priceText = planType === "Start" ? "0 PLN / 14 dni" : currentCycle === "rok" ? (planType === "Creator" ? "14.99 PLN / msc" : "29.99 PLN / msc") : (planType === "Creator" ? "29.99 PLN / msc" : "59.99 PLN / msc");
-    const newPkg: UserPackage = {
-      id: `pkg_${Date.now()}`,
-      number: Math.floor(1000 + Math.random() * 9000),
-      name: `Pakiet ${planType}`,
-      planType,
-      price: priceText,
-      expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
-      isConfigured: false,
-    };
-    const updated = [newPkg, ...userPackages];
-    setUserPackages(updated);
-    if (typeof window !== "undefined" && user) {
-      const key = getUserKey(user);
-      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
-    }
-    if (setMessage) setMessage({ type: "success", text: `🎉 Aktywowano Pakiet ${planType}!` });
-    setActiveTab("pulpit");
-  };
 
-  const handleUpgradePackage = (targetPlan: "Creator" | "Brand") => {
-    if (upgradingPackage) {
-      const updated = userPackages.map((p) => {
-        if (p.id === upgradingPackage.id) {
-          return {
-            ...p,
-            planType: targetPlan,
-            price: targetPlan === "Creator" ? "49.90 PLN / msc" : "99.90 PLN / msc",
-          };
-        }
-        return p;
-      });
+    if (planType === "Start") {
+      if (buyPlan) {
+        await buyPlan(planType, currentCycle);
+      }
+      const days = 14;
+      const priceText = "0 PLN / 14 dni";
+      const newPkg: UserPackage = {
+        id: `pkg_${Date.now()}`,
+        number: Math.floor(1000 + Math.random() * 9000),
+        name: `Pakiet ${planType}`,
+        planType,
+        price: priceText,
+        expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+        isConfigured: false,
+      };
+      const updated = [newPkg, ...userPackages];
       setUserPackages(updated);
       if (typeof window !== "undefined" && user) {
         const key = getUserKey(user);
         localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
       }
-      setUpgradingPackage(null);
-      if (setMessage) setMessage({ type: "success", text: `🎉 Pomyślnie ulepszono pakiet do wersji ${targetPlan}!` });
+      if (setMessage) setMessage({ type: "success", text: `🎉 Aktywowano Pakiet Start (14 dni za darmo)!` });
+      setActiveTab("pulpit");
+      return;
     }
+
+    // Płatne pakiety (Creator, Brand) -> Przekierowanie do Stripe Checkout
+    try {
+      const priceCents =
+        planType === "Creator"
+          ? currentCycle === "rok"
+            ? 17988
+            : 2999
+          : currentCycle === "rok"
+          ? 35988
+          : 5999;
+
+      if (setMessage) setMessage({ type: "success", text: "Inicjalizacja bezpiecznej płatności Stripe..." });
+
+      if (createStripeCheckout) {
+        const checkoutUrl = await createStripeCheckout({
+          title: `Pakiet ${planType} (${currentCycle === "rok" ? "Roczny -50%" : "Miesięczny"})`,
+          priceCents,
+          planType,
+          customerEmail: user?.email || "",
+        });
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Pakiet ${planType} (${currentCycle === "rok" ? "Roczny -50%" : "Miesięczny"})`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType,
+          billingCycle: currentCycle,
+          action: "buy",
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error("[Stripe Checkout Error]:", err);
+      if (setMessage) setMessage({ type: "error", text: "Błąd połączenia ze Stripe. Spróbuj ponownie." });
+    }
+  };
+
+  const handleUpgradePackage = async (targetPlan: "Creator" | "Brand") => {
+    if (!upgradingPackage) return;
+
+    try {
+      if (setMessage) setMessage({ type: "success", text: `Inicjalizacja ulepszenia do Pakietu ${targetPlan} przez Stripe...` });
+      const priceCents = targetPlan === "Creator" ? 2999 : 5999;
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Ulepszenie do Pakietu ${targetPlan}`,
+          priceCents,
+          customerEmail: user?.email || "",
+          isPlan: true,
+          planType: targetPlan,
+          packageId: upgradingPackage.id,
+          action: "upgrade",
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.warn("Upgrade package checkout error, falling back locally:", err);
+    }
+
+    // Local fallback
+    const updated = userPackages.map((p) => {
+      if (p.id === upgradingPackage.id) {
+        return {
+          ...p,
+          planType: targetPlan,
+          price: targetPlan === "Creator" ? "29.99 PLN / msc" : "59.99 PLN / msc",
+        };
+      }
+      return p;
+    });
+    setUserPackages(updated);
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+    }
+    setUpgradingPackage(null);
+    if (setMessage) setMessage({ type: "success", text: `🎉 Pomyślnie ulepszono pakiet do wersji ${targetPlan}!` });
   };
 
   const handleSelectTemplate = (templateName: string) => {
@@ -1102,6 +1428,46 @@ team: [],
         type: "success",
         text: "🎉 Zapisano ustawienia SEO i favicorę sklepu!",
       });
+    }
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileName.trim()) {
+      if (setMessage) setMessage({ type: "error", text: "Podaj imię i nazwisko!" });
+      return;
+    }
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_profile_phone_${key}`, profilePhone);
+      localStorage.setItem(`iskra_profile_street_${key}`, profileStreet);
+      localStorage.setItem(`iskra_profile_zip_${key}`, profileZip);
+      localStorage.setItem(`iskra_profile_city_${key}`, profileCity);
+      localStorage.setItem(`iskra_profile_country_${key}`, profileCountry);
+    }
+    if (updateUserProfile) {
+      updateUserProfile({ name: profileName });
+    }
+    if (setMessage) {
+      setMessage({ type: "success", text: "🎉 Zapisano pomyślnie zaktualizowane dane profilu!" });
+    }
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPasswordInput || newPasswordInput.length < 6) {
+      if (setMessage) setMessage({ type: "error", text: "Nowe hasło musi zawierać minimum 6 znaków!" });
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      if (setMessage) setMessage({ type: "error", text: "Nowe hasła nie są identyczne!" });
+      return;
+    }
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
+    setConfirmPasswordInput("");
+    if (setMessage) {
+      setMessage({ type: "success", text: "🎉 Twoje hasło zostało pomyślnie zmienione!" });
     }
   };
 
@@ -1792,23 +2158,67 @@ team: [],
                 title="Powiadomienia"
               >
                 <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
-                <span className="w-2 h-2 rounded-full bg-[#D0FF00] absolute top-4 right-4 ring-2 ring-[#0D0E12]" />
+                {notificationsList.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-[#D0FF00] absolute top-4 right-4 ring-2 ring-[#0D0E12] animate-pulse" />
+                )}
               </button>
 
               {/* Dropdown powiadomień */}
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-3 shadow-2xl z-50 animate-in fade-in">
-                  <span className="text-[11px] font-bold uppercase text-zinc-400 block mb-2 px-1 tracking-wider font-['Poppins',sans-serif]">
-                    Powiadomienia
-                  </span>
-                  <div className="space-y-2 text-xs">
-                    <div className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] text-white">
-                      <span className="font-bold block text-[#D0FF00] font-['Poppins',sans-serif]">🟢 System IskraL</span>
-                      <span className="text-[11px] text-zinc-400 font-['Poppins',sans-serif] mt-0.5 block">
-                        {userPackages.length > 0 ? "Twój pakiet jest aktywny." : "Wybierz pakiet w zakładce Sklep, aby rozpocząć."}
+                <div className="absolute right-0 mt-2 w-80 bg-[#0D0E12]/95 backdrop-blur-2xl border border-[#17181F] rounded-[22px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 animate-in fade-in space-y-3 font-['Poppins',sans-serif]">
+                  <div className="flex items-center justify-between border-b border-[#17181F] pb-2.5 px-1">
+                    <span className="text-xs font-bold text-white tracking-wide">
+                      Powiadomienia ({notificationsList.length})
+                    </span>
+                    {notificationsList.length > 0 && (
+                      <button
+                        onClick={handleClearAllNotifications}
+                        className="text-[11px] font-medium text-zinc-500 hover:text-rose-400 cursor-pointer transition-colors"
+                      >
+                        Wyczyść wszystko
+                      </button>
+                    )}
+                  </div>
+
+                  {notificationsList.length > 0 ? (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {notificationsList.map((notif) => (
+                        <div
+                          key={notif.id}
+                          className="p-3 bg-[#111319] rounded-xl border border-[#1C1E26] text-white flex items-start justify-between gap-2.5 group transition-colors hover:border-[#262B3B]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold text-xs text-[#D0FF00] block leading-tight">
+                              {notif.title}
+                            </span>
+                            <span className="text-[11px] text-zinc-300 mt-1 block leading-relaxed">
+                              {notif.text}
+                            </span>
+                            <span className="text-[9px] text-zinc-500 mt-1.5 block font-mono">
+                              {notif.time}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDismissNotification(notif.id)}
+                            className="text-zinc-600 hover:text-white p-1 rounded-md transition-colors cursor-pointer shrink-0 opacity-80 hover:opacity-100"
+                            title="Usuń powiadomienie"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center space-y-2">
+                      <BellOff className="w-8 h-8 text-zinc-600 mx-auto" />
+                      <span className="text-xs text-zinc-400 block font-medium">
+                        Brak nowych powiadomień
+                      </span>
+                      <span className="text-[10px] text-zinc-600 block">
+                        Wszystkie komunikaty zostały przeczytane
                       </span>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2482,18 +2892,17 @@ team: [],
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 5: KREATOR & SZABLONY */}
+        {/* WIDOK 5: SZABLONY SKLEPÓW (KREATOR) */}
         {/* ========================================================================= */}
         {activeTab === "kreator" && (
-          <div className="space-y-6 max-w-6xl">
-            
-            {/* PRZEŁĄCZNIK DARMOWE / PREMIUM - WYRÓWNANY DO LEWEJ, W STYLU NEON (#D0FF00) */}
+          <div className="space-y-6 max-w-5xl font-['Poppins',sans-serif]">
+            {/* PRZEŁĄCZNIK DARMOWE / PREMIUM */}
             <div className="flex justify-start items-center">
               <div className="bg-[#0D0E12] border border-[#181A22] p-1.5 rounded-full inline-flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setTemplateFilter("Darmowe")}
-                  className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer ${
+                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                     templateFilter === "Darmowe"
                       ? "bg-[#D0FF00] text-black shadow-sm font-bold"
                       : "text-zinc-400 hover:text-white"
@@ -2504,7 +2913,7 @@ team: [],
                 <button
                   type="button"
                   onClick={() => setTemplateFilter("Premium")}
-                  className={`px-5 py-2 rounded-full text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer flex items-center gap-2 ${
+                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
                     templateFilter === "Premium"
                       ? "bg-[#D0FF00] text-black shadow-sm font-bold"
                       : "text-zinc-400 hover:text-white"
@@ -2524,140 +2933,215 @@ team: [],
               </div>
             </div>
 
-            {/* LISTA POZIOMYCH KAFELKÓW SZABLONÓW */}
-            <div className="space-y-4 max-w-5xl">
-              {(templateFilter === "Darmowe" ? [
-                {
-                  id: "dark-vibe",
-                  name: "Dark Vibe",
-                  tier: "Pakiet Start",
-                  badgeText: "W Pakiecie Start",
-                  tag: "Streetwear Dark",
-                  desc: "Mroczny, minimalistyczny streetwear z mocnymi kontrastami i akcentami.",
-                  image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80",
-                },
-                {
-                  id: "minimal-clean",
-                  name: "Minimal Clean",
-                  tier: "Pakiet Start",
-                  badgeText: "W Pakiecie Start",
-                  tag: "Aesthetic Minimal",
-                  desc: "Czysty minimalizm nastawiony na ekspozycję dużych zdjęć produktów.",
-                  image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80",
-                },
-                {
-                  id: "street-essential",
-                  name: "Street Essential",
-                  tier: "Pakiet Start",
-                  badgeText: "W Pakiecie Start",
-                  tag: "Urban Classics",
-                  desc: "Klasyczny i przejrzysty układ dla debiutujących marek odzieżowych.",
-                  image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80",
-                },
-              ] : [
-                {
-                  id: "cyber-drop",
-                  name: "Cyber Drop",
-                  tier: "Pakiet Creator & Brand",
-                  badgeText: "Pakiet Creator & Brand",
-                  tag: "Drop & Countdown",
-                  desc: "Futurystyczny szablon z zaawansowanym zegarem odliczania do dropu.",
-                  image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80",
-                },
-                {
-                  id: "oversize-club",
-                  name: "Oversize Club",
-                  tier: "Pakiet Creator & Brand",
-                  badgeText: "Pakiet Creator & Brand",
-                  tag: "Lookbook & Fit",
-                  desc: "Dedykowany motyw dla marek oversize z lookbookiem i tabelą dopasowania.",
-                  image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80",
-                },
-                {
-                  id: "monochrome-luxury",
-                  name: "Monochrome Luxury",
-                  tier: "Pakiet Brand",
-                  badgeText: "Pakiet Brand",
-                  tag: "High Fashion",
-                  desc: "Ekskluzywny design z typografią high-fashion i unikalną estetyką.",
-                  image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
-                },
-              ]).map((tpl) => {
-                const isActive = (selectedTemplateName || currentStore.template) === tpl.name;
+            {/* LISTA KOMPAKTOWYCH POZIOMYCH KAFELKÓW SZABLONÓW */}
+            <div className="space-y-3.5 max-w-4xl">
+              {(templateFilter === "Darmowe"
+                ? [
+                    {
+                      id: "dark-vibe",
+                      name: "Dark Vibe",
+                      tier: "Pakiet Start",
+                      badgeText: "W Pakiecie Start",
+                      tag: "Streetwear Dark",
+                      desc: "Mroczny, minimalistyczny streetwear z mocnymi kontrastami i akcentami.",
+                      image:
+                        "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80",
+                    },
+                    {
+                      id: "minimal-clean",
+                      name: "Minimal Clean",
+                      tier: "Pakiet Start",
+                      badgeText: "W Pakiecie Start",
+                      tag: "Aesthetic Minimal",
+                      desc: "Czysty minimalizm nastawiony na ekspozycję dużych zdjęć produktów.",
+                      image:
+                        "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=80",
+                    },
+                    {
+                      id: "street-essential",
+                      name: "Street Essential",
+                      tier: "Pakiet Start",
+                      badgeText: "W Pakiecie Start",
+                      tag: "Urban Classics",
+                      desc: "Klasyczny i przejrzysty układ dla debiutujących marek odzieżowych.",
+                      image:
+                        "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80",
+                    },
+                  ]
+                : [
+                    {
+                      id: "cyber-drop",
+                      name: "Cyber Drop",
+                      tier: "Pakiet Creator & Brand",
+                      badgeText: "Pakiet Creator & Brand",
+                      tag: "Drop & Countdown",
+                      desc: "Futurystyczny szablon z zaawansowanym zegarem odliczania do dropu.",
+                      image:
+                        "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80",
+                    },
+                    {
+                      id: "oversize-club",
+                      name: "Oversize Club",
+                      tier: "Pakiet Creator & Brand",
+                      badgeText: "Pakiet Creator & Brand",
+                      tag: "Lookbook & Fit",
+                      desc: "Dedykowany motyw dla marek oversize z lookbookiem i tabelą dopasowania.",
+                      image:
+                        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80",
+                    },
+                    {
+                      id: "monochrome-luxury",
+                      name: "Monochrome Luxury",
+                      tier: "Pakiet Brand",
+                      badgeText: "Pakiet Brand",
+                      tag: "High Fashion",
+                      desc: "Ekskluzywny design z typografią high-fashion i unikalną estetyką.",
+                      image:
+                        "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
+                    },
+                  ]
+              ).map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="bg-[#0D0E12] border border-[#181A22] hover:border-[#262835] rounded-[22px] p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-5 transition-all shadow-sm group"
+                >
+                  {/* LEWA STRONA: MINIATURKA ZDJĘCIA */}
+                  <div className="w-full sm:w-48 h-32 rounded-xl overflow-hidden border border-[#1C1E26] bg-[#111319] shrink-0 relative">
+                    <img
+                      src={tpl.image}
+                      alt={tpl.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                    <span className="absolute bottom-2 left-2 text-[9px] font-bold text-white bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10">
+                      {tpl.tag}
+                    </span>
+                  </div>
 
-                return (
-                  <div
-                    key={tpl.id}
-                    className={`bg-[#0D0E12] border ${
-                      isActive ? "border-2 border-[#D0FF00]/50" : "border-[#181A22] hover:border-[#242836]"
-                    } rounded-[24px] p-5 sm:p-6 flex flex-col md:flex-row items-center justify-between gap-6 transition-all`}
-                  >
-                    {/* LEWA STRONA: MINIATURKA ZDJĘCIA */}
-                    <div className="w-full md:w-64 lg:w-72 h-44 md:h-36 rounded-2xl overflow-hidden border border-[#1C1E26] bg-[#111319] shrink-0 relative group">
-                      <img
-                        src={tpl.image}
-                        alt={tpl.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-                      <span className="absolute bottom-2.5 left-2.5 text-[10px] font-bold text-white bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 font-['Poppins',sans-serif]">
-                        {tpl.tag}
-                      </span>
-                    </div>
+                  {/* ŚRODEK: NAZWA ORAZ BADGE PAKIETU */}
+                  <div className="flex-1 min-w-0 space-y-1.5 text-left w-full">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[10px] font-semibold">
+                      {tpl.badgeText}
+                    </span>
+                    <h3 className="text-lg font-bold text-white tracking-tight">
+                      {tpl.name}
+                    </h3>
+                  </div>
 
-                    {/* ŚRODEK: BADGE, NAZWA SZABLONU, OPIS */}
-                    <div className="flex-1 min-w-0 space-y-2 text-left w-full">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-['Poppins',sans-serif] w-fit">
-                        {isActive && <Sparkles className="w-3.5 h-3.5 text-[#D0FF00]" />}
-                        <span className={isActive ? "text-[#D0FF00] font-semibold" : ""}>
-                          {isActive ? "Aktualny szablon" : tpl.badgeText}
+                  {/* PRAWA STRONA: JEDYNY PRZYCISK ZOBACZ DEMO */}
+                  <div className="shrink-0 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setDemoPreviewTemplate(tpl)}
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium rounded-xl border border-[#22283A] transition-colors inline-flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shadow-sm"
+                    >
+                      <span>Zobacz demo</span>
+                      <ExternalLink className="w-4 h-4 text-[#D0FF00]" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* MODAL PODGLĄDU NA ŻYWO SZABLONU (LIVE DEMO PREVIEW) */}
+            {demoPreviewTemplate && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+                <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                  {/* NAGŁÓWEK MODALU */}
+                  <div className="p-4 sm:p-5 border-b border-[#17181F] flex items-center justify-between gap-3 bg-[#08090C]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
+                        <Eye className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-white">
+                          Podgląd: {demoPreviewTemplate.name}
+                        </h3>
+                        <span className="text-[11px] text-zinc-400">
+                          {demoPreviewTemplate.badgeText} • {demoPreviewTemplate.tag}
                         </span>
                       </div>
-
-                      <h3 className="text-xl font-bold text-white font-['Poppins',sans-serif] tracking-tight">
-                        {tpl.name}
-                      </h3>
-
-                      <p className="text-xs text-zinc-400 font-['Poppins',sans-serif] leading-relaxed max-w-xl">
-                        {tpl.desc}
-                      </p>
                     </div>
 
-                    {/* PRAWA STRONA: PRZYCISKI ZOBACZ DEMO I WYBIERZ */}
-                    <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto">
-                      <a
-                        href={liveStoreUrl || "https://demo.iskral.pl"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors inline-flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
-                      >
-                        <span>Zobacz demo</span>
-                        <ExternalLink className="w-4 h-4 text-[#D0FF00]" />
-                      </a>
+                    <div className="flex items-center gap-2">
+                      <div className="hidden sm:flex bg-[#111319] p-1 rounded-xl border border-[#1C1E26] gap-1">
+                        <button
+                          onClick={() => setDemoViewport("desktop")}
+                          className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            demoViewport === "desktop" ? "bg-[#D0FF00] text-black" : "text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          Desktop
+                        </button>
+                        <button
+                          onClick={() => setDemoViewport("mobile")}
+                          className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            demoViewport === "mobile" ? "bg-[#D0FF00] text-black" : "text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          Mobile
+                        </button>
+                      </div>
 
                       <button
-                        onClick={() => handleSelectTemplate(tpl.name)}
-                        className={`w-full sm:w-auto px-[24px] py-[12px] text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap ${
-                          isActive
-                            ? "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/40"
-                            : "bg-[#D0FF00] hover:bg-[#bce600] text-black shadow-sm"
-                        }`}
+                        onClick={() => setDemoPreviewTemplate(null)}
+                        className="p-2 text-zinc-500 hover:text-white rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
                       >
-                        {isActive ? (
-                          <>
-                            <Check className="w-4 h-4" />
-                            <span>Wybrany</span>
-                          </>
-                        ) : (
-                          <span>Wybierz</span>
-                        )}
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
+                  {/* ZAWARTOŚĆ DEMO */}
+                  <div className="flex-1 overflow-y-auto p-6 flex items-center justify-center bg-[#070709]">
+                    <div
+                      className={`transition-all duration-300 overflow-hidden rounded-2xl border border-[#1C1E26] shadow-2xl bg-[#0E0E11] ${
+                        demoViewport === "mobile" ? "w-80 h-[560px]" : "w-full h-[520px]"
+                      }`}
+                    >
+                      <div className="w-full h-full relative">
+                        <img
+                          src={demoPreviewTemplate.image}
+                          alt={demoPreviewTemplate.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-6 space-y-2">
+                          <span className="px-3 py-1 rounded-full bg-[#D0FF00] text-black text-xs font-bold w-fit">
+                            Live Store Preview
+                          </span>
+                          <h4 className="text-2xl font-bold text-white">
+                            {demoPreviewTemplate.name}
+                          </h4>
+                          <p className="text-xs text-zinc-300 max-w-md">
+                            {demoPreviewTemplate.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* STOPKA MODALU */}
+                  <div className="p-4 border-t border-[#17181F] flex items-center justify-between bg-[#08090C]">
+                    <a
+                      href={liveStoreUrl || "https://demo.iskral.pl"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-[#111319] hover:bg-[#1A1F2C] text-zinc-300 hover:text-white text-xs font-semibold rounded-xl border border-[#1C1E26] transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <span>Otwórz w nowej karcie</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-[#D0FF00]" />
+                    </a>
+
+                    <button
+                      onClick={() => setDemoPreviewTemplate(null)}
+                      className="px-[24px] py-[10px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[15px] font-bold rounded-xl cursor-pointer transition-all"
+                    >
+                      Zamknij podgląd
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2714,61 +3198,256 @@ team: [],
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK 7: USTAWIENIA & PROFIL */}
+        {/* WIDOK 7: TWÓJ PROFIL */}
         {/* ========================================================================= */}
-        {(activeTab === "ustawienia" || activeTab === "profil") && (
-          <div className="space-y-6 max-w-3xl">
-            <div>
-              <h2 className="text-lg font-bold text-white">Ustawienia Konta, Domeny i Wypłat</h2>
-              <p className="text-xs text-zinc-400">Zarządzaj swoimi danymi, bezpieczeństwem i wypłatami środków.</p>
+        {activeTab === "profil" && (
+          <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
+            {/* DANE PROFILOWE UŻYTKOWNIKA */}
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                  Profil Użytkownika
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Twoje podstawowe dane kontaktowe i adres rozliczeniowy.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveProfile} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Imię i nazwisko</label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Adres e-mail</label>
+                    <input
+                      type="email"
+                      disabled
+                      value={user?.email || profileEmail}
+                      className="w-full px-4 py-3 bg-[#111319]/50 border border-[#1C1E26] rounded-xl text-sm text-zinc-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Numer telefonu</label>
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="+48 500 123 456"
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+                </div>
+
+                {/* ADRES ZAMIESZKANIA */}
+                <div className="pt-2 border-t border-[#17181F]">
+                  <h3 className="text-sm font-bold text-white mb-4">Adres zamieszkania / firmy</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-semibold text-zinc-300 block mb-2">Ulica i numer</label>
+                      <input
+                        type="text"
+                        value={profileStreet}
+                        onChange={(e) => setProfileStreet(e.target.value)}
+                        placeholder="ul. Marszałkowska 10/2"
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-300 block mb-2">Kod pocztowy</label>
+                      <input
+                        type="text"
+                        value={profileZip}
+                        onChange={(e) => setProfileZip(e.target.value)}
+                        placeholder="00-001"
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-300 block mb-2">Miasto</label>
+                      <input
+                        type="text"
+                        value={profileCity}
+                        onChange={(e) => setProfileCity(e.target.value)}
+                        placeholder="Warszawa"
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 sm:w-1/2">
+                    <label className="text-xs font-semibold text-zinc-300 block mb-2">Kraj</label>
+                    <input
+                      type="text"
+                      value={profileCountry}
+                      onChange={(e) => setProfileCountry(e.target.value)}
+                      placeholder="Polska"
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <span>Zapisz dane profilu</span>
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
             </div>
 
-            {/* Dane Profilowe */}
-            <div className="bg-[#121620] border border-[#202738] rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white border-b border-[#202738] pb-2">Profil Użytkownika</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-zinc-400 block mb-1">Imię i Nazwisko</label>
-                  <input
-                    type="text"
-                    defaultValue={user?.name || "Twórca Marki"}
-                    onChange={(e) => updateUserProfile && updateUserProfile({ name: e.target.value })}
-                    className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
-                  />
+            {/* BEZPIECZEŃSTWO & HASŁO & 2FA */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* ZMIANA HASŁA */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-5">
+                <div className="border-b border-[#17181F] pb-3">
+                  <h3 className="text-base font-bold text-white">Zmiana hasła</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">Zaktualizuj swoje hasło do konta IskraL</p>
                 </div>
-                <div>
-                  <label className="text-xs text-zinc-400 block mb-1">E-mail</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={user?.email || "klient@iskral.pl"}
-                    className="w-full bg-[#151924] border border-[#242D40] rounded-xl px-3.5 py-2 text-xs text-zinc-500 cursor-not-allowed"
-                  />
+
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Aktualne hasło</label>
+                    <input
+                      type="password"
+                      value={currentPasswordInput}
+                      onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Nowe hasło</label>
+                    <input
+                      type="password"
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Powtórz nowe hasło</label>
+                    <input
+                      type="password"
+                      value={confirmPasswordInput}
+                      onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>Zmień hasło</span>
+                    <Lock className="w-4 h-4 text-[#D0FF00]" />
+                  </button>
+                </form>
+              </div>
+
+              {/* 2FA AUTHENTICATOR */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-5 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="border-b border-[#17181F] pb-3">
+                    <h3 className="text-base font-bold text-white">Weryfikacja dwuetapowa (2FA)</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">Zabezpiecz konto kodem z aplikacji Google Authenticator</p>
+                  </div>
+
+                  <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Shield className={`w-6 h-6 ${is2FAActive ? "text-[#D0FF00]" : "text-zinc-500"}`} />
+                      <div>
+                        <span className="text-xs font-bold text-white block">Status 2FA</span>
+                        <span className="text-[11px] text-zinc-400">
+                          {is2FAActive ? "Aktywna ochrona logowania" : "Wyłączona (Zalecamy włączenie)"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !is2FAActive;
+                        setIs2FAActive(next);
+                        if (toggle2FA) toggle2FA();
+                        if (setMessage) {
+                          setMessage({
+                            type: "success",
+                            text: next ? "Włączono weryfikację 2FA!" : "Wyłączono weryfikację 2FA.",
+                          });
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold font-['Poppins',sans-serif] transition-colors cursor-pointer ${
+                        is2FAActive ? "bg-rose-500/15 text-rose-400 border border-rose-500/30" : "bg-[#D0FF00] text-black"
+                      }`}
+                    >
+                      {is2FAActive ? "Wyłącz 2FA" : "Podepnij 2FA"}
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-2 text-xs text-zinc-400">
+                    <span className="text-white font-semibold block">Klucz konfiguracji ręcznej:</span>
+                    <div className="flex items-center justify-between p-2.5 bg-[#0D0E12] border border-[#1C1E26] rounded-xl font-mono text-zinc-300">
+                      <span>ISKRA-AUTH-9821-SECURE</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText("ISKRA-AUTH-9821-SECURE");
+                          if (setMessage) setMessage({ type: "success", text: "Skopiowano klucz 2FA!" });
+                        }}
+                        className="text-zinc-500 hover:text-[#D0FF00] p-1 cursor-pointer"
+                        title="Kopiuj"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: USTAWIENIA KONTA & DOMENY */}
+        {/* ========================================================================= */}
+        {activeTab === "ustawienia" && (
+          <div className="space-y-6 max-w-3xl font-['Poppins',sans-serif]">
+            <div>
+              <h2 className="text-lg font-bold text-white">Ustawienia Domeny i Wypłat</h2>
+              <p className="text-xs text-zinc-400">Zarządzaj domenami i wypłatami środków.</p>
+            </div>
 
             {/* Własna Domena DNS */}
-            <div className="bg-[#121620] border border-[#202738] rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white border-b border-[#202738] pb-2">Własna Domena</h3>
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="text-sm font-bold text-white border-b border-[#17181F] pb-2">Własna Domena</h3>
               <div>
                 <label className="text-xs text-zinc-400 block mb-1">Adres Domeny (np. twojamarka.pl)</label>
                 <input
                   type="text"
                   defaultValue={currentStore.customDomain || ""}
                   placeholder="twojamarka.pl"
-                  className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF5A28]"
+                  className="w-full bg-[#111319] border border-[#1C1E26] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#D0FF00]"
                 />
               </div>
-              <div className="p-3 bg-[#181D2A] border border-[#242D40] rounded-xl text-xs text-zinc-300">
+              <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-zinc-300">
                 <p className="font-bold text-white">Rekord DNS CNAME:</p>
-                <p className="mt-1 font-mono text-zinc-400">Typ: <strong className="text-white">CNAME</strong> | Host: <strong className="text-white">@ / www</strong> | Wartość: <strong className="text-[#FF5A28]">cname.iskral.pl</strong></p>
+                <p className="mt-1 font-mono text-zinc-400">Typ: <strong className="text-white">CNAME</strong> | Host: <strong className="text-white">@ / www</strong> | Wartość: <strong className="text-[#D0FF00]">cname.iskral.pl</strong></p>
               </div>
             </div>
 
             {/* Wypłaty IBAN */}
-            <div className="bg-[#121620] border border-[#202738] rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white border-b border-[#202738] pb-2">Wypłata Środków ze Sprzedaży</h3>
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="text-sm font-bold text-white border-b border-[#17181F] pb-2">Wypłata Środków ze Sprzedaży</h3>
               <div>
                 <span className="text-xs text-zinc-400 block">Dostępne Saldo</span>
                 <span className="text-2xl font-bold text-white font-mono mt-1 block">{totalRevenuePLN} PLN</span>
@@ -2778,7 +3457,7 @@ team: [],
                 <input
                   type="text"
                   placeholder="PL 00 0000 0000 0000 0000 0000 0000"
-                  className="w-full bg-[#181D2A] border border-[#242D40] rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#FF5A28]"
+                  className="w-full bg-[#111319] border border-[#1C1E26] rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
                 />
               </div>
               <button
@@ -2786,7 +3465,7 @@ team: [],
                   if (requestPayoutWithIBAN) requestPayoutWithIBAN(1000, "PL000000000000000000000000");
                   if (setMessage) setMessage({ type: "success", text: "Zlecono wypłatę środków na rachunek bankowy!" });
                 }}
-                className="px-5 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-md"
+                className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-md"
               >
                 Zleć Wypłatę na Konto
               </button>
@@ -3877,6 +4556,37 @@ team: [],
                     />
                   </div>
 
+                  {/* ZAPLANOWANA PREMIERA (DROP) */}
+                  <div className="p-4 sm:p-5 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Flame className={`w-4 h-4 ${isScheduledLaunch ? "text-[#D0FF00]" : "text-zinc-500"}`} />
+                        <div>
+                          <span className="text-xs font-bold text-white block">Zaplanowana premiera (Drop)</span>
+                          <span className="text-[11px] text-zinc-400">Produkt pojawi się w sklepie dopiero po nadejściu ustalonej daty</span>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isScheduledLaunch}
+                        onChange={(e) => setIsScheduledLaunch(e.target.checked)}
+                        className="w-5 h-5 accent-[#D0FF00] cursor-pointer"
+                      />
+                    </div>
+
+                    {isScheduledLaunch && (
+                      <div className="pt-2 border-t border-[#1C1E26]/60">
+                        <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Data i godzina odblokowania dropu</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledLaunchDate}
+                          onChange={(e) => setScheduledLaunchDate(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {/* PRZYCISKI AKCJI */}
                   <div className="flex items-center gap-3 pt-4 border-t border-[#17181F]">
                     <button
@@ -3956,6 +4666,8 @@ team: [],
                                   setProdStock(String(p.stock || 50));
                                   setProdDescription(p.description || "");
                                   setProdImages(p.images && p.images.length > 0 ? p.images : [p.image || ""]);
+                                  setIsScheduledLaunch(Boolean(p.isDropOnly));
+                                  setScheduledLaunchDate(p.dropTargetDate || "2026-09-01T18:00");
                                   setProductSubTab("add");
                                 }}
                                 className="p-1.5 text-zinc-400 hover:text-white bg-[#111319] hover:bg-[#1A1F2C] border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"

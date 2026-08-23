@@ -25,6 +25,7 @@ export default function DashboardPage() {
     toggleProductStatus,
     requestPayoutWithIBAN,
     createOrUpdateStoreFull,
+    createStripeCheckout,
     message,
     setMessage,
   } = useAuth();
@@ -32,7 +33,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#0A0B0D]">
-      {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #FF5A28) */}
+      {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #D0FF00) */}
       <AeuxDashboard
         user={user}
         allUsers={allUsers}
@@ -53,33 +54,39 @@ export default function DashboardPage() {
         toggleProductStatus={toggleProductStatus}
         requestPayoutWithIBAN={requestPayoutWithIBAN}
         createOrUpdateStoreFull={createOrUpdateStoreFull}
+        createStripeCheckout={createStripeCheckout}
         message={message}
         setMessage={setMessage}
       />
 
-      {/* POWIADOMIENIE TOAST */}
+      {/* NOWOCZESNE POWIADOMIENIE TOAST W PRAWYM GÓRNYM ROGU (POPPINS 15PX, BG BLUR, SLIDE-IN) */}
       {message && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-right-8 fade-in duration-200">
+        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-6 fade-in duration-300">
           <div
-            className={`p-4 pr-5 rounded-2xl text-xs font-bold flex items-center gap-3 border shadow-2xl ${
+            className={`px-5 py-4 rounded-2xl text-[15px] font-medium font-['Poppins',sans-serif] flex items-center gap-3.5 border shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${
               message.type === "success"
-                ? "bg-[#121620] text-[#FF5A28] border-[#FF5A28]/40"
-                : "bg-[#121620] text-red-400 border-red-500/40"
+                ? "bg-[#0D0F14]/95 text-white border-[#D0FF00]/30 shadow-[#D0FF00]/5"
+                : message.type === "warning"
+                ? "bg-[#0D0F14]/95 text-white border-amber-500/30"
+                : "bg-[#0D0F14]/95 text-white border-rose-500/30"
             }`}
           >
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+              className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${
                 message.type === "success"
-                  ? "bg-[#FF5A28]/20 text-[#FF5A28]"
-                  : "bg-red-500/20 text-red-400"
+                  ? "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/30"
+                  : message.type === "warning"
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                  : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
               }`}
             >
               {message.type === "success" ? "✓" : "!"}
             </div>
-            <span className="max-w-xs text-white">{message.text}</span>
+            <span className="max-w-sm text-zinc-100 leading-snug">{message.text}</span>
             <button
               onClick={() => setMessage(null)}
-              className="p-1 text-zinc-500 hover:text-white rounded-lg cursor-pointer ml-2"
+              className="p-1.5 text-zinc-500 hover:text-white rounded-lg cursor-pointer ml-3 transition-colors hover:bg-white/5"
+              aria-label="Zamknij powiadomienie"
             >
               <X className="w-4 h-4" />
             </button>

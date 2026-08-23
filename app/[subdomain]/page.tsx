@@ -143,6 +143,57 @@ export default function TenantStorePage({ params }: PageProps) {
     targetStore = asyncStore;
   }
 
+  // Local storage fallback for newly configured store / testing
+  if (!targetStore && typeof window !== "undefined") {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("iskra_active_store_") || k.startsWith("iskra_user_packages_"))) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const list = Array.isArray(parsed) ? parsed : [parsed];
+            const match = list.find((item: any) => item?.subdomain?.toLowerCase() === subdomain);
+            if (match) {
+              const prodsRaw = localStorage.getItem(`iskra_products_${k.replace("iskra_active_store_", "").replace("iskra_user_packages_", "")}`);
+              const prods = prodsRaw ? JSON.parse(prodsRaw) : [];
+              targetStore = {
+                id: match.id || `st_${subdomain}`,
+                name: match.storeName || match.name || `Sklep ${subdomain}`,
+                subdomain: match.subdomain || subdomain,
+                customDomain: "",
+                domainVerified: false,
+                logoUrl: match.logoUrl || "",
+                description: match.description || "",
+                announcement: match.description || "",
+                niche: "Streetwear & Moda",
+                template: "Dark Vibe",
+                accentColor: "#D0FF00",
+                stripeStatus: "connected",
+                balanceCents: 0,
+                planType: match.planType || "Creator",
+                planStatus: "active",
+                status: "active",
+                categories: [],
+                products: prods,
+                orders: [],
+                payoutHistory: [],
+                customers: [],
+                campaigns: [],
+                team: [],
+                dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
+                socials: {},
+              };
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Local storage fallback search error:", e);
+    }
+  }
+
   const isDropActive = Boolean(
     targetStore?.dropConfig?.enabled &&
       targetStore?.dropConfig?.targetDate &&
