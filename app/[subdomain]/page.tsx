@@ -15,28 +15,17 @@ interface PageProps {
 }
 
 export default function TenantStorePage({ params }: PageProps) {
-  // 1. ALL HOOKS UNCONDITIONALLY AT THE TOP
+  // 1. Unconditionally extract subdomain from next/navigation
   const urlParams = useParams();
-  let rawSub = "";
-  if (urlParams && typeof urlParams.subdomain === "string") {
-    rawSub = urlParams.subdomain;
-  } else if (params) {
-    if (typeof (params as any).then === "function") {
-      try {
-        const p = use(params as Promise<{ subdomain: string }>);
-        rawSub = p?.subdomain || "";
-      } catch {
-        rawSub = "";
-      }
-    } else if (typeof params === "object" && "subdomain" in params) {
-      rawSub = (params as any).subdomain || "";
-    }
-  }
+  const rawSub = typeof urlParams?.subdomain === "string"
+    ? urlParams.subdomain
+    : (Array.isArray(urlParams?.subdomain) ? urlParams.subdomain[0] : "");
 
   const subdomain = decodeURIComponent(rawSub || "").toLowerCase().trim();
 
-  const { allUsers = [], createStripeCheckout, recordOrder } = useAuth();
+  const { allUsers = [] } = useAuth();
   const [asyncStore, setAsyncStore] = useState<StoreConfig | null>(null);
+  const [localFallbackStore, setLocalFallbackStore] = useState<StoreConfig | null>(null);
   const [isDBLoading, setIsDBLoading] = useState<boolean>(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [selectedVariants, setSelectedVariants] = useState<{ [productId: string]: string }>({});
@@ -160,33 +149,9 @@ export default function TenantStorePage({ params }: PageProps) {
     loadFromDB();
   }, [subdomain]);
 
-  // 4. Resolve targetStore
-  let targetStore: StoreConfig | undefined;
-  let ownerUser: User | undefined;
-
-  if (subdomain) {
-    for (const u of allUsers || []) {
-      const uStores = u?.stores || (u?.store ? [u.store] : []);
-      const found = uStores.find(
-        (s) =>
-          s?.subdomain?.toLowerCase() === subdomain ||
-          s?.customDomain?.toLowerCase() === subdomain ||
-          s?.id === subdomain
-      );
-      if (found) {
-        targetStore = found;
-        ownerUser = u;
-        break;
-      }
-    }
-  }
-
-  if (!targetStore && asyncStore) {
-    targetStore = asyncStore;
-  }
-
-  // Local storage fallback for offline/development testing
-  if (!targetStore && typeof window !== "undefined") {
+  // 4. Safe client-side fallback inside useEffect
+  useEffect(() => {
+    if (typeof window === "undefined" || !subdomain) return;
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -200,7 +165,7 @@ export default function TenantStorePage({ params }: PageProps) {
               const suffix = k.replace("iskra_active_store_", "").replace("iskra_user_packages_", "").replace("iskra_stores_", "");
               const prodsRaw = localStorage.getItem(`iskra_products_${suffix}`);
               const prods = prodsRaw ? JSON.parse(prodsRaw) : [];
-              targetStore = {
+              setLocalFallbackStore({
                 id: match.id || `st_${subdomain}`,
                 name: match.storeName || match.name || `Sklep ${subdomain}`,
                 subdomain: match.subdomain || subdomain,
@@ -226,7 +191,7 @@ export default function TenantStorePage({ params }: PageProps) {
                 team: [],
                 dropConfig: { enabled: false, template: "Cyberpunk Launch", targetDate: "" },
                 socials: match.socials || {},
-              };
+              });
               break;
             }
           }
@@ -235,6 +200,35 @@ export default function TenantStorePage({ params }: PageProps) {
     } catch (e) {
       console.warn("Local storage fallback search error:", e);
     }
+  }, [subdomain]);
+
+  // 5. Resolve targetStore
+  let targetStore: StoreConfig | undefined;
+  let ownerUser: User | undefined;
+
+  if (subdomain) {
+    for (const u of allUsers || []) {
+      const uStores = u?.stores || (u?.store ? [u.store] : []);
+      const found = uStores.find(
+        (s) =>
+          s?.subdomain?.toLowerCase() === subdomain ||
+          s?.customDomain?.toLowerCase() === subdomain ||
+          s?.id === subdomain
+      );
+      if (found) {
+        targetStore = found;
+        ownerUser = u;
+        break;
+      }
+    }
+  }
+
+  if (!targetStore && asyncStore) {
+    targetStore = asyncStore;
+  }
+
+  if (!targetStore && localFallbackStore) {
+    targetStore = localFallbackStore;
   }
 
   const isDropActive = Boolean(
@@ -284,6 +278,18 @@ export default function TenantStorePage({ params }: PageProps) {
       targetStore.planStatus !== "canceled" &&
       targetStore.planStatus !== "suspended"
     : false;
+
+  // 1. Initial mounting state (guarantees identical SSR and initial client hydration HTML)
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-[#0E0E11] text-white flex flex-col items-center justify-center p-6 font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-white/10 border-t-[#D0FF00] rounded-full animate-spin" />
+          <span className="text-xs font-mono text-zinc-400">Ładowanie sklepu: {subdomain || "wczytywanie"}...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Suspended store screen
   if (targetStore && !isStoreActive) {
