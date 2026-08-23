@@ -56,27 +56,52 @@ export async function GET(req: NextRequest) {
             .select("*")
             .eq("store_id", st.id);
 
-          const mappedProducts = (prods || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price || `${((p.price_cents || 0) / 100).toFixed(2)} zł`,
-            priceCents: p.price_cents || 0,
-            comparePrice: p.compare_price,
-            comparePriceCents: p.compare_price_cents,
-            type: p.type || "Fizyczny",
-            status: p.status || "Aktywny",
-            sales: p.sales || 0,
-            stock: p.stock !== undefined ? p.stock : 50,
-            description: p.description || "",
-            image: p.image_url,
-            images: p.images || (p.image_url ? [p.image_url] : []),
-            isDigital: p.is_digital || p.type === "Cyfrowy",
-            digitalFileName: p.digital_file_name,
-            digitalFileSize: p.digital_file_size,
-            digitalFileUrl: p.digital_file_url,
-            isDropOnly: p.is_drop_only,
-            dropTargetDate: p.drop_target_date,
-          }));
+          const mappedProducts = (prods || []).map((p: any) => {
+            const rawImages = p.images || p.image_url;
+            let safeImgs: string[] = [];
+            if (Array.isArray(rawImages)) {
+              safeImgs = rawImages.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+            } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+              const trimmed = rawImages.trim();
+              if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                try {
+                  const parsed = JSON.parse(trimmed);
+                  if (Array.isArray(parsed)) safeImgs = parsed;
+                  else safeImgs = [trimmed];
+                } catch {
+                  safeImgs = [trimmed];
+                }
+              } else {
+                safeImgs = [trimmed];
+              }
+            }
+            if (safeImgs.length === 0 && p.image_url) {
+              safeImgs = [p.image_url];
+            }
+
+            return {
+              id: p.id,
+              name: p.name,
+              price: p.price || `${((p.price_cents || 0) / 100).toFixed(2)} zł`,
+              priceCents: p.price_cents || 0,
+              comparePrice: p.compare_price,
+              comparePriceCents: p.compare_price_cents,
+              type: p.type || "Fizyczny",
+              status: p.status || "Aktywny",
+              sales: p.sales || 0,
+              stock: p.stock !== undefined ? p.stock : 50,
+              description: p.description || "",
+              image: safeImgs[0] || p.image_url || "",
+              imageUrl: safeImgs[0] || p.image_url || "",
+              images: safeImgs,
+              isDigital: p.is_digital || p.type === "Cyfrowy",
+              digitalFileName: p.digital_file_name,
+              digitalFileSize: p.digital_file_size,
+              digitalFileUrl: p.digital_file_url,
+              isDropOnly: p.is_drop_only,
+              dropTargetDate: p.drop_target_date,
+            };
+          });
 
           return {
             id: st.id,
@@ -207,9 +232,31 @@ export async function POST(req: NextRequest) {
         const priceCents = p.priceCents || Math.round(priceNum * 100);
 
         const prodId = p.id || `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        const imgUrl = p.image || p.imageUrl || (p.images && p.images[0]) || (p.type === "Cyfrowy"
-          ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"
-          : "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80");
+        const rawImages = p.images || p.image || p.imageUrl || p.image_url;
+        let safeImageList: string[] = [];
+        if (Array.isArray(rawImages)) {
+          safeImageList = rawImages.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+        } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+          const trimmed = rawImages.trim();
+          if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              if (Array.isArray(parsed)) safeImageList = parsed.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+              else safeImageList = [trimmed];
+            } catch {
+              safeImageList = [trimmed];
+            }
+          } else {
+            safeImageList = [trimmed];
+          }
+        }
+        if (safeImageList.length === 0) {
+          safeImageList = [p.type === "Cyfrowy"
+            ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80"
+            : "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80"];
+        }
+
+        const imgUrl = safeImageList[0];
 
         const prodPayload = {
           id: prodId,
@@ -225,7 +272,7 @@ export async function POST(req: NextRequest) {
           is_active: p.status !== "Nieaktywny" && p.status !== "Szkic",
           stock: p.stock !== undefined ? parseInt(String(p.stock)) : 50,
           image_url: imgUrl,
-          images: p.images && p.images.length > 0 ? p.images : [imgUrl].filter(Boolean),
+          images: safeImageList,
           is_digital: p.isDigital || p.type === "Cyfrowy",
           digital_file_name: p.digitalFileName || null,
           digital_file_size: p.digitalFileSize || null,

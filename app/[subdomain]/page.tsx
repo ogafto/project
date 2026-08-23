@@ -2,12 +2,50 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
 import type { Product, Category, StoreConfig } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 import NotFoundPage from "@/app/not-found";
+
+const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
+
+export function extractProductImages(product: any): string[] {
+  if (!product) return [DEFAULT_PRODUCT_IMAGE];
+  const rawImages = product.images ?? product.image ?? product.imageUrl ?? product.image_url;
+  let imageList: string[] = [];
+
+  if (Array.isArray(rawImages)) {
+    imageList = rawImages.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
+  } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+    const trimmed = rawImages.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          imageList = parsed.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
+        }
+      } catch {
+        imageList = [trimmed];
+      }
+    } else {
+      imageList = [trimmed];
+    }
+  }
+
+  if (imageList.length === 0) {
+    const single = product.image || product.image_url || product.imageUrl;
+    if (typeof single === "string" && single.trim().length > 0) {
+      imageList = [single.trim()];
+    }
+  }
+
+  if (imageList.length === 0) {
+    imageList = [DEFAULT_PRODUCT_IMAGE];
+  }
+
+  return imageList;
+}
 
 interface PageProps {
   params?: Promise<{ subdomain: string }> | { subdomain: string };
@@ -133,9 +171,9 @@ export default function TenantStorePage({ params }: PageProps) {
                   stock: typeof p?.stock === "number" ? p.stock : (isDig ? 999 : 50),
                   isClothing: !isDig && hasClothing,
                   variants: !isDig && hasClothing && Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants : [],
-                  image: p?.image_url || p?.image || "",
-                  imageUrl: p?.image_url || p?.image || "",
-                  images: Array.isArray(p?.images) && p.images.length > 0 ? p.images : [p?.image_url || p?.image || ""].filter(Boolean),
+                  image: extractProductImages(p)[0],
+                  imageUrl: extractProductImages(p)[0],
+                  images: extractProductImages(p),
                   isDigital: isDig,
                   digitalFileName: p?.digital_file_name || undefined,
                   digitalFileSize: p?.digital_file_size || undefined,
@@ -740,9 +778,8 @@ export default function TenantStorePage({ params }: PageProps) {
               const isDigital = Boolean(prod.isDigital || prod.type === "Cyfrowy");
               const isClothing = Boolean(!isDigital && prod.isClothing);
               const currentVariant = selectedVariants[prod.id] || (prod.variants && prod.variants[0]) || "";
-              const prodImgs = Array.isArray(prod.images) && prod.images.length > 0
-                ? prod.images
-                : [prod.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"];
+              const prodImgs = extractProductImages(prod);
+              const mainCoverImg = prodImgs[0] || DEFAULT_PRODUCT_IMAGE;
 
               return (
                 <div
@@ -759,9 +796,12 @@ export default function TenantStorePage({ params }: PageProps) {
                       className="relative w-full h-60 rounded-2xl bg-[#0E0E11] overflow-hidden cursor-pointer"
                     >
                       <img
-                        src={prodImgs[0]}
+                        src={mainCoverImg}
                         alt={prod.name || "Produkt"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                        }}
                       />
                       <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
                         <span
@@ -902,15 +942,20 @@ export default function TenantStorePage({ params }: PageProps) {
               {/* Lewa kolumna: Galeria zdjęć */}
               <div className="space-y-4">
                 {(() => {
-                  const mImgs = Array.isArray(selectedProductModal.images) && selectedProductModal.images.length > 0
-                    ? selectedProductModal.images
-                    : [selectedProductModal.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"];
-                  const curImg = mImgs[activeModalImageIdx] || mImgs[0];
+                  const mImgs = extractProductImages(selectedProductModal);
+                  const curImg = mImgs[activeModalImageIdx] || mImgs[0] || DEFAULT_PRODUCT_IMAGE;
 
                   return (
                     <>
                       <div className="relative w-full h-80 sm:h-96 rounded-2xl bg-[#090A0C] border border-white/10 overflow-hidden">
-                        <img src={curImg} alt={selectedProductModal.name} className="w-full h-full object-cover" />
+                        <img
+                          src={curImg}
+                          alt={selectedProductModal.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                          }}
+                        />
                         <div className="absolute top-3 left-3 flex gap-2">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -935,7 +980,14 @@ export default function TenantStorePage({ params }: PageProps) {
                                 activeModalImageIdx === idx ? "border-[#D0FF00] scale-105" : "border-white/10 opacity-60 hover:opacity-100"
                               }`}
                             >
-                              <img src={img} alt={`Miniaturka ${idx + 1}`} className="w-full h-full object-cover" />
+                              <img
+                                src={img}
+                                alt={`Miniaturka ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                                }}
+                              />
                             </button>
                           ))}
                         </div>

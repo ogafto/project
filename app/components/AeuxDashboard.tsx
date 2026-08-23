@@ -4853,6 +4853,9 @@ export default function AeuxDashboard({
                                     src={p.image || p.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=100"}
                                     alt={p.name}
                                     className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLImageElement).src = "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=100";
+                                    }}
                                   />
                                 </div>
                                 <div className="min-w-0">
@@ -4886,7 +4889,10 @@ export default function AeuxDashboard({
                                   setProdType(p.type as any);
                                   setProdStock(String(p.stock || 50));
                                   setProdDescription(p.description || "");
-                                  setProdImages(p.images && p.images.length > 0 ? p.images : [p.image || ""]);
+                                  const safeImgs = Array.isArray(p.images) && p.images.length > 0
+                                    ? p.images.filter((img) => typeof img === "string" && img.trim().length > 0)
+                                    : [p.image || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80"];
+                                  setProdImages(safeImgs.length > 0 ? safeImgs : ["https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80"]);
                                   setIsScheduledLaunch(Boolean(p.isDropOnly));
                                   setScheduledLaunchDate(p.dropTargetDate || "2026-09-01T18:00");
                                   setProductSubTab("add");

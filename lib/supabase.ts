@@ -167,7 +167,36 @@ export async function fetchProductsFromSupabase(storeId: string): Promise<any[]>
         .eq("store_id", storeId);
 
       if (!error && data) {
-        return data;
+        return data.map((p: any) => {
+          const rawImages = p.images || p.image_url;
+          let safeImgs: string[] = [];
+          if (Array.isArray(rawImages)) {
+            safeImgs = rawImages.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+          } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+            const trimmed = rawImages.trim();
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) safeImgs = parsed.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+                else safeImgs = [trimmed];
+              } catch {
+                safeImgs = [trimmed];
+              }
+            } else {
+              safeImgs = [trimmed];
+            }
+          }
+          if (safeImgs.length === 0 && p.image_url) {
+            safeImgs = [p.image_url];
+          }
+
+          return {
+            ...p,
+            image: safeImgs[0] || p.image_url || "",
+            image_url: safeImgs[0] || p.image_url || "",
+            images: safeImgs,
+          };
+        });
       }
       return null;
     }, 3, 250);
