@@ -87,9 +87,11 @@ function extractImages(product: SafeProduct): string[] {
 export function StoreClientView({
   store,
   initialProducts = [],
+  initialSuccessModal = false,
 }: {
   store: SafeStore;
   initialProducts: SafeProduct[];
+  initialSuccessModal?: boolean;
 }) {
   const storeName = store?.name || `Sklep ${store?.subdomain || ""}`;
   const accentColor = store?.accentColor || "#D0FF00";
@@ -103,45 +105,56 @@ export function StoreClientView({
   const [cart, setCart] = useState<{ product: SafeProduct; quantity: number; selectedVariant?: string }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(Boolean(initialSuccessModal));
   const [selectedProductModal, setSelectedProductModal] = useState<SafeProduct | null>(null);
   const [activeModalImageIdx, setActiveModalImageIdx] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // Handle return from Stripe Checkout (?checkout=success)
+  // Handle return from Stripe Checkout (?checkout=success or ?payment=success)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const checkoutStatus = params.get("checkout");
-    const sessionId = params.get("session_id");
-    const productId = params.get("product_id");
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const isSuccess =
+        params.get("checkout") === "success" ||
+        params.get("payment") === "success" ||
+        params.get("status") === "success";
+      const sessionId = params.get("session_id") || params.get("sessionId");
+      const productId = params.get("product_id") || params.get("productId");
 
-    if (checkoutStatus === "success") {
-      setCart([]);
-      setIsCartOpen(false);
-      setShowSuccessModal(true);
+      if (isSuccess || initialSuccessModal) {
+        setCart([]);
+        setIsCartOpen(false);
+        setShowSuccessModal(true);
 
-      // Record order safely in the background
-      if (store?.id) {
-        fetch("/api/stores/order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            storeId: store.id,
-            productId: productId || "order_prod",
-            customerEmail: "klient@iskral.pl",
-            amountTotalCents: 10000,
-            stripeSessionId: sessionId || `cs_${Date.now()}`,
-          }),
-        }).catch(() => {});
+        // Record order safely in the background if productId exists
+        if (store?.id && productId) {
+          const matchedProd = products.find((p) => p.id === productId);
+          const orderAmountCents = matchedProd?.priceCents || 24900;
+
+          fetch("/api/stores/order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              storeId: store.id,
+              productId: productId,
+              productTitle: matchedProd?.name || "Zamówienie w sklepie",
+              customerEmail: "klient@iskral.pl",
+              amountTotalCents: orderAmountCents,
+              stripeSessionId: sessionId || `cs_${Date.now()}`,
+            }),
+          }).catch(() => {});
+        }
+
+        // Clean query parameter from URL bar without page reload
+        try {
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {}
       }
-
-      // Clean query parameter from URL bar
-      try {
-        window.history.replaceState(null, "", window.location.pathname);
-      } catch {}
+    } catch (e) {
+      console.warn("Success URL parsing error:", e);
     }
-  }, [store?.id]);
+  }, [store?.id, initialSuccessModal, products]);
 
   // Drop countdown timer if enabled
   const isDropActive = Boolean(
@@ -232,10 +245,16 @@ export function StoreClientView({
     );
   };
 
-  const cartTotalCents = cart.reduce(
-    (sum, item) => sum + (item.product?.priceCents || 1000) * (item.quantity || 1),
-    0
-  );
+  const cartTotalCents = cart.reduce((sum, item) => {
+    let pCents = item.product?.priceCents;
+    if (!pCents || pCents <= 0) {
+      if (item.product?.price) {
+        const parsed = parseFloat(String(item.product.price).replace(/[^0-9.,]/g, "").replace(",", "."));
+        if (!isNaN(parsed) && parsed > 0) pCents = Math.round(parsed * 100);
+      }
+    }
+    return sum + (pCents || 24900) * (item.quantity || 1);
+  }, 0);
 
   const totalCartItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { supabaseAdmin, supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,6 +25,43 @@ export async function POST(req: NextRequest) {
     const isLocal = !process.env.NODE_ENV || process.env.NODE_ENV === "development" || cleanOrigin.includes("localhost") || cleanOrigin.includes("127.0.0.1");
     const rootDashboardOrigin = isLocal ? "http://localhost:3000" : `https://${rootDomain}`;
 
+    let finalUnitAmountCents = Number(priceCents || 0);
+
+    // If it's a store product, lookup real price in Supabase to guarantee 100% price integrity
+    if (!isPlan && productId) {
+      const dbClient: any = supabaseAdmin || supabase;
+      if (dbClient) {
+        try {
+          const { data: dbProd } = await dbClient
+            .from("products")
+            .select("name, price, price_cents")
+            .eq("id", productId)
+            .maybeSingle();
+
+          if (dbProd) {
+            if (typeof dbProd.price_cents === "number" && dbProd.price_cents > 0) {
+              finalUnitAmountCents = dbProd.price_cents;
+            } else if (dbProd.price) {
+              const numeric = parseFloat(
+                String(dbProd.price)
+                  .replace(/[^0-9.,]/g, "")
+                  .replace(",", ".")
+              );
+              if (!isNaN(numeric) && numeric > 0) {
+                finalUnitAmountCents = Math.round(numeric * 100);
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.warn("[Checkout API] Product lookup warning:", dbErr);
+        }
+      }
+    }
+
+    if (!finalUnitAmountCents || finalUnitAmountCents <= 0) {
+      finalUnitAmountCents = Number(priceCents) || 24900;
+    }
+
     const lineItems = [
       {
         price_data: {
@@ -34,7 +72,7 @@ export async function POST(req: NextRequest) {
               ? `Subskrypcja pakietu ${planType} (${billingCycle || "miesiac"})`
               : `Zakup ze sklepu ID: ${tenantId}`,
           },
-          unit_amount: priceCents || 1000,
+          unit_amount: finalUnitAmountCents,
         },
         quantity: body.quantity ? Math.max(1, parseInt(String(body.quantity), 10)) : 1,
       },
@@ -56,7 +94,7 @@ export async function POST(req: NextRequest) {
       cancelUrl = `${rootDashboardOrigin}/dashboard?checkout=cancelled`;
     } else {
       // 2. ZAKUP PRODUKTU W SKLEPIE NA SUBDOMENIE -> ZAWSZE NA STRONĘ DANEGO SKLEPU Z POTWIERDZENIEM
-      successUrl = `${cleanOrigin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}&product_id=${productId || ""}`;
+      successUrl = `${cleanOrigin}/?checkout=success&payment=success&session_id={CHECKOUT_SESSION_ID}&product_id=${productId || ""}`;
       cancelUrl = `${cleanOrigin}/?checkout=cancelled`;
     }
 
@@ -76,7 +114,7 @@ export async function POST(req: NextRequest) {
         action: action || "buy",
         package_id: packageId || "",
         customer_email: customerEmail || "",
-        amount_cents: String(priceCents || 1000),
+        amount_cents: String(finalUnitAmountCents),
         title: title || "",
         quantity: String(body.quantity || 1),
       },

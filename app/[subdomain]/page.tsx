@@ -11,7 +11,7 @@ interface SubdomainPageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }> | { [key: string]: string | string[] | undefined };
 }
 
-export default async function SubdomainPage({ params }: SubdomainPageProps) {
+export default async function SubdomainPage({ params, searchParams }: SubdomainPageProps) {
   let rawSub = "";
   try {
     const resolvedParams = await params;
@@ -19,6 +19,20 @@ export default async function SubdomainPage({ params }: SubdomainPageProps) {
   } catch {
     rawSub = "";
   }
+
+  let sParams: { [key: string]: string | string[] | undefined } = {};
+  try {
+    if (searchParams) {
+      sParams = await searchParams;
+    }
+  } catch {
+    sParams = {};
+  }
+
+  const isCheckoutSuccess =
+    sParams?.payment === "success" ||
+    sParams?.checkout === "success" ||
+    sParams?.status === "success";
 
   const cleanSub = decodeURIComponent(rawSub || "").toLowerCase().trim();
 
@@ -99,7 +113,7 @@ export default async function SubdomainPage({ params }: SubdomainPageProps) {
     );
   }
 
-  // Map products safely
+  // Map products safely and calculate dynamic real prices
   const safeProducts: SafeProduct[] = Array.isArray(dbProducts)
     ? dbProducts.map((p: any) => {
         const isDig = Boolean(p?.is_digital || p?.type === "Cyfrowy");
@@ -128,12 +142,32 @@ export default async function SubdomainPage({ params }: SubdomainPageProps) {
           safeImgs = [p.image_url];
         }
 
+        let parsedPriceCents = typeof p?.price_cents === "number" && p.price_cents > 0 ? p.price_cents : 0;
+        if (parsedPriceCents === 0 && p?.price) {
+          const num = parseFloat(
+            String(p.price)
+              .replace(/[^0-9.,]/g, "")
+              .replace(",", ".")
+          );
+          if (!isNaN(num) && num > 0) {
+            parsedPriceCents = Math.round(num * 100);
+          }
+        }
+        if (parsedPriceCents === 0) {
+          parsedPriceCents = 24900;
+        }
+
+        const formattedPrice =
+          p?.price && (String(p.price).includes("PLN") || String(p.price).includes("zł"))
+            ? String(p.price)
+            : `${(parsedPriceCents / 100).toFixed(2)} PLN`;
+
         return {
           id: String(p?.id || `p_${Date.now()}`),
           name: String(p?.name || "Produkt"),
           description: String(p?.description || ""),
-          price: String(p?.price || `${(((p?.price_cents ?? 0) / 100) || 0).toFixed(2)} PLN`),
-          priceCents: typeof p?.price_cents === "number" ? p.price_cents : 0,
+          price: formattedPrice,
+          priceCents: parsedPriceCents,
           comparePrice: p?.compare_price || undefined,
           comparePriceCents: p?.compare_price_cents || undefined,
           type: isDig ? "Cyfrowy" : "Fizyczny",
@@ -177,5 +211,11 @@ export default async function SubdomainPage({ params }: SubdomainPageProps) {
     products: safeProducts,
   };
 
-  return <StoreClientView store={safeStore} initialProducts={safeProducts} />;
+  return (
+    <StoreClientView
+      store={safeStore}
+      initialProducts={safeProducts}
+      initialSuccessModal={Boolean(isCheckoutSuccess)}
+    />
+  );
 }
