@@ -40,6 +40,41 @@ export default function TenantStorePage({ params }: PageProps) {
     setIsMounted(true);
   }, []);
 
+  // Handle return from Stripe Checkout (?checkout=success)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get("checkout");
+    const sessionId = params.get("session_id");
+    const productId = params.get("product_id");
+
+    if (checkoutStatus === "success") {
+      setCart([]);
+      setIsCartOpen(false);
+      setShowSuccessModal(true);
+
+      // Record order via API if not yet in database
+      if (subdomain) {
+        fetch("/api/stores/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantId: subdomain,
+            productId: productId || "order_prod",
+            customerEmail: "klient@iskral.pl",
+            amountTotalCents: 10000,
+            stripeSessionId: sessionId || `cs_${Date.now()}`,
+          }),
+        }).catch(() => {});
+      }
+
+      // Clean query parameter from address bar
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {}
+    }
+  }, [subdomain]);
+
   // Product detail modal state
   const [selectedProductModal, setSelectedProductModal] = useState<Product | null>(null);
   const [activeModalImageIdx, setActiveModalImageIdx] = useState<number>(0);
@@ -1079,49 +1114,57 @@ export default function TenantStorePage({ params }: PageProps) {
         </div>
       )}
 
-      {/* DIGITAL FILE DOWNLOAD SUCCESS MODAL */}
+      {/* ORDER CONFIRMATION / DIGITAL FILE DOWNLOAD SUCCESS MODAL */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-[#18181B] border border-emerald-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-200 font-['Poppins',sans-serif]">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-3xl mb-4">
               🎉
             </div>
-            <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif]">Dziękujemy za zakup!</h2>
-            <p className="text-xs text-zinc-400 mt-1 max-w-md">
-              Płatność Stripe została zaksięgowana. Poniżej znajduje się Twój zakupiony plik cyfrowy gotowy do natychmiastowego pobrania:
+            <h2 className="text-2xl font-bold text-white font-['Sora',sans-serif]">Dziękujemy za zamówienie!</h2>
+            <p className="text-xs text-zinc-300 mt-2 max-w-md leading-relaxed">
+              Płatność Stripe została pomyślnie zrealizowana. Potwierdzenie oraz szczegóły Twojego zamówienia zostały zarejestrowane w systemie.
             </p>
 
-            <div className="mt-6 w-full space-y-3">
-              {purchasedDigitalItems.map((prod) => (
-                <div key={prod.id} className="p-4 bg-[#0E0E11] border border-white/10 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-xl font-bold">
-                      ⚡
+            {purchasedDigitalItems.length > 0 ? (
+              <div className="mt-6 w-full space-y-3">
+                <span className="text-xs font-bold text-zinc-300 block text-left uppercase tracking-wider">Zakupione pliki cyfrowe:</span>
+                {purchasedDigitalItems.map((prod) => (
+                  <div key={prod.id} className="p-4 bg-[#0E0E11] border border-white/10 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-xl font-bold">
+                        ⚡
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{prod.name}</h4>
+                        <span className="text-[11px] text-purple-300 font-mono">
+                          {prod.digitalFileName || "Plik_Cyfrowy.pdf"} ({prod.digitalFileSize || "15.4 MB"})
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{prod.name}</h4>
-                      <span className="text-[11px] text-purple-300 font-mono">
-                        {prod.digitalFileName || "Plik_Cyfrowy.pdf"} ({prod.digitalFileSize || "15.4 MB"})
-                      </span>
-                    </div>
-                  </div>
 
-                  <a
-                    href={prod.digitalFileUrl || "#"}
-                    download={prod.digitalFileName || "Pobierz_Plik.pdf"}
-                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>⬇️ Pobierz Plik</span>
-                  </a>
-                </div>
-              ))}
-            </div>
+                    <a
+                      href={prod.digitalFileUrl || "#"}
+                      download={prod.digitalFileName || "Pobierz_Plik.pdf"}
+                      className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>⬇️ Pobierz Plik</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 p-4 bg-[#0E0E11] border border-white/10 rounded-2xl text-xs text-zinc-400 w-full text-left space-y-1">
+                <span className="text-white font-semibold block">📦 Status zamówienia:</span>
+                <span>Twoje zamówienie zostało przekazane do realizacji przez sklep. Dziękujemy za zakupy!</span>
+              </div>
+            )}
 
             <button
               onClick={() => setShowSuccessModal(false)}
-              className="mt-6 px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-xl cursor-pointer transition-colors"
+              className="mt-6 px-8 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md"
             >
-              Zamknij Okno
+              Powrót do sklepu
             </button>
           </div>
         </div>

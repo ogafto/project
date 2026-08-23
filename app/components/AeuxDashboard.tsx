@@ -235,6 +235,7 @@ export default function AeuxDashboard({
   const [prodImages, setProdImages] = useState<string[]>([
     "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80",
   ]);
+  const [imageInputUrl, setImageInputUrl] = useState("");
   const [digitalFile, setDigitalFile] = useState<{ name: string; size: string; url?: string } | null>(null);
   const [isScheduledLaunch, setIsScheduledLaunch] = useState(false);
   const [scheduledLaunchDate, setScheduledLaunchDate] = useState("2026-09-01T18:00");
@@ -1184,10 +1185,41 @@ export default function AeuxDashboard({
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-      setProdImages((prev) => [dataUrl, ...prev]);
+      setProdImages((prev) => [...prev, dataUrl]);
       if (!prodImage) setProdImage(dataUrl);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAddImageUrl = () => {
+    if (!imageInputUrl.trim()) return;
+    const clean = imageInputUrl.trim();
+    if (!prodImages.includes(clean)) {
+      setProdImages((prev) => [...prev, clean]);
+      if (!prodImage) setProdImage(clean);
+    }
+    setImageInputUrl("");
+  };
+
+  const handleSetMainImage = (index: number) => {
+    if (index <= 0 || index >= prodImages.length) return;
+    setProdImages((prev) => {
+      const selected = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      const updated = [selected, ...rest];
+      setProdImage(selected);
+      return updated;
+    });
+    if (setMessage) setMessage({ type: "success", text: "Ustawiono nowe zdjęcie główne produktu!" });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setProdImages((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length > 0) setProdImage(updated[0]);
+      else setProdImage("");
+      return updated;
+    });
   };
 
   const handleSaveStoreConfig = (e: React.FormEvent) => {
@@ -3861,10 +3893,10 @@ export default function AeuxDashboard({
                 </div>
                 <div>
                   <span className="text-2xl sm:text-3xl font-bold text-white font-mono block">
-                    {activeStorePackage?.visitsCount || currentStore.visitsCount || 142}
+                    0
                   </span>
                   <span className="text-[11px] text-zinc-500 block mt-1 font-['Poppins',sans-serif]">
-                    Unikalne wejścia klientów do sklepu
+                    Analityka odwiedzin (Wkrótce)
                   </span>
                 </div>
               </div>
@@ -4662,21 +4694,50 @@ export default function AeuxDashboard({
                   {/* ZDJĘCIA PRODUKTU (WIĘCEJ ZDJĘĆ / GALERIA) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-zinc-300 block">Zdjęcia produktu (Galeria) *</label>
-                      <span className="text-[11px] text-zinc-500">Możesz dodać wiele zdjęć – pierwsze będzie głównym</span>
+                      <label className="text-xs font-semibold text-zinc-300 block">Zdjęcia produktu (Galeria zdjęć) *</label>
+                      <span className="text-[11px] text-zinc-400">Pierwsze zdjęcie to okładka główna • do 8 zdjęć</span>
                     </div>
+
+                    {/* Wklejanie bezpośredniego URL do zdjęcia */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={imageInputUrl}
+                        onChange={(e) => setImageInputUrl(e.target.value)}
+                        placeholder="Wklej bezpośredni link URL do zdjęcia (np. https://...)..."
+                        className="flex-1 px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddImageUrl}
+                        className="px-4 py-2.5 bg-[#181B24] hover:bg-[#222736] text-white text-xs font-semibold rounded-xl border border-[#262B3B] transition-colors cursor-pointer shrink-0"
+                      >
+                        + Dodaj z linku
+                      </button>
+                    </div>
+
+                    {/* Siatka miniatur */}
                     <div className="flex items-center gap-3 flex-wrap">
                       {prodImages.map((img, idx) => (
                         <div key={idx} className="w-24 h-24 rounded-2xl bg-[#111319] border border-[#1C1E26] relative overflow-hidden group shadow-md">
                           <img src={img} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
-                          {idx === 0 && (
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 rounded text-[9px] font-bold text-[#D0FF00]">
-                              Główne
+                          {idx === 0 ? (
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/90 rounded text-[9px] font-bold text-[#D0FF00] border border-[#D0FF00]/40">
+                              ★ Główne
                             </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetMainImage(idx)}
+                              className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/80 hover:bg-[#D0FF00] hover:text-black rounded text-[9px] font-medium text-zinc-300 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              title="Ustaw jako zdjęcie główne"
+                            >
+                              Główne
+                            </button>
                           )}
                           <button
                             type="button"
-                            onClick={() => setProdImages(prodImages.filter((_, i) => i !== idx))}
+                            onClick={() => handleRemoveImage(idx)}
                             className="absolute top-1 right-1 w-6 h-6 bg-black/80 hover:bg-rose-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                             title="Usuń zdjęcie"
                           >
@@ -4684,18 +4745,20 @@ export default function AeuxDashboard({
                           </button>
                         </div>
                       ))}
-                      <label className="w-24 h-24 rounded-2xl border border-dashed border-[#1C1E26] hover:border-[#D0FF00] flex flex-col items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors bg-[#0D0E12]/50">
-                        <Upload className="w-5 h-5 text-[#D0FF00]" />
-                        <span className="text-[10px] font-medium mt-1.5">+ Dodaj zdjęcie</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) handleProductImageUpload(e.target.files[0]);
-                          }}
-                        />
-                      </label>
+                      {prodImages.length < 8 && (
+                        <label className="w-24 h-24 rounded-2xl border border-dashed border-[#1C1E26] hover:border-[#D0FF00] flex flex-col items-center justify-center text-zinc-400 hover:text-white cursor-pointer transition-colors bg-[#0D0E12]/50">
+                          <Upload className="w-5 h-5 text-[#D0FF00]" />
+                          <span className="text-[10px] font-medium mt-1.5">+ Wgraj plik</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) handleProductImageUpload(e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
 
