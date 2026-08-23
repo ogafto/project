@@ -211,26 +211,52 @@ export async function POST(req: NextRequest) {
       is_email_verified: incomingUser.isEmailVerified !== false,
     };
 
-    if (incomingUser.id && incomingUser.id.length > 20 && incomingUser.id.includes("-")) {
+    if (incomingUser.id && typeof incomingUser.id === "string" && incomingUser.id.length > 20 && incomingUser.id.includes("-")) {
       profilePayload.id = incomingUser.id;
     }
 
-    if (services || incomingUser.services) {
-      profilePayload.services = services || incomingUser.services;
+    // 1. Bezpieczny upsert profilu w Supabase (tylko kolumny tabeli profiles)
+    let resolvedOwnerId = (typeof incomingUser.id === "string" && incomingUser.id.length > 20 && incomingUser.id.includes("-")) ? incomingUser.id : null;
+
+    try {
+      const { data: upsertedProf, error: profErr } = await dbClient
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "email" })
+        .select("id")
+        .maybeSingle();
+
+      if (upsertedProf?.id) {
+        resolvedOwnerId = upsertedProf.id;
+      } else if (profErr) {
+        console.warn("[API /api/auth/sync-user POST] Warning upserting profile:", profErr.message);
+        // Fallback: pobierz profil po emailu
+        const { data: existingProf } = await dbClient
+          .from("profiles")
+          .select("id")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+        if (existingProf?.id) resolvedOwnerId = existingProf.id;
+      }
+    } catch (e: any) {
+      console.warn("[API /api/auth/sync-user POST] Exception during profile upsert:", e.message);
     }
 
-    // 1. Upsert profil w Supabase
-    const { data: upsertedProf, error: profErr } = await dbClient
-      .from("profiles")
-      .upsert(profilePayload, { onConflict: "email" })
-      .select()
-      .maybeSingle();
-
-    if (profErr) {
-      console.warn("[API /api/auth/sync-user POST] Warning upserting profile:", profErr.message);
+    // Opcjonalna synchronizacja pakietów / subskrypcji do tabeli subscriptions
+    const incomingServices = services || incomingUser.services;
+    if (Array.isArray(incomingServices) && incomingServices.length > 0 && resolvedOwnerId) {
+      for (const s of incomingServices) {
+        if (!s) continue;
+        try {
+          await dbClient.from("subscriptions").upsert({
+            user_id: resolvedOwnerId,
+            user_email: cleanEmail,
+            plan_name: s.planType || s.title?.replace("Pakiet ", "") || "Start",
+            status: "active",
+            current_period_end: s.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+          });
+        } catch {}
+      }
     }
-
-    const resolvedOwnerId = upsertedProf?.id || incomingUser.id || null;
 
     // 2. Jeśli przekazano sklepy, synchronizujemy je z tabelą stores
     const incomingStores = stores || incomingUser.stores || (incomingUser.store ? [incomingUser.store] : []);

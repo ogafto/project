@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     role TEXT NOT NULL DEFAULT 'user',
     account_status TEXT NOT NULL DEFAULT 'Active',
     plan TEXT DEFAULT 'Start',
+    services JSONB DEFAULT '[]'::jsonb,
     is_email_verified BOOLEAN DEFAULT FALSE,
     otp_code TEXT,
     otp_expires_at TIMESTAMPTZ,

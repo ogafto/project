@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   // 2. Test profiles columns
   try {
-    const { error: colErr } = await dbClient.from("profiles").select("is_email_verified,otp_code,otp_expires_at").limit(1);
+    const { error: colErr } = await dbClient.from("profiles").select("is_email_verified,otp_code,otp_expires_at,services").limit(1);
     if (colErr) {
       results.push({ table: "profiles", status: "missing columns: " + colErr.message });
     } else {
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS otp_code TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS services JSONB DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS public.otp_codes (
     email TEXT PRIMARY KEY,
