@@ -127,8 +127,10 @@ export function StoreClientView({
         setIsCartOpen(false);
         setShowSuccessModal(true);
 
-        // Record order safely in the background if productId exists
-        if (store?.id && productId) {
+        // Record order safely in the background
+        if (sessionId && sessionId.startsWith("cs_")) {
+          fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`).catch(() => {});
+        } else if (store?.id && productId) {
           const matchedProd = products.find((p) => p.id === productId);
           const orderAmountCents = matchedProd?.priceCents || 24900;
 
@@ -141,7 +143,8 @@ export function StoreClientView({
               productTitle: matchedProd?.name || "Zamówienie w sklepie",
               customerEmail: "klient@iskral.pl",
               amountTotalCents: orderAmountCents,
-              stripeSessionId: sessionId || `cs_${Date.now()}`,
+              stripeSessionId: sessionId || `manual_${Date.now()}`,
+              status: "Niewysłane",
             }),
           }).catch(() => {});
         }

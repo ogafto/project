@@ -576,6 +576,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: u.id,
         email: u.email,
         name: u.name,
+        avatarUrl: u.avatarUrl,
         role: u.role,
         accountStatus: u.accountStatus,
         plan: u.plan,

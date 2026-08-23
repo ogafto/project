@@ -315,7 +315,9 @@ export function TenantStoreFront({
         setIsCartOpen(false);
         setShowSuccessModal(true);
 
-        if (subdomain) {
+        if (sessionId && sessionId.startsWith("cs_")) {
+          fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`).catch(() => {});
+        } else if (subdomain) {
           fetch("/api/stores/order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -325,7 +327,8 @@ export function TenantStoreFront({
               productId: productId || "order_prod",
               customerEmail: "klient@iskral.pl",
               amountTotalCents: 24900,
-              stripeSessionId: sessionId || `cs_${Date.now()}`,
+              stripeSessionId: sessionId || `manual_${Date.now()}`,
+              status: "Niewysłane",
             }),
           }).catch(() => {});
         }

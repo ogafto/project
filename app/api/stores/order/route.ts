@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       stripe_session_id: stripeSessionId || `manual_${Date.now()}`,
       amount_total_cents: amountTotalCents,
       total_amount: ((amountTotalCents || 0) / 100).toFixed(2),
-      status: "paid",
+      status: body.status || "Niewysłane",
       customer_email: customerEmail || "klient@iskral.pl",
       customer_name: customerName || null,
       customer_phone: customerPhone || null,

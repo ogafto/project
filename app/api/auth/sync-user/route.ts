@@ -161,6 +161,7 @@ export async function GET(req: NextRequest) {
       id: profile?.id || `usr_${email.replace(/[^a-z0-9]/g, "_")}`,
       email: email,
       name: profile?.name || email.split("@")[0],
+      avatarUrl: profile?.avatar_url || profile?.avatarUrl || "",
       role: isSuperadmin ? "superadmin" : (profile?.role || "user"),
       plan: profile?.plan || (isSuperadmin ? "Brand" : "Start"),
       hasStore: storesWithDetails.length > 0 || Boolean(profile?.has_store),
@@ -206,6 +207,7 @@ export async function POST(req: NextRequest) {
     const profilePayload: any = {
       email: cleanEmail,
       name: incomingUser.name || cleanEmail.split("@")[0],
+      avatar_url: incomingUser.avatarUrl || incomingUser.image || null,
       role: isSuperadmin ? "superadmin" : (incomingUser.role || "user"),
       plan: incomingUser.plan || "Start",
       account_status: incomingUser.accountStatus || "Active",

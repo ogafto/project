@@ -109,6 +109,7 @@ export type TabType =
   | "ustawienia";
 
 interface AeuxDashboardProps {
+  initialTab?: TabType;
   user: User | null;
   allUsers?: User[];
   activeStore?: StoreConfig;
@@ -131,6 +132,7 @@ interface AeuxDashboardProps {
 }
 
 export default function AeuxDashboard({
+  initialTab,
   user,
   allUsers = [],
   activeStore,
@@ -153,6 +155,7 @@ export default function AeuxDashboard({
 }: AeuxDashboardProps) {
   // Navigation tabs with URL hash (domyślnie ZAWSZE główny Pulpit po wejściu):
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
+    if (initialTab) return initialTab;
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "") as TabType;
       const validTabs: TabType[] = [
@@ -178,7 +181,7 @@ export default function AeuxDashboard({
       ];
       if (hash && hash !== "pulpit" && validTabs.includes(hash)) return hash;
     }
-    return "pulpit";
+    return initialTab || "pulpit";
   });
 
   const setActiveTab = (tab: TabType) => {
@@ -263,6 +266,8 @@ export default function AeuxDashboard({
   // Profile Management State
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileEmail, setProfileEmail] = useState(user?.email || "");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || "");
+  const [avatarUrlInput, setAvatarUrlInput] = useState("");
   const [profilePhone, setProfilePhone] = useState(() => {
     if (typeof window !== "undefined" && user) {
       return localStorage.getItem(`iskra_profile_phone_${userKey}`) || "+48 500 123 456";
@@ -297,6 +302,16 @@ export default function AeuxDashboard({
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
   const [is2FAActive, setIs2FAActive] = useState(user?.is2FAEnabled || false);
+
+  // Synchronize profile state when user object changes
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || "");
+      setProfileEmail(user.email || "");
+      setProfileAvatarUrl(user.avatarUrl || "");
+      setIs2FAActive(user.is2FAEnabled || false);
+    }
+  }, [user?.id, user?.name, user?.email, user?.avatarUrl, user?.is2FAEnabled]);
 
   // Notification center state (Dismissable, clear all, empty state)
   const [notificationsList, setNotificationsList] = useState<Array<{ id: string; title: string; text: string; time: string; type: "info" | "success" | "sale" }>>(() => {
@@ -958,15 +973,50 @@ export default function AeuxDashboard({
     }
   }, [user?.email, user?.id]);
 
-  const getRemainingTime = (expiresAt?: string) => {
-    if (!expiresAt) return "Wygasł";
+  // Dynamiczny licznik czasu rzeczywistego (odświeżanie co 1s)
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getRemainingTimeInfo = (expiresAt?: string) => {
+    if (!expiresAt) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
     const expTime = new Date(expiresAt).getTime();
-    if (isNaN(expTime)) return "Wygasł";
-    const diff = expTime - Date.now();
-    if (diff <= 0) return "Wygasł";
+    if (isNaN(expTime)) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
+    const diff = expTime - currentTime;
+    if (diff <= 0) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
+
+    const totalMinutes = Math.floor(diff / (1000 * 60));
+    const totalHours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    return `${days} dni, ${hours} godz.`;
+    const hours = totalHours % 24;
+    const minutes = totalMinutes % 60;
+
+    if (days >= 1) {
+      return {
+        text: `Pozostało: ${days} ${days === 1 ? "dzień" : "dni"}`,
+        isExpired: false,
+        days,
+        hours,
+        minutes,
+      };
+    } else {
+      return {
+        text: `Pozostało: ${hours} godz. ${minutes} min.`,
+        isExpired: false,
+        days,
+        hours,
+        minutes,
+      };
+    }
+  };
+
+  const getRemainingTime = (expiresAt?: string) => {
+    return getRemainingTimeInfo(expiresAt).text;
   };
 
   const handleStartRename = (pkg: UserPackage) => {
@@ -1674,6 +1724,43 @@ export default function AeuxDashboard({
     }
   };
 
+  const handleAvatarFileUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      if (setMessage) setMessage({ type: "error", text: "Proszę wybrać plik graficzny (PNG, JPG, WebP)!" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setProfileAvatarUrl(dataUrl);
+      if (updateUserProfile) {
+        updateUserProfile({ avatarUrl: dataUrl });
+      }
+      if (setMessage) setMessage({ type: "success", text: "Zaktualizowano zdjęcie profilowe!" });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveAvatarUrl = () => {
+    if (!avatarUrlInput.trim()) return;
+    const cleanUrl = avatarUrlInput.trim();
+    setProfileAvatarUrl(cleanUrl);
+    if (updateUserProfile) {
+      updateUserProfile({ avatarUrl: cleanUrl });
+    }
+    setAvatarUrlInput("");
+    if (setMessage) setMessage({ type: "success", text: "Zapisano link do zdjęcia profilowego!" });
+  };
+
+  const handleRemoveAvatar = () => {
+    setProfileAvatarUrl("");
+    setAvatarUrlInput("");
+    if (updateUserProfile) {
+      updateUserProfile({ avatarUrl: "" });
+    }
+    if (setMessage) setMessage({ type: "success", text: "Usunięto zdjęcie profilowe." });
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileName.trim()) {
@@ -1689,7 +1776,7 @@ export default function AeuxDashboard({
       localStorage.setItem(`iskra_profile_country_${key}`, profileCountry);
     }
     if (updateUserProfile) {
-      updateUserProfile({ name: profileName });
+      updateUserProfile({ name: profileName, avatarUrl: profileAvatarUrl });
     }
     if (setMessage) {
       setMessage({ type: "success", text: "🎉 Zapisano pomyślnie zaktualizowane dane profilu!" });
@@ -2512,23 +2599,25 @@ export default function AeuxDashboard({
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all group select-none"
               >
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 shrink-0 flex items-center justify-center">
+                <div className="w-9 h-9 shrink-0 flex items-center justify-center">
                   {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user?.name || "User"} className="w-full h-full object-cover" />
-                  ) : (
                     <img
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80"
-                      alt={user?.name || "Jan Kowalski"}
-                      className="w-full h-full object-cover"
+                      src={user.avatarUrl}
+                      alt="Profil"
+                      className="w-9 h-9 rounded-full object-cover border border-zinc-700"
                     />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-white">
+                      {user?.name?.slice(0, 2).toUpperCase() || 'US'}
+                    </div>
                   )}
                 </div>
                 <div className="text-left min-w-0">
                   <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate font-['Poppins',sans-serif]">
-                    {user?.name || "Jan Kowalski"}
+                    {user?.name || "Użytkownik"}
                   </span>
                   <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5 font-['Poppins',sans-serif]">
-                    {user?.email || "jan.kowalski@gmail.com"}
+                    {user?.email || "konto@iskral.pl"}
                   </span>
                 </div>
                 <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-transform ml-1 ${isUserMenuOpen ? "rotate-180" : ""}`} />
@@ -2667,32 +2756,39 @@ export default function AeuxDashboard({
               /* DLA UŻYTKOWNIKA Z PAKIETEM: CZYSTA SIATKA KART PAKIETÓW */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userPackages.map((pkg) => {
-                  const remaining = getRemainingTime(pkg.expiresAt);
-                  const isExp = remaining === "Wygasł";
+                  const expInfo = getRemainingTimeInfo(pkg.expiresAt);
+                  const isExp = expInfo.isExpired;
+                  const remaining = expInfo.text;
 
                   return (
                     <div
                       key={pkg.id}
-                      className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all space-y-6"
+                      className={`bg-[#0D0E12] border ${isExp ? "border-rose-500/30" : "border-[#17181F] hover:border-[#222530]"} rounded-[24px] p-7 flex flex-col justify-between transition-all space-y-6`}
                     >
                       {/* HEADER KARTY: BADGE PAKIETU + DYSKRETNY UPGRADE */}
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-white font-['Poppins',sans-serif]">
                             Pakiet {pkg.planType}
                           </span>
                           
-                          {/* MINIMALISTYCZNY PRZYCISK ULEPSZ PAKIET OBOK BADGE CREATOR */}
-                          {pkg.planType !== "Brand" && (
-                            <button
-                              type="button"
-                              onClick={() => setUpgradingPackage(pkg)}
-                              className="text-[11px] font-medium text-zinc-400 hover:text-[#D0FF00] hover:underline transition-colors flex items-center gap-1 cursor-pointer font-['Poppins',sans-serif]"
-                              title="Ulepsz pakiet do wyższej wersji"
-                            >
-                              <span>Ulepsz</span>
-                              <ArrowUpRight className="w-3 h-3 text-[#D0FF00]" />
-                            </button>
+                          {/* BADGE WYGASŁ LUB PRZYCISK ULEPSZENIA */}
+                          {isExp ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[11px] font-bold font-['Poppins',sans-serif]">
+                              Wygasł
+                            </span>
+                          ) : (
+                            pkg.planType !== "Brand" && (
+                              <button
+                                type="button"
+                                onClick={() => setUpgradingPackage(pkg)}
+                                className="text-[11px] font-medium text-zinc-400 hover:text-[#D0FF00] hover:underline transition-colors flex items-center gap-1 cursor-pointer font-['Poppins',sans-serif]"
+                                title="Ulepsz pakiet do wyższej wersji"
+                              >
+                                <span>Ulepsz</span>
+                                <ArrowUpRight className="w-3 h-3 text-[#D0FF00]" />
+                              </button>
+                            )
                           )}
                         </div>
 
@@ -2723,25 +2819,33 @@ export default function AeuxDashboard({
                       </div>
 
                       {/* WAŻNOŚĆ SKLEPU + PRZYCISK PRZEDŁUŻ (+30 DNI) */}
-                      <div className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3">
+                      <div className={`p-3.5 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-3`}>
                         <div className="min-w-0 flex-1">
                           <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-['Poppins',sans-serif]">
                             Ważność sklepu
                           </span>
-                          <span
-                            className={`text-xs font-medium truncate block font-['Poppins',sans-serif] mt-0.5 ${
-                              isExp ? "text-rose-400 font-bold" : "text-white"
-                            }`}
-                          >
-                            {remaining}
-                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {isExp ? (
+                              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-400 font-bold text-xs font-['Poppins',sans-serif]">
+                                Wygasł
+                              </span>
+                            ) : (
+                              <span className="text-xs font-medium truncate block font-['Poppins',sans-serif] text-white">
+                                {remaining}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-center shrink-0">
                           <button
                             type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className="px-3 py-1.5 rounded-xl bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500 text-xs font-medium font-['Poppins',sans-serif] transition-all cursor-pointer shadow-sm"
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer shadow-sm ${
+                              isExp
+                                ? "bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold"
+                                : "bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500"
+                            }`}
                             title="Przedłuż ważność pakietu o 30 dni"
                           >
                             Przedłuż pakiet
@@ -2749,9 +2853,26 @@ export default function AeuxDashboard({
                         </div>
                       </div>
 
-                      {/* JEDYNY GŁÓWNY PRZYCISK: FONT SIZE 14 MEDIUM POPPINS */}
+                      {/* GŁÓWNY PRZYCISK: BLOKADA PO WYGAŚNIĘCIU LUB PRZEJŚCIE DO SKLEPU */}
                       <div className="pt-2">
-                        {pkg.isConfigured ? (
+                        {isExp ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleExtendPackage(pkg.id);
+                              if (setMessage) {
+                                setMessage({
+                                  type: "warning",
+                                  text: "Pakiet wygasł! Przedłuż subskrypcję, aby odblokować edycję sklepu i dostęp do panelu.",
+                                });
+                              }
+                            }}
+                            className="w-full px-[24px] py-[12px] bg-[#161820] hover:bg-[#1f222e] text-rose-300 text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-rose-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                          >
+                            <Lock className="w-4 h-4 text-rose-400" />
+                            <span>Pakiet wygasł – przedłuż aby edytować</span>
+                          </button>
+                        ) : pkg.isConfigured ? (
                           <button
                             onClick={() => handleOpenStorePanel(pkg)}
                             className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
@@ -3457,11 +3578,97 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {activeTab === "profil" && (
           <div className="space-y-6 max-w-4xl font-['Poppins',sans-serif]">
-            {/* DANE PROFILOWE UŻYTKOWNIKA */}
+            {/* SEKCJA 1: ZDJĘCIE PROFILOWE */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
                 <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
-                  Profil Użytkownika
+                  Zdjęcie profilowe
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Zarządzaj swoim zdjęciem profilowym widocznym w panelu oraz w prawym górnym rogu.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                {/* PODGLĄD AKTUALNEGO ZDJĘCIA */}
+                <div className="relative group shrink-0">
+                  <div className="w-24 h-24 rounded-2xl overflow-hidden bg-[#111319] border-2 border-[#1C1E26] flex items-center justify-center shadow-lg">
+                    {profileAvatarUrl ? (
+                      <img
+                        src={profileAvatarUrl}
+                        alt="Podgląd zdjęcia profilowego"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-xl font-bold text-white">
+                        {profileName ? profileName.slice(0, 2).toUpperCase() : (user?.name?.slice(0, 2).toUpperCase() || "US")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3.5 flex-1">
+                  {/* PRZYCISKI WGRANIA I USUNIĘCIA */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <label className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{profileAvatarUrl ? "Zmień zdjęcie" : "Wgraj zdjęcie z dysku"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleAvatarFileUpload(e.target.files[0]);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {profileAvatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Usuń zdjęcie</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* WKLEJANIE LINKU DO ZDJĘCIA */}
+                  <div className="pt-1">
+                    <label className="text-[11px] font-semibold text-zinc-400 block mb-1.5">
+                      Lub wklej bezpośredni adres URL zdjęcia:
+                    </label>
+                    <div className="flex items-center gap-2 max-w-md">
+                      <input
+                        type="url"
+                        value={avatarUrlInput}
+                        onChange={(e) => setAvatarUrlInput(e.target.value)}
+                        placeholder="https://domena.pl/avatar.jpg"
+                        className="flex-1 px-3.5 py-2 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveAvatarUrl}
+                        disabled={!avatarUrlInput.trim()}
+                        className="px-3.5 py-2 bg-[#181B24] hover:bg-[#202430] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl border border-[#262B3B] transition-colors cursor-pointer shrink-0"
+                      >
+                        Zapisz link
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SEKCJA 2: DANE PROFILOWE UŻYTKOWNIKA */}
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
+              <div className="border-b border-[#17181F] pb-4">
+                <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                  Dane Konta i Adres
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Twoje podstawowe dane kontaktowe i adres rozliczeniowy.

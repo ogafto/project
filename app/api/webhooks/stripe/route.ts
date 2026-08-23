@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const planNameFormatted = rawPlanName.toLowerCase().startsWith("pakiet") ? rawPlanName : `Pakiet ${rawPlanName}`;
     const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 2999);
     const customerEmail = session.customer_details?.email || metadata.customer_email || session.customer_email || "klient@iskral.pl";
-    const paymentStatus = isPlan ? "active" : "unshipped";
+    const paymentStatus = isPlan ? "active" : "Niewysłane";
     const productTitle = metadata.title || metadata.product_title || (isPlan ? planNameFormatted : "Zamówienie w sklepie");
 
     console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for store: ${tenantId}`);
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
               plan_type: rawPlanName,
               plan_status: "active",
               is_active: true,
+              trial_ends_at: expirationDate.toISOString(),
               updated_at: new Date().toISOString(),
             })
             .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
@@ -110,13 +111,25 @@ export async function POST(req: NextRequest) {
             }).catch((emailErr) => console.error("[Stripe Webhook Email Error]:", emailErr));
           }
         } else {
+          // Check if order already recorded via callback or duplicate webhook
+          const { data: existingOrders } = await dbAdmin
+            .from("orders")
+            .select("id")
+            .eq("stripe_session_id", session.id)
+            .limit(1);
+
+          if (existingOrders && existingOrders.length > 0) {
+            console.log(`[Stripe Webhook] Order for session ${session.id} already exists (ID: ${existingOrders[0].id}). Skipping duplicate.`);
+            return NextResponse.json({ received: true, message: "Order already recorded" });
+          }
+
           // 1. Create order in orders table
-          const customerName = metadata.customer_name || session.customer_details?.name || "";
-          const customerPhone = metadata.customer_phone || session.customer_details?.phone || "";
-          const shippingType = metadata.shipping_type || (metadata.paczkomat_code ? "paczkomat" : metadata.shipping_address ? "courier" : "digital");
-          const paczkomatCode = metadata.paczkomat_code || "";
-          const shippingAddress = metadata.shipping_address || "";
-          const selectedVariant = metadata.selected_variant || "";
+          const customerName = metadata.customer_name || metadata.customerName || session.customer_details?.name || "";
+          const customerPhone = metadata.customer_phone || metadata.customerPhone || session.customer_details?.phone || "";
+          const shippingType = metadata.shipping_type || metadata.shippingType || (metadata.paczkomat_code || metadata.paczkomatCode ? "paczkomat" : metadata.shipping_address || metadata.shippingAddress ? "courier" : "digital");
+          const paczkomatCode = metadata.paczkomat_code || metadata.paczkomatCode || "";
+          const shippingAddress = metadata.shipping_address || metadata.shippingAddress || "";
+          const selectedVariant = metadata.selected_variant || metadata.selectedVariant || "";
 
           const shippingDetails = {
             method: shippingType,
@@ -134,7 +147,7 @@ export async function POST(req: NextRequest) {
             stripe_session_id: session.id,
             total_amount: (amountTotalCents / 100).toFixed(2),
             amount_total_cents: amountTotalCents,
-            status: paymentStatus,
+            status: "Niewysłane",
             customer_email: customerEmail,
             customer_name: customerName || null,
             customer_phone: customerPhone || null,
