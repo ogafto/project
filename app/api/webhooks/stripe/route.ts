@@ -36,8 +36,7 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as any;
     const metadata = session.metadata || {};
-
-    const rawStoreId = metadata.store_id || metadata.storeId || metadata.tenant_id || metadata.tenantId;
+    const rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
     let resolvedStoreId = rawStoreId;
 
     if (dbAdmin && rawStoreId) {
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
     const planNameFormatted = rawPlanName.toLowerCase().startsWith("pakiet") ? rawPlanName : `Pakiet ${rawPlanName}`;
     const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 2999);
     const customerEmail = session.customer_details?.email || metadata.customer_email || session.customer_email || "klient@iskral.pl";
-    const paymentStatus = session.payment_status === "paid" ? "paid" : "pending";
+    const paymentStatus = isPlan ? "active" : "unshipped";
     const productTitle = metadata.title || metadata.product_title || (isPlan ? planNameFormatted : "Zamówienie w sklepie");
 
     console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for store: ${tenantId}`);

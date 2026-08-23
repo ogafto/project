@@ -159,8 +159,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const rawStoreId = searchParams.get("tenantId") || searchParams.get("storeId") || searchParams.get("store_id");
+    const rawSubdomain = searchParams.get("subdomain");
 
-    if (!rawStoreId) {
+    if (!rawStoreId && !rawSubdomain) {
       return NextResponse.json({ success: true, orders: [] });
     }
 
@@ -169,24 +170,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, orders: [] });
     }
 
-    // Resolve exact store ID
-    let targetStoreId = rawStoreId;
+    const matchingIds = new Set<string>();
+    if (rawStoreId && rawStoreId !== "empty_store") {
+      matchingIds.add(rawStoreId);
+    }
+    if (rawSubdomain) {
+      matchingIds.add(rawSubdomain);
+    }
+
+    // Resolve all related store IDs and subdomains
     try {
-      const { data: st } = await dbClient
-        .from("stores")
-        .select("id")
-        .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
-        .maybeSingle();
-      if (st?.id) {
-        targetStoreId = st.id;
+      const orClauses: string[] = [];
+      if (rawStoreId && rawStoreId !== "empty_store") {
+        orClauses.push(`id.eq.${rawStoreId}`);
+        orClauses.push(`subdomain.eq.${rawStoreId}`);
+      }
+      if (rawSubdomain) {
+        orClauses.push(`id.eq.${rawSubdomain}`);
+        orClauses.push(`subdomain.eq.${rawSubdomain}`);
+      }
+
+      if (orClauses.length > 0) {
+        const { data: stList } = await dbClient
+          .from("stores")
+          .select("id, subdomain")
+          .or(orClauses.join(","));
+
+        if (stList && Array.isArray(stList)) {
+          stList.forEach((s: any) => {
+            if (s.id) matchingIds.add(s.id);
+            if (s.subdomain) matchingIds.add(s.subdomain);
+          });
+        }
       }
     } catch {}
 
-    // Pobieramy zamówienia bezpośrednio po właściwej kolumnie store_id
+    const idList = Array.from(matchingIds);
+    if (idList.length === 0) {
+      return NextResponse.json({ success: true, orders: [] });
+    }
+
+    // Pobieramy zamówienia bezpośrednio po wszystkich powiązanych identyfikatorach
+    const orFilter = idList.map((id) => `store_id.eq.${id}`).join(",");
     const { data: orders, error } = await dbClient
       .from("orders")
       .select("*")
-      .or(`store_id.eq.${targetStoreId},store_id.eq.${rawStoreId}`)
+      .or(orFilter)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -199,12 +228,12 @@ export async function GET(req: NextRequest) {
       const shipDet = o.shipping_details || {};
       return {
         id: o.id,
-        tenantId: o.store_id || targetStoreId,
-        storeId: o.store_id || targetStoreId,
+        tenantId: o.store_id || idList[0],
+        storeId: o.store_id || idList[0],
         stripeSessionId: o.stripe_session_id || "",
         amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
         totalAmount: o.total_amount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-        status: o.status || "paid",
+        status: o.status || "unshipped",
         customerEmail: o.customer_email || shipDet.email || "klient@iskral.pl",
         customerName: o.customer_name || shipDet.name || "",
         customerPhone: o.customer_phone || shipDet.phone || "",

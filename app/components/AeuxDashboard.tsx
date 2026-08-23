@@ -560,9 +560,14 @@ export default function AeuxDashboard({
 
   useEffect(() => {
     const stId = activeStorePackage?.id || currentStore.id;
-    if (!stId || stId === "empty_store") return;
+    const stSub = activeStorePackage?.subdomain || currentStore.subdomain || "";
+    if ((!stId || stId === "empty_store") && !stSub) return;
 
-    fetch(`/api/stores/order?storeId=${encodeURIComponent(stId)}`)
+    const queryParams = new URLSearchParams();
+    if (stId && stId !== "empty_store") queryParams.set("storeId", stId);
+    if (stSub) queryParams.set("subdomain", stSub);
+
+    fetch(`/api/stores/order?${queryParams.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         const orderList = Array.isArray(data?.orders) ? data.orders : [];
@@ -576,7 +581,7 @@ export default function AeuxDashboard({
               stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
               amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
               totalAmount: o.total_amount || o.totalAmount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-              status: o.status || "paid",
+              status: o.status || "unshipped",
               customerEmail: o.customer_email || o.customerEmail || shipDet.email || "klient@iskral.pl",
               customerName: o.customer_name || o.customerName || shipDet.name || "",
               customerPhone: o.customer_phone || o.customerPhone || shipDet.phone || "",
@@ -597,7 +602,7 @@ export default function AeuxDashboard({
         }
       })
       .catch((err) => console.warn("Błąd pobierania zamówień sklepu:", err));
-  }, [activeStorePackage?.id, currentStore.id]);
+  }, [activeStorePackage?.id, activeStorePackage?.subdomain, currentStore.id, currentStore.subdomain, activeTab, user?.id]);
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     setUpdatingOrderStatus(true);
@@ -731,9 +736,16 @@ export default function AeuxDashboard({
   const [domainStatus, setDomainStatus] = useState<"none" | "checking" | "verified">(currentStore.domainVerified ? "verified" : "none");
 
   const storeOrders = Array.isArray(localOrders) ? localOrders : [];
-  const paidOrders = storeOrders.filter((o) => !o.status || o.status === "paid" || (o.status as string) === "completed" || (o.status as string) === "shipped");
-  const totalRevenuePLN = ((paidOrders.reduce((acc, o) => acc + (Number(o.amountTotalCents) || 0), 0)) / 100).toFixed(2);
-  const totalOrdersCount = paidOrders.length;
+  const validOrders = storeOrders.filter((o) => o.status !== "cancelled" && o.status !== "refunded" && o.status !== "failed");
+  const totalRevenuePLN = (
+    validOrders.reduce((acc, o) => {
+      const cents = typeof o.amountTotalCents === "number" && o.amountTotalCents > 0
+        ? o.amountTotalCents
+        : Math.round((parseFloat(String(o.totalAmount || 0).replace(",", ".")) || 0) * 100);
+      return acc + (isNaN(cents) ? 0 : cents);
+    }, 0) / 100
+  ).toFixed(2);
+  const totalOrdersCount = validOrders.length;
 
   // Sync state whenever the active user changes (Login/Logout/Switch)
   useEffect(() => {

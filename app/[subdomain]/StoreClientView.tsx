@@ -268,6 +268,7 @@ export function StoreClientView({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          storeId: store?.id || subdomain,
           tenantId: store?.id || subdomain,
           productId: firstItem?.id || "order_prod",
           title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
