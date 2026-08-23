@@ -3,47 +3,253 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import BackgroundVideo from "@/app/components/BackgroundVideo";
-import type { Product, Category, StoreConfig } from "@/app/context/AuthContext";
+import type { Product, StoreConfig } from "@/app/context/AuthContext";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 
 const DEFAULT_PRODUCT_IMAGE =
   "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
 
+export class ProductErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.warn("[Product Card Error Boundary Caught]:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || null;
+    }
+    return this.props.children;
+  }
+}
+
 export function extractProductImages(product: any): string[] {
   if (!product) return [DEFAULT_PRODUCT_IMAGE];
-  const rawImages = product.images ?? product.image ?? product.imageUrl ?? product.image_url;
-  let imageList: string[] = [];
+  try {
+    const rawImages = product.images ?? product.image ?? product.imageUrl ?? product.image_url;
+    let imageList: string[] = [];
 
-  if (Array.isArray(rawImages)) {
-    imageList = rawImages.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
-  } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
-    const trimmed = rawImages.trim();
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          imageList = parsed.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
+    if (Array.isArray(rawImages)) {
+      imageList = rawImages.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
+    } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+      const trimmed = rawImages.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            imageList = parsed.filter((img): img is string => typeof img === "string" && img.trim().length > 0);
+          }
+        } catch {
+          imageList = [trimmed];
         }
-      } catch {
+      } else {
         imageList = [trimmed];
       }
-    } else {
-      imageList = [trimmed];
     }
-  }
 
-  if (imageList.length === 0) {
-    const single = product.image || product.image_url || product.imageUrl;
-    if (typeof single === "string" && single.trim().length > 0) {
-      imageList = [single.trim()];
+    if (imageList.length === 0) {
+      const single = product.image || product.image_url || product.imageUrl;
+      if (typeof single === "string" && single.trim().length > 0) {
+        imageList = [single.trim()];
+      }
     }
-  }
 
-  if (imageList.length === 0) {
-    imageList = [DEFAULT_PRODUCT_IMAGE];
-  }
+    if (imageList.length === 0) {
+      imageList = [DEFAULT_PRODUCT_IMAGE];
+    }
 
-  return imageList;
+    return imageList;
+  } catch {
+    return [DEFAULT_PRODUCT_IMAGE];
+  }
+}
+
+function ProductCardItem({
+  prod,
+  accentColor,
+  selectedVariants,
+  onSelectVariant,
+  onOpenModal,
+  onAddToCart,
+}: {
+  prod: any;
+  accentColor: string;
+  selectedVariants: { [productId: string]: string };
+  onSelectVariant: (productId: string, variant: string) => void;
+  onOpenModal: (prod: any) => void;
+  onAddToCart: (prod: any) => void;
+}) {
+  if (!prod) return null;
+
+  const isLockedProductDrop = Boolean(
+    prod.isDropOnly &&
+      prod.dropTargetDate &&
+      !isNaN(new Date(prod.dropTargetDate).getTime()) &&
+      new Date(prod.dropTargetDate).getTime() > Date.now()
+  );
+
+  const isDigital = Boolean(prod.isDigital || prod.type === "Cyfrowy");
+  const isClothing = Boolean(!isDigital && prod.isClothing);
+  const stock = typeof prod.stock === "number" ? prod.stock : (isDigital ? 999 : 0);
+  const isSoldOut = !isDigital && stock <= 0;
+  const currentVariant = selectedVariants[prod.id] || (Array.isArray(prod.variants) && prod.variants[0]) || "";
+  const prodImgs = extractProductImages(prod);
+  const mainCoverImg = prodImgs[0] || DEFAULT_PRODUCT_IMAGE;
+
+  return (
+    <div className="group p-5 bg-[#18181B] border border-white/10 hover:border-white/25 rounded-3xl transition-all flex flex-col justify-between shadow-xl">
+      <div>
+        {/* Image Container - Clickable to open modal */}
+        <div
+          onClick={() => onOpenModal(prod)}
+          className="relative w-full h-60 rounded-2xl bg-[#0E0E11] overflow-hidden cursor-pointer"
+        >
+          <img
+            src={mainCoverImg}
+            alt={prod.name || "Produkt"}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+            }}
+          />
+          <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
+            <span
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
+                isDigital ? "bg-cyan-500/90 text-white" : "bg-purple-500/90 text-white"
+              }`}
+            >
+              {isDigital ? "💻 Cyfrowy" : isClothing ? "👕 Odzież" : "📦 Fizyczny"}
+            </span>
+            {isSoldOut && (
+              <span className="px-2.5 py-1 bg-rose-500/90 text-white rounded-full text-[10px] font-bold backdrop-blur-md">
+                🚫 Wyprzedane
+              </span>
+            )}
+            {isLockedProductDrop && !isSoldOut && (
+              <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold backdrop-blur-md">
+                🔒 Drop Only
+              </span>
+            )}
+          </div>
+
+          {prodImgs.length > 1 && (
+            <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/75 rounded-md text-[10px] text-zinc-300 font-mono backdrop-blur-sm">
+              📷 {prodImgs.length} zdjęć
+            </div>
+          )}
+        </div>
+
+        <h3
+          onClick={() => onOpenModal(prod)}
+          className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-['Sora',sans-serif]"
+        >
+          {prod.name || "Produkt"}
+        </h3>
+
+        {/* Stan magazynowy / Dostępność */}
+        <div className="mt-1 flex items-center justify-between text-xs text-zinc-400">
+          <span>
+            {isDigital ? (
+              <span className="text-emerald-400 font-medium">⚡ Dostęp natychmiastowy</span>
+            ) : isSoldOut ? (
+              <span className="text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
+                🚫 Wyprzedane
+              </span>
+            ) : (
+              <span>
+                Stan: <strong className="text-zinc-200">{stock} szt.</strong>
+              </span>
+            )}
+          </span>
+        </div>
+
+        <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+          {prod.description || "Oryginalny produkt w ofercie sklepu."}
+        </p>
+
+        {/* Variant / Size Picker Pills - ONLY IF CLOTHING */}
+        {isClothing && Array.isArray(prod.variants) && prod.variants.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-white/[0.06]">
+            <span className="text-[10px] font-bold uppercase text-zinc-400 block mb-1.5">
+              Wybierz Rozmiar:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {prod.variants.map((v: string) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onSelectVariant(prod.id, v)}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                    currentVariant === v
+                      ? "text-black shadow-md border"
+                      : "bg-[#0E0E11] text-zinc-400 hover:text-white border border-white/10"
+                  }`}
+                  style={{
+                    backgroundColor: currentVariant === v ? accentColor : undefined,
+                    borderColor: currentVariant === v ? accentColor : undefined,
+                  }}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CENA */}
+        <div className="mt-4 flex items-baseline gap-3">
+          <span className="text-2xl font-black font-mono" style={{ color: accentColor }}>
+            {prod.price || "0.00 PLN"}
+          </span>
+          {prod.comparePrice && (
+            <span className="text-xs text-zinc-500 line-through font-mono">
+              {prod.comparePrice}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* PRZYCISKI AKCJI (ZOBACZ PRODUKT + DODAJ DO KOSZYKA) */}
+      <div className="mt-5 grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={() => onOpenModal(prod)}
+          className="py-2.5 px-3 bg-[#111319] hover:bg-[#181B24] border border-white/10 rounded-xl text-zinc-300 hover:text-white text-[13px] font-medium transition-colors cursor-pointer text-center"
+        >
+          Zobacz produkt
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (isSoldOut) return;
+            onAddToCart(prod);
+          }}
+          disabled={isLockedProductDrop || isSoldOut}
+          className={`py-2.5 px-3 font-medium text-[13px] rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
+            isSoldOut ? "opacity-60 cursor-not-allowed bg-zinc-800 text-zinc-500" : "cursor-pointer"
+          }`}
+          style={{
+            backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : isSoldOut ? undefined : accentColor,
+            color: isLockedProductDrop ? "#71717A" : isSoldOut ? undefined : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
+          }}
+        >
+          <span>{isLockedProductDrop ? "🔒 Zablokowany" : isSoldOut ? "Wyprzedane" : "Do koszyka"}</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface TenantStoreFrontProps {
@@ -67,7 +273,7 @@ export function TenantStoreFront({
   const [cart, setCart] = useState<{ product: Product; quantity: number; selectedVariant?: string }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [purchasedDigitalItems, setPurchasedDigitalItems] = useState<Product[]>([]);
+  const [, setPurchasedDigitalItems] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isMounted, setIsMounted] = useState<boolean>(false);
@@ -123,7 +329,7 @@ export function TenantStoreFront({
     }
   }, [subdomain, asyncStore?.id, searchParams]);
 
-  // Track visits safely
+  // Track visits safely in background without blocking
   useEffect(() => {
     if (!subdomain || typeof window === "undefined") return;
     try {
@@ -132,11 +338,12 @@ export function TenantStoreFront({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdomain }),
       }).catch(() => {});
-      try {
-        const visitKey = `iskra_visits_${subdomain}`;
-        const cur = Number(localStorage.getItem(visitKey) || "0");
-        localStorage.setItem(visitKey, String(cur + 1));
-      } catch {}
+    } catch {}
+
+    try {
+      const visitKey = `iskra_visits_${subdomain}`;
+      const cur = Number(localStorage.getItem(visitKey) || "0");
+      localStorage.setItem(visitKey, String(cur + 1));
     } catch {}
   }, [subdomain]);
 
@@ -191,6 +398,8 @@ export function TenantStoreFront({
                     ? String(p.price)
                     : `${(parsedPriceCents / 100).toFixed(2)} PLN`;
 
+                const imgs = extractProductImages(p);
+
                 return {
                   id: p?.id || `p_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
                   tenantId: dbData?.id || "",
@@ -209,9 +418,9 @@ export function TenantStoreFront({
                   stock: typeof p?.stock === "number" ? Math.max(0, p.stock) : (isDig ? 999 : 50),
                   isClothing: !isDig && hasClothing,
                   variants: !isDig && hasClothing && Array.isArray(p?.variants) && p.variants.length > 0 ? p.variants : [],
-                  image: extractProductImages(p)[0],
-                  imageUrl: extractProductImages(p)[0],
-                  images: extractProductImages(p),
+                  image: imgs[0],
+                  imageUrl: imgs[0],
+                  images: imgs,
                   isDigital: isDig,
                   digitalFileName: p?.digital_file_name || undefined,
                   digitalFileSize: p?.digital_file_size || undefined,
@@ -285,7 +494,14 @@ export function TenantStoreFront({
                 .replace("iskra_user_packages_", "")
                 .replace("iskra_stores_", "");
               const prodsRaw = localStorage.getItem(`iskra_products_${suffix}`);
-              const prods = prodsRaw ? JSON.parse(prodsRaw) : [];
+              let prods: any[] = [];
+              if (prodsRaw) {
+                try {
+                  prods = JSON.parse(prodsRaw);
+                } catch {
+                  prods = [];
+                }
+              }
               setLocalFallbackStore({
                 id: match.id || `st_${subdomain}`,
                 name: match.storeName || match.name || `Sklep ${subdomain}`,
@@ -324,7 +540,7 @@ export function TenantStoreFront({
   }, [subdomain]);
 
   // Resolve targetStore
-  let targetStore: StoreConfig | undefined = asyncStore || localFallbackStore || undefined;
+  const targetStore: StoreConfig | undefined = asyncStore || localFallbackStore || undefined;
 
   const isDropActive = Boolean(
     targetStore?.dropConfig?.enabled &&
@@ -383,53 +599,62 @@ export function TenantStoreFront({
 
   const addToCart = (product: Product, chosenVariant?: string) => {
     if (!product) return;
-    if (
-      product.isDropOnly &&
-      product.dropTargetDate &&
-      !isNaN(new Date(product.dropTargetDate).getTime()) &&
-      new Date(product.dropTargetDate).getTime() > Date.now()
-    ) {
-      alert("Ten produkt wyjdzie dopiero w dniu premiery dropu!");
-      return;
-    }
-
-    const isDigital = Boolean(product.isDigital || product.type === "Cyfrowy");
-    if (!isDigital && typeof product.stock === "number" && product.stock <= 0) {
-      alert("Przepraszamy, ten produkt został wyprzedany!");
-      return;
-    }
-
-    const isClothing = Boolean(!isDigital && product.isClothing);
-    const finalVariant = isClothing
-      ? chosenVariant || selectedVariants[product.id] || (Array.isArray(product.variants) && product.variants[0]) || undefined
-      : undefined;
-
-    setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.product?.id === product.id && item.selectedVariant === finalVariant
-      );
-      if (existing) {
-        return prev.map((item) =>
-          item.product?.id === product.id && item.selectedVariant === finalVariant
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+    try {
+      if (
+        product.isDropOnly &&
+        product.dropTargetDate &&
+        !isNaN(new Date(product.dropTargetDate).getTime()) &&
+        new Date(product.dropTargetDate).getTime() > Date.now()
+      ) {
+        alert("Ten produkt wyjdzie dopiero w dniu premiery dropu!");
+        return;
       }
-      return [...prev, { product, quantity: 1, selectedVariant: finalVariant }];
-    });
-    setIsCartOpen(true);
+
+      const isDigital = Boolean(product.isDigital || product.type === "Cyfrowy");
+      const stock = typeof product.stock === "number" ? product.stock : (isDigital ? 999 : 0);
+      if (!isDigital && stock <= 0) {
+        alert("Przepraszamy, ten produkt został wyprzedany!");
+        return;
+      }
+
+      const isClothing = Boolean(!isDigital && product.isClothing);
+      const finalVariant = isClothing
+        ? chosenVariant || selectedVariants[product.id] || (Array.isArray(product.variants) && product.variants[0]) || undefined
+        : undefined;
+
+      setCart((prev) => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        const existing = safePrev.find(
+          (item) => item?.product?.id === product.id && item?.selectedVariant === finalVariant
+        );
+        if (existing) {
+          return safePrev.map((item) =>
+            item?.product?.id === product.id && item?.selectedVariant === finalVariant
+              ? { ...item, quantity: (item.quantity || 1) + 1 }
+              : item
+          );
+        }
+        return [...safePrev, { product, quantity: 1, selectedVariant: finalVariant }];
+      });
+      setIsCartOpen(true);
+    } catch (e) {
+      console.warn("Błąd dodawania do koszyka:", e);
+    }
   };
 
   const removeFromCart = (productId: string, selectedVariant?: string) => {
     setCart((prev) =>
-      prev.filter((item) => !(item.product?.id === productId && item.selectedVariant === selectedVariant))
+      (Array.isArray(prev) ? prev : []).filter(
+        (item) => !(item?.product?.id === productId && item?.selectedVariant === selectedVariant)
+      )
     );
   };
 
-  const cartTotalCents = cart.reduce((sum, item) => {
-    let pCents = item.product?.priceCents;
+  const cartTotalCents = (Array.isArray(cart) ? cart : []).reduce((sum, item) => {
+    if (!item?.product) return sum;
+    let pCents = item.product.priceCents;
     if (!pCents || pCents <= 0) {
-      if (item.product?.price) {
+      if (item.product.price) {
         const parsed = parseFloat(String(item.product.price).replace(/[^0-9.,]/g, "").replace(",", "."));
         if (!isNaN(parsed) && parsed > 0) pCents = Math.round(parsed * 100);
       }
@@ -793,7 +1018,7 @@ export function TenantStoreFront({
           </div>
         )}
 
-        {/* Product Grid */}
+        {/* Product Grid with Error Boundaries */}
         {filteredProducts.length === 0 ? (
           <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl font-['Poppins',sans-serif]">
             <span className="text-4xl block mb-3">📦</span>
@@ -804,174 +1029,20 @@ export function TenantStoreFront({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-['Poppins',sans-serif]">
             {filteredProducts.map((prod) => {
               if (!prod) return null;
-              const isLockedProductDrop = Boolean(
-                prod.isDropOnly &&
-                  prod.dropTargetDate &&
-                  !isNaN(new Date(prod.dropTargetDate).getTime()) &&
-                  new Date(prod.dropTargetDate).getTime() > Date.now()
-              );
-
-              const isDigital = Boolean(prod.isDigital || prod.type === "Cyfrowy");
-              const isClothing = Boolean(!isDigital && prod.isClothing);
-              const isSoldOut = !isDigital && typeof prod.stock === "number" && prod.stock <= 0;
-              const currentVariant = selectedVariants[prod.id] || (Array.isArray(prod.variants) && prod.variants[0]) || "";
-              const prodImgs = extractProductImages(prod);
-              const mainCoverImg = prodImgs[0] || DEFAULT_PRODUCT_IMAGE;
-
               return (
-                <div
-                  key={prod.id}
-                  className="group p-5 bg-[#18181B] border border-white/10 hover:border-white/25 rounded-3xl transition-all flex flex-col justify-between shadow-xl"
-                >
-                  <div>
-                    {/* Image Container - Clickable to open modal */}
-                    <div
-                      onClick={() => {
-                        setSelectedProductModal(prod);
-                        setActiveModalImageIdx(0);
-                      }}
-                      className="relative w-full h-60 rounded-2xl bg-[#0E0E11] overflow-hidden cursor-pointer"
-                    >
-                      <img
-                        src={mainCoverImg}
-                        alt={prod.name || "Produkt"}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-                        }}
-                      />
-                      <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
-                            isDigital ? "bg-cyan-500/90 text-white" : "bg-purple-500/90 text-white"
-                          }`}
-                        >
-                          {isDigital ? "💻 Cyfrowy" : isClothing ? "👕 Odzież" : "📦 Fizyczny"}
-                        </span>
-                        {isSoldOut && (
-                          <span className="px-2.5 py-1 bg-rose-500/90 text-white rounded-full text-[10px] font-bold backdrop-blur-md">
-                            🚫 Wyprzedane
-                          </span>
-                        )}
-                        {isLockedProductDrop && !isSoldOut && (
-                          <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold backdrop-blur-md">
-                            🔒 Drop Only
-                          </span>
-                        )}
-                      </div>
-
-                      {prodImgs.length > 1 && (
-                        <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/75 rounded-md text-[10px] text-zinc-300 font-mono backdrop-blur-sm">
-                          📷 {prodImgs.length} zdjęć
-                        </div>
-                      )}
-                    </div>
-
-                    <h3
-                      onClick={() => {
-                        setSelectedProductModal(prod);
-                        setActiveModalImageIdx(0);
-                      }}
-                      className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-['Sora',sans-serif]"
-                    >
-                      {prod.name}
-                    </h3>
-
-                    {/* Stan magazynowy / Dostępność */}
-                    <div className="mt-1 flex items-center justify-between text-xs text-zinc-400">
-                      <span>
-                        {isDigital ? (
-                          <span className="text-emerald-400 font-medium">⚡ Dostęp natychmiastowy</span>
-                        ) : isSoldOut ? (
-                          <span className="text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">
-                            🚫 Wyprzedane
-                          </span>
-                        ) : (
-                          <span>
-                            Stan: <strong className="text-zinc-200">{prod.stock ?? 50} szt.</strong>
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">
-                      {prod.description || "Oryginalny produkt w ofercie sklepu."}
-                    </p>
-
-                    {/* Variant / Size Picker Pills - ONLY IF CLOTHING */}
-                    {isClothing && Array.isArray(prod.variants) && prod.variants.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                        <span className="text-[10px] font-bold uppercase text-zinc-400 block mb-1.5">
-                          Wybierz Rozmiar:
-                        </span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {prod.variants.map((v: string) => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => handleSelectVariant(prod.id, v)}
-                              className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                                currentVariant === v
-                                  ? "text-black shadow-md border"
-                                  : "bg-[#0E0E11] text-zinc-400 hover:text-white border border-white/10"
-                              }`}
-                              style={{
-                                backgroundColor: currentVariant === v ? accentColor : undefined,
-                                borderColor: currentVariant === v ? accentColor : undefined,
-                              }}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* CENA */}
-                    <div className="mt-4 flex items-baseline gap-3">
-                      <span className="text-2xl font-black font-mono" style={{ color: accentColor }}>
-                        {prod.price}
-                      </span>
-                      {prod.comparePrice && (
-                        <span className="text-xs text-zinc-500 line-through font-mono">
-                          {prod.comparePrice}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* PRZYCISKI AKCJI (ZOBACZ PRODUKT + DODAJ DO KOSZYKA) */}
-                  <div className="mt-5 grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedProductModal(prod);
-                        setActiveModalImageIdx(0);
-                      }}
-                      className="py-2.5 px-3 bg-[#111319] hover:bg-[#181B24] border border-white/10 rounded-xl text-zinc-300 hover:text-white text-[13px] font-medium transition-colors cursor-pointer text-center"
-                    >
-                      Zobacz produkt
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isSoldOut) return;
-                        addToCart(prod);
-                      }}
-                      disabled={isLockedProductDrop || isSoldOut}
-                      className={`py-2.5 px-3 font-medium text-[13px] rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
-                        isSoldOut ? "opacity-60 cursor-not-allowed bg-zinc-800 text-zinc-500" : "cursor-pointer"
-                      }`}
-                      style={{
-                        backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : isSoldOut ? undefined : accentColor,
-                        color: isLockedProductDrop ? "#71717A" : isSoldOut ? undefined : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
-                      }}
-                    >
-                      <span>{isLockedProductDrop ? "🔒 Zablokowany" : isSoldOut ? "Wyprzedane" : "Do koszyka"}</span>
-                    </button>
-                  </div>
-                </div>
+                <ProductErrorBoundary key={prod.id || String(Math.random())}>
+                  <ProductCardItem
+                    prod={prod}
+                    accentColor={accentColor}
+                    selectedVariants={selectedVariants}
+                    onSelectVariant={handleSelectVariant}
+                    onOpenModal={(p) => {
+                      setSelectedProductModal(p);
+                      setActiveModalImageIdx(0);
+                    }}
+                    onAddToCart={addToCart}
+                  />
+                </ProductErrorBoundary>
               );
             })}
           </div>
@@ -1002,7 +1073,7 @@ export function TenantStoreFront({
                       <div className="w-full h-80 sm:h-96 rounded-2xl bg-[#0E0E11] overflow-hidden relative border border-white/10">
                         <img
                           src={activeImg}
-                          alt={selectedProductModal.name}
+                          alt={selectedProductModal.name || "Produkt"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
@@ -1043,11 +1114,11 @@ export function TenantStoreFront({
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-2xl sm:text-3xl font-bold text-white font-['Sora',sans-serif]">
-                      {selectedProductModal.name}
+                      {selectedProductModal.name || "Produkt"}
                     </h2>
                     <div className="mt-2 flex items-center gap-3">
                       <span className="text-3xl font-black font-mono" style={{ color: accentColor }}>
-                        {selectedProductModal.price}
+                        {selectedProductModal.price || "0.00 PLN"}
                       </span>
                       {selectedProductModal.comparePrice && (
                         <span className="text-sm text-zinc-500 line-through font-mono">
@@ -1069,7 +1140,7 @@ export function TenantStoreFront({
                         </span>
                       ) : (
                         <span>
-                          W magazynie: <strong className="text-[#D0FF00] font-mono">{selectedProductModal.stock ?? 50} sztuk</strong>
+                          W magazynie: <strong className="text-[#D0FF00] font-mono">{typeof selectedProductModal.stock === "number" ? selectedProductModal.stock : 50} sztuk</strong>
                         </span>
                       )}
                     </span>
@@ -1186,16 +1257,16 @@ export function TenantStoreFront({
                   </div>
                 ) : (
                   cart.map((item, idx) => {
-                    const prodImg = extractProductImages(item.product)[0] || DEFAULT_PRODUCT_IMAGE;
+                    const prodImg = extractProductImages(item?.product)[0] || DEFAULT_PRODUCT_IMAGE;
                     return (
                       <div
-                        key={`${item.product?.id}_${item.selectedVariant || ""}_${idx}`}
+                        key={`${item?.product?.id}_${item?.selectedVariant || ""}_${idx}`}
                         className="flex items-center justify-between p-3.5 bg-[#0E0E11] border border-white/5 rounded-2xl gap-3"
                       >
                         <div className="w-14 h-14 rounded-xl bg-black/50 overflow-hidden shrink-0">
                           <img
                             src={prodImg}
-                            alt={item.product?.name || "Produkt"}
+                            alt={item?.product?.name || "Produkt"}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
@@ -1204,23 +1275,23 @@ export function TenantStoreFront({
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-bold text-white truncate font-['Sora',sans-serif]">
-                            {item.product?.name}
+                            {item?.product?.name || "Produkt"}
                           </h4>
-                          {item.selectedVariant && (
+                          {item?.selectedVariant && (
                             <span className="text-[10px] text-zinc-400 font-mono block">
                               Rozmiar: <strong>{item.selectedVariant}</strong>
                             </span>
                           )}
                           <span className="text-xs font-mono font-bold" style={{ color: accentColor }}>
-                            {item.product?.price}
+                            {item?.product?.price || "0.00 PLN"}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-zinc-400">x{item.quantity}</span>
+                          <span className="text-xs font-mono text-zinc-400">x{item?.quantity || 1}</span>
                           <button
                             type="button"
-                            onClick={() => removeFromCart(item.product.id, item.selectedVariant)}
-                            className="text-zinc-500 hover:text-rose-400 text-xs p-1"
+                            onClick={() => removeFromCart(item?.product?.id, item?.selectedVariant)}
+                            className="text-zinc-500 hover:text-rose-400 text-xs p-1 cursor-pointer"
                           >
                             ✕
                           </button>

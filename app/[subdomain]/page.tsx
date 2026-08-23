@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { fetchStoreFromSupabase, fetchProductsFromSupabase } from "@/lib/supabase";
 import { TenantStoreFront } from "./TenantStoreFront";
@@ -37,11 +37,13 @@ export default async function SubdomainStorePage(props: PageProps) {
   }
 
   return (
-    <TenantStoreFront
-      subdomain={cleanSub}
-      initialStore={initialStore}
-      initialProducts={initialProducts}
-      searchParams={resolvedSearchParams}
-    />
+    <Suspense fallback={null}>
+      <TenantStoreFront
+        subdomain={cleanSub}
+        initialStore={initialStore}
+        initialProducts={initialProducts}
+        searchParams={resolvedSearchParams}
+      />
+    </Suspense>
   );
 }
