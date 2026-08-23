@@ -187,7 +187,9 @@ export default function AeuxDashboard({
     setActiveTabState(tab);
     if (typeof window !== "undefined") {
       localStorage.setItem("iskra_dashboard_tab", tab);
-      window.history.replaceState(null, "", `#${tab}`);
+      try {
+        window.history.replaceState(null, "", `${window.location.pathname}#${tab}`);
+      } catch {}
     }
     setIsMobileMenuOpen(false);
   };
@@ -199,7 +201,7 @@ export default function AeuxDashboard({
   const isAdmin =
     user?.role === "superadmin" ||
     user?.role === "admin" ||
-    user?.email?.toLowerCase().includes("projekt@");
+    (user?.email ? user.email.toLowerCase().includes("projekt@") : false);
 
   // UI Dropdowns & States
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
@@ -255,9 +257,9 @@ export default function AeuxDashboard({
   const [demoViewport, setDemoViewport] = useState<"desktop" | "mobile">("desktop");
 
   // User Storage Key (Strictly isolated per user ID or email)
-  const getUserKey = (u: User | null) => {
+  const getUserKey = (u: User | null | undefined) => {
     if (!u) return "guest";
-    return (u.id || u.email.toLowerCase().replace(/[^a-z0-9]/g, "_"));
+    return (u.id || (u.email ? u.email.toLowerCase().replace(/[^a-z0-9]/g, "_") : "guest"));
   };
 
   const userKey = getUserKey(user);
@@ -748,8 +750,11 @@ export default function AeuxDashboard({
               });
 
               if (serverPkgs.length > 0) {
-                setUserPackages(serverPkgs);
-                localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(serverPkgs));
+                setUserPackages((prev) => {
+                  if (JSON.stringify(prev) === JSON.stringify(serverPkgs)) return prev;
+                  localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(serverPkgs));
+                  return serverPkgs;
+                });
                 const configured = serverPkgs.find((p) => p.isConfigured);
                 if (configured) {
                   setActiveStorePackage(configured);
@@ -760,8 +765,11 @@ export default function AeuxDashboard({
               // Synchronizuj produkty aktywnego sklepu z bazy danych
               const activeSt = serverStores[0];
               if (activeSt && Array.isArray(activeSt.products) && activeSt.products.length > 0) {
-                setLocalProducts(activeSt.products);
-                localStorage.setItem(`iskra_products_${key}`, JSON.stringify(activeSt.products));
+                setLocalProducts((prev) => {
+                  if (JSON.stringify(prev) === JSON.stringify(activeSt.products)) return prev;
+                  localStorage.setItem(`iskra_products_${key}`, JSON.stringify(activeSt.products));
+                  return activeSt.products;
+                });
               }
             }
           }
@@ -774,11 +782,13 @@ export default function AeuxDashboard({
     syncRemoteUserResources();
   }, [user?.id, user?.email, user?.services?.length, userStores.length]);
 
-  // Handle return from Stripe Checkout (?checkout=success)
+  // Handle return from Stripe Checkout (?checkout=success or ?checkout=cancelled)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
+    const checkoutStatus = params.get("checkout");
+
+    if (checkoutStatus === "success") {
       const plan = (params.get("plan") as any) || "Creator";
       const billing = (params.get("billing") as any) || "miesiac";
       const action = params.get("action") || "buy";
@@ -843,7 +853,19 @@ export default function AeuxDashboard({
       }
 
       // Clean query parameter from address bar
-      window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+      try {
+        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || "#pulpit"));
+      } catch {}
+    } else if (checkoutStatus === "cancelled") {
+      if (setMessage) {
+        setMessage({
+          type: "warning",
+          text: "Płatność Stripe została anulowana. Możesz powrócić do zakupu pakietu w dowolnej chwili.",
+        });
+      }
+      try {
+        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || "#pulpit"));
+      } catch {}
     }
   }, [user?.email, user?.id]);
 

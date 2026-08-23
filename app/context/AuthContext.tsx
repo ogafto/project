@@ -564,17 +564,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Background cross-device sync on load
   useEffect(() => {
     if (!user?.email) return;
+    let isMounted = true;
     const syncUserCrossDevice = async () => {
       try {
         const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(user.email)}`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const data = await res.json();
           if (data.success && data.user) {
             const serverUser: User = data.user;
             setUser((prev) => {
               if (!prev) return serverUser;
-              const mergedStores = serverUser.stores && serverUser.stores.length > 0 ? serverUser.stores : prev.stores;
-              const mergedServices = serverUser.services && serverUser.services.length > 0 ? serverUser.services : prev.services;
+              const serverStores = Array.isArray(serverUser.stores) ? serverUser.stores : [];
+              const prevStores = Array.isArray(prev.stores) ? prev.stores : [];
+              const serverServices = Array.isArray(serverUser.services) ? serverUser.services : [];
+              const prevServices = Array.isArray(prev.services) ? prev.services : [];
+
+              // Prevent reference change if data is identical
+              if (
+                serverStores.length === prevStores.length &&
+                serverServices.length === prevServices.length &&
+                serverUser.plan === prev.plan &&
+                serverUser.role === prev.role &&
+                serverUser.name === prev.name
+              ) {
+                return prev;
+              }
+
+              const mergedStores = serverStores.length > 0 ? serverStores : prevStores;
+              const mergedServices = serverServices.length > 0 ? serverServices : prevServices;
               return {
                 ...prev,
                 ...serverUser,
@@ -590,6 +607,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     syncUserCrossDevice();
+    return () => {
+      isMounted = false;
+    };
   }, [user?.email]);
 
   useEffect(() => {
