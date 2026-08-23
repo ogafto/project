@@ -37,14 +37,16 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as any;
     const metadata = session.metadata || {};
 
-    const tenantId = metadata.tenant_id;
-    const productId = metadata.product_id;
+    const tenantId = metadata.tenant_id || metadata.storeId || metadata.store_id || metadata.tenantId;
+    const productId = metadata.product_id || metadata.productId;
+    const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10) || 1);
     const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
     const rawPlanName = metadata.plan_type || "Creator";
     const planNameFormatted = rawPlanName.toLowerCase().startsWith("pakiet") ? rawPlanName : `Pakiet ${rawPlanName}`;
     const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 2999);
-    const customerEmail = session.customer_details?.email || metadata.customer_email || session.customer_email;
+    const customerEmail = session.customer_details?.email || metadata.customer_email || session.customer_email || "klient@iskral.pl";
     const paymentStatus = session.payment_status === "paid" ? "paid" : "pending";
+    const productTitle = metadata.title || metadata.product_title || (isPlan ? planNameFormatted : "Zamówienie w sklepie");
 
     console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for tenant: ${tenantId}`);
 
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
               is_active: true,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", tenantId);
+            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
 
           console.log(`[Stripe Webhook] Successfully activated SaaS Plan [${rawPlanName}] for store ID: ${tenantId}`);
 
@@ -94,27 +96,39 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // 1. Create order in orders table
+          const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           await dbAdmin.from("orders").insert({
+            id: orderId,
             tenant_id: tenantId,
+            store_id: tenantId,
             stripe_session_id: session.id,
+            total_amount: (amountTotalCents / 100).toFixed(2),
             amount_total_cents: amountTotalCents,
             status: paymentStatus,
             customer_email: customerEmail,
+            product_title: productTitle,
+            items: [{ productId, quantity, amountCents: amountTotalCents, title: productTitle }],
             created_at: new Date().toISOString(),
           });
 
-          // 2. Decrement stock if product order
-          if (productId && metadata.type === "product") {
+          // 2. Decrement stock and increment sales for product
+          if (productId) {
             const { data: prod } = await dbAdmin
               .from("products")
-              .select("stock")
+              .select("stock, sales")
               .eq("id", productId)
-              .single();
+              .maybeSingle();
 
-            if (prod && prod.stock > 0) {
+            if (prod) {
+              const newStock = Math.max(0, (prod.stock ?? 50) - quantity);
+              const newSales = (prod.sales ?? 0) + quantity;
               await dbAdmin
                 .from("products")
-                .update({ stock: prod.stock - 1 })
+                .update({
+                  stock: newStock,
+                  sales: newSales,
+                  status: newStock === 0 ? "Wyprzedany" : "Aktywny",
+                })
                 .eq("id", productId);
             }
           }
@@ -123,14 +137,14 @@ export async function POST(req: NextRequest) {
           const { data: storeData } = await dbAdmin
             .from("stores")
             .select("balance_cents")
-            .eq("id", tenantId)
-            .single();
+            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
+            .maybeSingle();
 
           const currentBalance = storeData?.balance_cents || 0;
           await dbAdmin
             .from("stores")
             .update({ balance_cents: currentBalance + amountTotalCents })
-            .eq("id", tenantId);
+            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
         }
       } catch (dbErr) {
         console.error("Supabase webhook update error:", dbErr);

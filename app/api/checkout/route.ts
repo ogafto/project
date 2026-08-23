@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
         package_id: packageId || "",
         customer_email: customerEmail || "",
         amount_cents: String(priceCents || 1000),
+        title: title || "",
+        quantity: String(body.quantity || 1),
       },
     });
 

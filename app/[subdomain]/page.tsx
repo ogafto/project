@@ -46,6 +46,11 @@ export default function TenantStorePage({ params }: PageProps) {
   const [purchasedDigitalItems, setPurchasedDigitalItems] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Product detail modal state
   const [selectedProductModal, setSelectedProductModal] = useState<Product | null>(null);
@@ -424,54 +429,64 @@ export default function TenantStorePage({ params }: PageProps) {
       const firstItem = cart[0]?.product;
       const digitalItems = cart.map((i) => i.product).filter((p) => p && (p.isDigital || p.digitalFileUrl));
 
-      const checkoutUrl = await createStripeCheckout({
-        productId: firstItem?.id || "order_prod",
-        title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
-        priceCents: cartTotalCents,
-        tenantId: store.id || `t_${subdomain}`,
-        customerEmail: "klient@iskral.pl",
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: store?.id || `t_${subdomain}`,
+          productId: firstItem?.id || "order_prod",
+          title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
+          priceCents: cartTotalCents,
+          customerEmail: "klient@iskral.pl",
+          action: "buy_product",
+          packageId: "",
+        }),
       });
 
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+      const data = await res.json();
+
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      // Fallback local / manual order recording
+      if (store?.id && firstItem?.id) {
+        fetch("/api/stores/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantId: store.id,
+            productId: firstItem.id,
+            customerEmail: "klient@iskral.pl",
+            amountTotalCents: cartTotalCents,
+          }),
+        }).catch(() => {});
+
+        try {
+          const ordKey = `iskra_orders_${store.id}`;
+          const existing = JSON.parse(localStorage.getItem(ordKey) || "[]");
+          const newOrd = {
+            id: `ord_${Date.now()}`,
+            tenantId: store.id,
+            stripeSessionId: `cs_local_${Date.now()}`,
+            amountTotalCents: cartTotalCents,
+            status: "paid",
+            customerEmail: "klient@iskral.pl",
+            createdAt: new Date().toISOString(),
+          };
+          localStorage.setItem(ordKey, JSON.stringify([newOrd, ...existing]));
+        } catch {}
+      }
+
+      setCart([]);
+      setIsCartOpen(false);
+
+      if (digitalItems.length > 0) {
+        setPurchasedDigitalItems(digitalItems);
+        setShowSuccessModal(true);
       } else {
-        if (store.id && firstItem?.id) {
-          recordOrder(store.id, firstItem.id, "klient@iskral.pl", cartTotalCents);
-          fetch("/api/stores/order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tenantId: store.id,
-              productId: firstItem.id,
-              customerEmail: "klient@iskral.pl",
-              amountTotalCents: cartTotalCents,
-            }),
-          }).catch(() => {});
-
-          try {
-            const ordKey = `iskra_orders_${store.id}`;
-            const existing = JSON.parse(localStorage.getItem(ordKey) || "[]");
-            const newOrd = {
-              id: `ord_${Date.now()}`,
-              tenantId: store.id,
-              stripeSessionId: `cs_local_${Date.now()}`,
-              amountTotalCents: cartTotalCents,
-              status: "paid",
-              customerEmail: "klient@iskral.pl",
-              createdAt: new Date().toISOString(),
-            };
-            localStorage.setItem(ordKey, JSON.stringify([newOrd, ...existing]));
-          } catch {}
-        }
-        setCart([]);
-        setIsCartOpen(false);
-
-        if (digitalItems.length > 0) {
-          setPurchasedDigitalItems(digitalItems);
-          setShowSuccessModal(true);
-        } else {
-          alert("🎉 Zamówienie opłacone pomyślnie! Transakcja i przychód trafiły do panelu Twojego sklepu.");
-        }
+        alert("🎉 Zamówienie opłacone pomyślnie! Transakcja i przychód trafiły do panelu Twojego sklepu.");
       }
     } catch (checkoutErr) {
       console.error("Błąd podczas realizacji zamówienia Stripe:", checkoutErr);
@@ -518,26 +533,26 @@ export default function TenantStorePage({ params }: PageProps) {
 
           <div className="grid grid-cols-4 gap-3 sm:gap-6 w-full max-w-lg mb-10">
             <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
-              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.days).padStart(2, "0")}</span>
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{isMounted ? String(timeLeft.days).padStart(2, "0") : "00"}</span>
               <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>DNI</span>
             </div>
             <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
-              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.hours).padStart(2, "0")}</span>
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{isMounted ? String(timeLeft.hours).padStart(2, "0") : "00"}</span>
               <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>GODZ</span>
             </div>
             <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
-              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.minutes).padStart(2, "0")}</span>
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{isMounted ? String(timeLeft.minutes).padStart(2, "0") : "00"}</span>
               <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>MIN</span>
             </div>
             <div className="flex flex-col items-center p-4 sm:p-6 bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-xl">
-              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{String(timeLeft.seconds).padStart(2, "0")}</span>
+              <span className="text-2xl sm:text-5xl font-black font-mono text-white">{isMounted ? String(timeLeft.seconds).padStart(2, "0") : "00"}</span>
               <span className="text-[10px] sm:text-xs mt-2 font-black uppercase tracking-wider" style={{ color: accentColor }}>SEK</span>
             </div>
           </div>
 
           <div className="p-4 bg-[#090A0C]/80 border border-white/10 rounded-2xl text-xs text-zinc-400 flex items-center gap-2">
             <span>🔒</span>
-            <span>Zapraszamy w dniu premiery: <strong>{targetStore?.dropConfig?.targetDate ? new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL") : "Wkrótce"}</strong></span>
+            <span>Zapraszamy w dniu premiery: <strong>{isMounted && targetStore?.dropConfig?.targetDate ? new Date(targetStore.dropConfig.targetDate).toLocaleString("pl-PL") : "Wkrótce"}</strong></span>
           </div>
         </div>
       </main>

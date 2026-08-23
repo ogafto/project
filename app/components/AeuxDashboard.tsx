@@ -569,6 +569,34 @@ export default function AeuxDashboard({
     }
   };
 
+  useEffect(() => {
+    const stId = activeStorePackage?.id || currentStore.id;
+    if (!stId || stId === "empty_store") return;
+
+    fetch(`/api/stores/order?tenantId=${encodeURIComponent(stId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+          const mapped: OrderRecord[] = data.orders.map((o: any) => ({
+            id: o.id,
+            tenantId: o.tenant_id || o.store_id || stId,
+            stripeSessionId: o.stripe_session_id || "",
+            amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
+            status: o.status || "paid",
+            customerEmail: o.customer_email || "klient@iskral.pl",
+            productTitle: o.product_title || "Zamówienie w sklepie",
+            createdAt: o.created_at || new Date().toISOString(),
+          }));
+          setLocalOrders(mapped);
+          if (typeof window !== "undefined" && user) {
+            const key = getUserKey(user);
+            localStorage.setItem(`iskra_orders_${key}`, JSON.stringify(mapped));
+          }
+        }
+      })
+      .catch((err) => console.warn("Błąd pobierania zamówień sklepu:", err));
+  }, [activeStorePackage?.id, currentStore.id]);
+
   const [editorStoreName, setEditorStoreName] = useState(configuredPackage?.storeName || configuredPackage?.name || "iskral");
   const [editorSubdomain, setEditorSubdomain] = useState(configuredPackage?.subdomain || activeSubdomain || "iskral");
   const [editorDescription, setEditorDescription] = useState(configuredPackage?.description || currentStore.announcement || "Oficjalny sklep streetwear. Limitowane serie ubrań i akcesoriów.");

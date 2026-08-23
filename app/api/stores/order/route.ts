@@ -62,3 +62,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: err.message || "Błąd zapisu zamówienia" }, { status: 500 });
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const tenantId = searchParams.get("tenantId") || searchParams.get("storeId");
+
+    if (!tenantId) {
+      return NextResponse.json({ success: false, error: "Brak parametru tenantId/storeId." }, { status: 400 });
+    }
+
+    const dbClient: any = supabaseAdmin || supabase;
+    if (!dbClient) {
+      return NextResponse.json({ success: true, orders: [] });
+    }
+
+    const { data: orders, error } = await dbClient
+      .from("orders")
+      .select("*")
+      .or(`tenant_id.eq.${tenantId},store_id.eq.${tenantId}`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn("[API /api/stores/order GET error]:", error.message);
+      return NextResponse.json({ success: true, orders: [] });
+    }
+
+    return NextResponse.json({ success: true, orders: orders || [] });
+  } catch (err: any) {
+    console.error("[API /api/stores/order GET exception]:", err);
+    return NextResponse.json({ success: false, orders: [] });
+  }
+}
