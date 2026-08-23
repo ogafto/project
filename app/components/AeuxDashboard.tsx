@@ -69,6 +69,7 @@ import {
   PlanType,
   OrderRecord,
 } from "../context/AuthContext";
+import { SubscriptionTimer } from "./SubscriptionTimer";
 
 export interface UserPackage {
   id: string;
@@ -973,10 +974,14 @@ export default function AeuxDashboard({
     }
   }, [user?.email, user?.id]);
 
-  // Dynamiczny licznik czasu rzeczywistego (odświeżanie co 1s)
-  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  // Hydration protection flag
+  const [isMounted, setIsMounted] = useState(false);
+  // Dynamiczny licznik czasu rzeczywistego (odświeżanie po stronie klienta)
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   useEffect(() => {
+    setIsMounted(true);
+    setCurrentTime(Date.now());
     const timer = setInterval(() => {
       setCurrentTime(Date.now());
     }, 1000);
@@ -984,10 +989,14 @@ export default function AeuxDashboard({
   }, []);
 
   const getRemainingTimeInfo = (expiresAt?: string) => {
+    if (!isMounted) {
+      return { text: "Sprawdzanie ważności...", isExpired: false, days: 0, hours: 0, minutes: 0 };
+    }
     if (!expiresAt) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
     const expTime = new Date(expiresAt).getTime();
     if (isNaN(expTime)) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
-    const diff = expTime - currentTime;
+    const now = currentTime || Date.now();
+    const diff = expTime - now;
     if (diff <= 0) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
 
     const totalMinutes = Math.floor(diff / (1000 * 60));
@@ -998,7 +1007,7 @@ export default function AeuxDashboard({
 
     if (days >= 1) {
       return {
-        text: `Pozostało: ${days} ${days === 1 ? "dzień" : "dni"}`,
+        text: `Pozostało: ${days} ${days === 1 ? "dzień" : "dni"}, ${hours} godz.`,
         isExpired: false,
         days,
         hours,
@@ -2825,15 +2834,7 @@ export default function AeuxDashboard({
                             Ważność sklepu
                           </span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {isExp ? (
-                              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-400 font-bold text-xs font-['Poppins',sans-serif]">
-                                Wygasł
-                              </span>
-                            ) : (
-                              <span className="text-xs font-medium truncate block font-['Poppins',sans-serif] text-white">
-                                {remaining}
-                              </span>
-                            )}
+                            <SubscriptionTimer expiresAt={pkg.expiresAt} />
                           </div>
                         </div>
 
@@ -3176,7 +3177,9 @@ export default function AeuxDashboard({
                           Opłacone
                         </span>
                       </td>
-                      <td className="p-4 text-zinc-400">{new Date(ord.createdAt).toLocaleDateString("pl-PL")}</td>
+                      <td className="p-4 text-zinc-400">
+                        {isMounted && ord.createdAt ? new Date(ord.createdAt).toLocaleDateString("pl-PL") : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -4166,7 +4169,7 @@ export default function AeuxDashboard({
                       Pakiet {activeStorePackage?.planType || "Creator"}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-['Poppins',sans-serif]">
-                      Ważność: <strong className="text-white">{getRemainingTime(activeStorePackage?.expiresAt)}</strong>
+                      Ważność: <strong className="text-white"><SubscriptionTimer expiresAt={activeStorePackage?.expiresAt} /></strong>
                     </span>
                   </div>
 
