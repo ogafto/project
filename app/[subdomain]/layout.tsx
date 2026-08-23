@@ -1,7 +1,5 @@
-import React, { Suspense } from "react";
+import React from "react";
 import type { Metadata } from "next";
-import SubdomainLoading from "./loading";
-import { StoreHydrationWrapper } from "./StoreHydrationWrapper";
 
 export const metadata: Metadata = {
   title: "Sklep Internetowy | Iskral",
@@ -13,11 +11,5 @@ export default function SubdomainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <Suspense fallback={<SubdomainLoading />}>
-      <StoreHydrationWrapper>
-        {children}
-      </StoreHydrationWrapper>
-    </Suspense>
-  );
+  return <div className="min-h-screen bg-[#0E0E11] text-white">{children}</div>;
 }
