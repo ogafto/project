@@ -57,10 +57,32 @@ export interface Product {
 export interface OrderRecord {
   id: string;
   tenantId: string;
+  storeId?: string;
   stripeSessionId: string;
   amountTotalCents: number;
-  status: "paid" | "pending" | "cancelled";
+  totalAmount?: string;
+  status: "paid" | "shipped" | "completed" | "pending" | "cancelled" | string;
   customerEmail: string;
+  customerName?: string;
+  customerPhone?: string;
+  shippingType?: "paczkomat" | "courier" | "digital" | string;
+  shippingAddress?: string;
+  paczkomatCode?: string;
+  shippingDetails?: {
+    method?: string;
+    paczkomat?: string;
+    address?: string;
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+  items?: Array<{
+    productId?: string;
+    title?: string;
+    quantity?: number;
+    amountCents?: number;
+    selectedVariant?: string;
+  }>;
   productTitle?: string;
   createdAt: string;
 }

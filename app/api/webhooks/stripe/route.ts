@@ -112,6 +112,22 @@ export async function POST(req: NextRequest) {
           }
         } else {
           // 1. Create order in orders table
+          const customerName = metadata.customer_name || session.customer_details?.name || "";
+          const customerPhone = metadata.customer_phone || session.customer_details?.phone || "";
+          const shippingType = metadata.shipping_type || (metadata.paczkomat_code ? "paczkomat" : metadata.shipping_address ? "courier" : "digital");
+          const paczkomatCode = metadata.paczkomat_code || "";
+          const shippingAddress = metadata.shipping_address || "";
+          const selectedVariant = metadata.selected_variant || "";
+
+          const shippingDetails = {
+            method: shippingType,
+            paczkomat: paczkomatCode || null,
+            address: shippingAddress || null,
+            name: customerName || null,
+            phone: customerPhone || null,
+            email: customerEmail,
+          };
+
           const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           await dbAdmin.from("orders").insert({
             id: orderId,
@@ -121,8 +137,19 @@ export async function POST(req: NextRequest) {
             amount_total_cents: amountTotalCents,
             status: paymentStatus,
             customer_email: customerEmail,
+            customer_name: customerName || null,
+            customer_phone: customerPhone || null,
+            shipping_address: shippingAddress || null,
+            inpost_box: paczkomatCode || null,
+            shipping_details: shippingDetails,
             product_title: productTitle,
-            items: [{ productId: productId || "prod_item", quantity, amountCents: amountTotalCents, title: productTitle }],
+            items: [{
+              productId: productId || "prod_item",
+              quantity,
+              amountCents: amountTotalCents,
+              title: productTitle,
+              selectedVariant: selectedVariant || undefined,
+            }],
             created_at: new Date().toISOString(),
           });
 

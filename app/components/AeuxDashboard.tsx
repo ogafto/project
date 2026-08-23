@@ -570,6 +570,10 @@ export default function AeuxDashboard({
     }
   };
 
+  const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
+  const [selectedOrderModal, setSelectedOrderModal] = useState<OrderRecord | null>(null);
+  const [updatingOrderStatus, setUpdatingOrderStatus] = useState<boolean>(false);
+
   useEffect(() => {
     const stId = activeStorePackage?.id || currentStore.id;
     if (!stId || stId === "empty_store") return;
@@ -579,16 +583,28 @@ export default function AeuxDashboard({
       .then((data) => {
         const orderList = Array.isArray(data?.orders) ? data.orders : [];
         if (orderList.length > 0) {
-          const mapped: OrderRecord[] = orderList.map((o: any) => ({
-            id: o.id || `ord_${Date.now()}`,
-            tenantId: o.store_id || o.storeId || o.tenant_id || stId,
-            stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
-            amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
-            status: o.status || "paid",
-            customerEmail: o.customer_email || o.customerEmail || "klient@iskral.pl",
-            productTitle: o.product_title || o.productTitle || "Zamówienie w sklepie",
-            createdAt: o.created_at || o.createdAt || new Date().toISOString(),
-          }));
+          const mapped: OrderRecord[] = orderList.map((o: any) => {
+            const shipDet = o.shippingDetails || o.shipping_details || {};
+            return {
+              id: o.id || `ord_${Date.now()}`,
+              tenantId: o.store_id || o.storeId || o.tenant_id || stId,
+              storeId: o.store_id || o.storeId || stId,
+              stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
+              amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
+              totalAmount: o.total_amount || o.totalAmount || ((o.amount_total_cents || 0) / 100).toFixed(2),
+              status: o.status || "paid",
+              customerEmail: o.customer_email || o.customerEmail || shipDet.email || "klient@iskral.pl",
+              customerName: o.customer_name || o.customerName || shipDet.name || "",
+              customerPhone: o.customer_phone || o.customerPhone || shipDet.phone || "",
+              shippingType: o.shipping_type || o.shippingType || shipDet.method || (o.inpost_box || o.paczkomatCode ? "paczkomat" : o.shipping_address || o.shippingAddress ? "courier" : "digital"),
+              shippingAddress: o.shipping_address || o.shippingAddress || shipDet.address || "",
+              paczkomatCode: o.inpost_box || o.paczkomatCode || shipDet.paczkomat || "",
+              shippingDetails: shipDet,
+              items: Array.isArray(o.items) ? o.items : [],
+              productTitle: o.product_title || o.productTitle || "Zamówienie w sklepie",
+              createdAt: o.created_at || o.createdAt || new Date().toISOString(),
+            };
+          });
           setLocalOrders(mapped);
           if (typeof window !== "undefined" && user) {
             const key = getUserKey(user);
@@ -599,9 +615,59 @@ export default function AeuxDashboard({
       .catch((err) => console.warn("Błąd pobierania zamówień sklepu:", err));
   }, [activeStorePackage?.id, currentStore.id]);
 
-  const [editorStoreName, setEditorStoreName] = useState(configuredPackage?.storeName || configuredPackage?.name || "iskral");
-  const [editorSubdomain, setEditorSubdomain] = useState(configuredPackage?.subdomain || activeSubdomain || "iskral");
-  const [editorDescription, setEditorDescription] = useState(configuredPackage?.description || currentStore.announcement || "Oficjalny sklep streetwear. Limitowane serie ubrań i akcesoriów.");
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingOrderStatus(true);
+    try {
+      const targetOrder = localOrders.find((o) => o.id === orderId);
+      const storeName = activeStorePackage?.storeName || activeStorePackage?.name || currentStore.name || "IskraL Sklep";
+
+      const res = await fetch("/api/stores/order/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          status: newStatus,
+          storeId: activeStorePackage?.id || currentStore.id,
+          storeName,
+          customerEmail: targetOrder?.customerEmail,
+          productTitle: targetOrder?.productTitle,
+          items: targetOrder?.items,
+          shippingDetails: targetOrder?.shippingDetails,
+          shippingType: targetOrder?.shippingType,
+          paczkomatCode: targetOrder?.paczkomatCode,
+          shippingAddress: targetOrder?.shippingAddress,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        const updated = localOrders.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
+        saveOrdersList(updated);
+        if (selectedOrderModal && selectedOrderModal.id === orderId) {
+          setSelectedOrderModal({ ...selectedOrderModal, status: newStatus });
+        }
+        if (setMessage) {
+          setMessage({
+            type: "success",
+            text: newStatus === "shipped" || newStatus === "Wysłane"
+              ? `📦 Zmieniono status na 'Wysłane' i wysłano e-mail z powiadomieniem do klienta (${targetOrder?.customerEmail})!`
+              : `Zaktualizowano status zamówienia na: ${newStatus}`,
+          });
+        }
+      } else {
+        if (setMessage) setMessage({ type: "error", text: data.error || "Nie udało się zaktualizować statusu." });
+      }
+    } catch (err: any) {
+      console.error("Error updating order status:", err);
+      if (setMessage) setMessage({ type: "error", text: "Błąd podczas aktualizacji statusu zamówienia." });
+    } finally {
+      setUpdatingOrderStatus(false);
+    }
+  };
+
+  const [editorStoreName, setEditorStoreName] = useState(configuredPackage?.storeName || configuredPackage?.name || currentStore.name || "");
+  const [editorSubdomain, setEditorSubdomain] = useState(configuredPackage?.subdomain || activeSubdomain || currentStore.subdomain || "");
+  const [editorDescription, setEditorDescription] = useState(configuredPackage?.description || currentStore.announcement || currentStore.description || "");
   const [editorLogo, setEditorLogo] = useState(configuredPackage?.logoUrl || currentStore.logoUrl || "");
   const [editorTemplate, setEditorTemplate] = useState(currentStore.template || "Dark Vibe");
   const [editorAccentColor, setEditorAccentColor] = useState(currentStore.accentColor || "#D0FF00");
@@ -616,6 +682,23 @@ export default function AeuxDashboard({
     x: "dropwear_eu",
     showXInNavbar: false,
   });
+
+  // Dynamiczne ładowanie danych sklepu do formularza po odświeżeniu (brak resetowania do domyślnych placeholderów)
+  useEffect(() => {
+    const target = activeStorePackage || configuredPackage;
+    if (target && target.isConfigured) {
+      if (target.storeName || target.name) setEditorStoreName(target.storeName || target.name);
+      if (target.subdomain) setEditorSubdomain(target.subdomain);
+      if (target.description) setEditorDescription(target.description);
+      if (target.logoUrl !== undefined) setEditorLogo(target.logoUrl || "");
+    } else if (currentStore && currentStore.id && currentStore.id !== "empty_store") {
+      if (currentStore.name) setEditorStoreName(currentStore.name);
+      if (currentStore.subdomain) setEditorSubdomain(currentStore.subdomain);
+      if (currentStore.announcement || currentStore.description) setEditorDescription(currentStore.announcement || currentStore.description || "");
+      if (currentStore.logoUrl !== undefined) setEditorLogo(currentStore.logoUrl || "");
+      if (currentStore.accentColor) setEditorAccentColor(currentStore.accentColor);
+    }
+  }, [activeStorePackage?.id, configuredPackage?.id, currentStore.id]);
 
   const [dropEnabled, setDropEnabled] = useState(currentStore.dropConfig?.enabled || false);
   const [dropTargetDate, setDropTargetDate] = useState(currentStore.dropConfig?.targetDate || "2026-09-01T20:00");
@@ -662,9 +745,6 @@ export default function AeuxDashboard({
 
   const [customDomainInput, setCustomDomainInput] = useState(currentStore.customDomain || "");
   const [domainStatus, setDomainStatus] = useState<"none" | "checking" | "verified">(currentStore.domainVerified ? "verified" : "none");
-
-  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<OrderRecord | null>(null);
-  const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
 
   const storeOrders = Array.isArray(localOrders) ? localOrders : [];
   const paidOrders = storeOrders.filter((o) => !o.status || o.status === "paid" || (o.status as string) === "completed" || (o.status as string) === "shipped");
@@ -901,8 +981,10 @@ export default function AeuxDashboard({
   }, [user?.email, user?.id]);
 
   const getRemainingTime = (expiresAt?: string) => {
-    if (!expiresAt) return "14 dni, 0 godz.";
-    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (!expiresAt) return "Wygasł";
+    const expTime = new Date(expiresAt).getTime();
+    if (isNaN(expTime)) return "Wygasł";
+    const diff = expTime - Date.now();
     if (diff <= 0) return "Wygasł";
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -1386,6 +1468,29 @@ export default function AeuxDashboard({
       });
     }
 
+    // Bezpośredni zapis i synchronizacja do bazy danych Supabase
+    const targetStoreId = activeStorePackage?.id || currentStore.id;
+    if (cleanSub) {
+      fetch("/api/stores/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store: {
+            id: targetStoreId,
+            subdomain: cleanSub,
+            name: editorStoreName.trim(),
+            logoUrl: editorLogo,
+            template: editorTemplate,
+            accentColor: editorAccentColor,
+            announcement: editorDescription,
+            socials: editorSocials,
+            products: localProducts,
+          },
+          owner_id: user?.id,
+        }),
+      }).catch((err) => console.warn("Błąd synchronizacji sklepu z Supabase:", err));
+    }
+
     if (setMessage) {
       setMessage({
         type: "success",
@@ -1422,11 +1527,13 @@ export default function AeuxDashboard({
 
     const defaultImg = prodImages[0] || prodImage || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
     const allImages = prodImages.length > 0 ? prodImages : [defaultImg];
+    const targetStoreId = activeStorePackage?.id || currentStore.id;
 
     if (editingProductId) {
+      let updatedProductObj: any = null;
       const updated = localProducts.map((p) => {
         if (p.id === editingProductId) {
-          return {
+          updatedProductObj = {
             ...p,
             name: prodName,
             price: `${priceNum.toFixed(2)} zł`,
@@ -1446,10 +1553,20 @@ export default function AeuxDashboard({
             isDropOnly: isScheduledLaunch,
             dropTargetDate: isScheduledLaunch ? scheduledLaunchDate : undefined,
           };
+          return updatedProductObj;
         }
         return p;
       });
       saveProductsList(updated);
+
+      if (targetStoreId && updatedProductObj) {
+        fetch("/api/stores/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product: updatedProductObj, storeId: targetStoreId }),
+        }).catch((err) => console.warn("Product direct update error:", err));
+      }
+
       if (setMessage) setMessage({ type: "success", text: `Zaktualizowano produkt: ${prodName}` });
     } else {
       const newProduct: Product = {
@@ -1475,6 +1592,15 @@ export default function AeuxDashboard({
         dropTargetDate: isScheduledLaunch ? scheduledLaunchDate : undefined,
       };
       saveProductsList([newProduct, ...localProducts]);
+
+      if (targetStoreId) {
+        fetch("/api/stores/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product: newProduct, storeId: targetStoreId }),
+        }).catch((err) => console.warn("Product direct create error:", err));
+      }
+
       if (setMessage) setMessage({ type: "success", text: `🎉 Dodano produkt: ${prodName} (${totalStock} szt.)` });
     }
 
@@ -1485,7 +1611,15 @@ export default function AeuxDashboard({
   const handleDeleteProduct = (id: string) => {
     const updated = localProducts.filter((p) => p.id !== id);
     saveProductsList(updated);
-    if (setMessage) setMessage({ type: "success", text: "Usunięto produkt ze sklepu." });
+
+    const targetStoreId = activeStorePackage?.id || currentStore.id;
+    if (targetStoreId) {
+      fetch(`/api/stores/products?id=${encodeURIComponent(id)}&storeId=${encodeURIComponent(targetStoreId)}`, {
+        method: "DELETE",
+      }).catch((err) => console.warn("Błąd usuwania produktu z Supabase:", err));
+    }
+
+    if (setMessage) setMessage({ type: "success", text: "Produkt został pomyślnie usunięty ze sklepu i bazy." });
   };
 
   const handleToggleProductStatus = (id: string) => {
@@ -1662,12 +1796,6 @@ export default function AeuxDashboard({
         });
       }
     }, 1200);
-  };
-
-  const handleUpdateOrderStatus = (orderId: string, status: "paid" | "pending" | "cancelled") => {
-    const updated = localOrders.map((o) => (o.id === orderId ? { ...o, status } : o));
-    saveOrdersList(updated);
-    if (setMessage) setMessage({ type: "success", text: "Zaktualizowano status zamówienia." });
   };
 
   return (
@@ -2566,10 +2694,10 @@ export default function AeuxDashboard({
                           <button
                             type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className="px-2.5 py-1 rounded-lg bg-[#181B24] hover:bg-[#202430] text-zinc-300 hover:text-white border border-[#262B3B] text-[11px] font-medium font-['Poppins',sans-serif] transition-colors cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500 text-xs font-medium font-['Poppins',sans-serif] transition-all cursor-pointer shadow-sm"
                             title="Przedłuż ważność pakietu o 30 dni"
                           >
-                            +30 dni
+                            Przedłuż pakiet
                           </button>
                         </div>
                       </div>
@@ -4217,47 +4345,49 @@ export default function AeuxDashboard({
                   </div>
                 </div>
 
-                {/* LOGO SKLEPU */}
+                {/* LOGO SKLEPU - PODGLĄD I ZARZĄDZANIE */}
                 <div>
                   <label className="text-xs font-semibold text-zinc-300 block mb-2">Logo sklepu</label>
-                  <div className="flex items-center gap-4 p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl">
-                    <div className="w-16 h-16 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0 flex items-center justify-center">
-                      {editorLogo ? (
-                        <img src={editorLogo} alt="Logo" className="w-full h-full object-cover" />
-                      ) : (
-                        <ShoppingBag className="w-6 h-6 text-zinc-500" />
-                      )}
-                    </div>
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <label className="px-3 py-1.5 bg-[#171A24] hover:bg-[#202534] text-white text-xs font-semibold rounded-lg border border-[#262C3E] cursor-pointer transition-colors">
-                          Wybierz plik z komputera
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) handleLogoFile(e.target.files[0]);
-                            }}
-                          />
-                        </label>
-                        {editorLogo && (
-                          <button
-                            type="button"
-                            onClick={() => setEditorLogo("")}
-                            className="text-xs text-rose-400 hover:underline cursor-pointer"
-                          >
-                            Usuń
-                          </button>
+                  <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0 flex items-center justify-center relative group">
+                        {editorLogo ? (
+                          <img src={editorLogo} alt="Logo sklepu" className="w-full h-full object-cover" />
+                        ) : (
+                          <ShoppingBag className="w-6 h-6 text-zinc-500" />
                         )}
                       </div>
-                      <input
-                        type="text"
-                        value={editorLogo.startsWith("data:") ? "" : editorLogo}
-                        onChange={(e) => setEditorLogo(e.target.value)}
-                        placeholder="Lub podaj URL obrazka..."
-                        className="w-full px-3 py-1.5 bg-[#0D0E12] border border-[#1C1E26] rounded-lg text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
-                      />
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label className="px-3.5 py-1.5 bg-[#171A24] hover:bg-[#202534] text-white text-xs font-semibold rounded-xl border border-[#262C3E] cursor-pointer transition-colors inline-flex items-center gap-1.5">
+                            <span>{editorLogo ? "Zmień logo" : "Wybierz plik z komputera"}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) handleLogoFile(e.target.files[0]);
+                              }}
+                            />
+                          </label>
+                          {editorLogo && (
+                            <button
+                              type="button"
+                              onClick={() => setEditorLogo("")}
+                              className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+                            >
+                              Usuń logo
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={editorLogo.startsWith("data:") ? "" : editorLogo}
+                          onChange={(e) => setEditorLogo(e.target.value)}
+                          placeholder="Lub wklej bezpośredni adres URL do logo (https://...)"
+                          className="w-full px-3 py-2 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4269,6 +4399,7 @@ export default function AeuxDashboard({
                     rows={2}
                     value={editorDescription}
                     onChange={(e) => setEditorDescription(e.target.value)}
+                    placeholder="Wpisz oficjalne hasło lub opis Twojej marki..."
                     className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white focus:outline-none focus:border-[#D0FF00]"
                   />
                 </div>
@@ -4312,35 +4443,43 @@ export default function AeuxDashboard({
 
                 {/* WYBÓR GŁÓWNEGO KOLORU AKCENTU */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-3">Kolor akcentu (Przyciski, ceny, elementy)</label>
-                  <div className="flex items-center gap-3 flex-wrap">
+                  <label className="text-xs font-semibold text-zinc-300 block mb-3">
+                    Kolor akcentu (Przyciski, ceny, elementy aktywne)
+                  </label>
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     {[
-                      { name: "Neon IskraL", hex: "#D0FF00" },
-                      { name: "Cyber Orange", hex: "#FF5A28" },
-                      { name: "Electric Blue", hex: "#3B82F6" },
-                      { name: "Violet Hype", hex: "#A855F7" },
+                      { name: "Neon Lime", hex: "#D0FF00" },
+                      { name: "Neon Orange", hex: "#FF5B28" },
+                      { name: "Electric Violet", hex: "#8B5CF6" },
+                      { name: "Emerald", hex: "#10B981" },
+                      { name: "Ice Blue", hex: "#38BDF8" },
+                      { name: "Luxury Gold", hex: "#F59E0B" },
                       { name: "Pure White", hex: "#FFFFFF" },
                     ].map((col) => (
                       <button
                         key={col.hex}
                         type="button"
                         onClick={() => setEditorAccentColor(col.hex)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
-                          editorAccentColor === col.hex
-                            ? "bg-[#111319] border-[#D0FF00] text-white"
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
+                          editorAccentColor.toUpperCase() === col.hex.toUpperCase()
+                            ? "bg-[#111319] border-[#D0FF00] text-white ring-1 ring-[#D0FF00]/40"
                             : "bg-[#111319] border-[#1C1E26] text-zinc-400 hover:text-white"
                         }`}
                       >
-                        <span className="w-3.5 h-3.5 rounded-full border border-black/50" style={{ backgroundColor: col.hex }} />
+                        <span className="w-3.5 h-3.5 rounded-full border border-black/50 shrink-0" style={{ backgroundColor: col.hex }} />
                         <span>{col.name}</span>
                       </button>
                     ))}
-                    <input
-                      type="text"
-                      value={editorAccentColor}
-                      onChange={(e) => setEditorAccentColor(e.target.value)}
-                      className="w-24 px-2.5 py-1.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white font-mono text-center"
-                    />
+                    <div className="flex items-center gap-2 bg-[#111319] border border-[#1C1E26] rounded-xl px-2.5 py-1.5">
+                      <span className="w-4 h-4 rounded-full border border-black/50 shrink-0" style={{ backgroundColor: editorAccentColor }} />
+                      <input
+                        type="text"
+                        value={editorAccentColor}
+                        onChange={(e) => setEditorAccentColor(e.target.value)}
+                        placeholder="#D0FF00"
+                        className="w-20 bg-transparent text-xs text-white font-mono text-center focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -4953,83 +5092,328 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {/* WIDOK: ZAMÓWIENIA KLIENTÓW (sklep-zamowienia / zamowienia) */}
         {/* ========================================================================= */}
-        {(activeTab === "sklep-zamowienia" || activeTab === "zamowienia") && (
-          <div className="space-y-6 max-w-5xl">
-            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
-                    Zamówienia klientów
-                  </h2>
-                  <p className="text-xs text-zinc-400 font-['Poppins',sans-serif]">
-                    Przeglądaj opłacone koszyki, dane adresowe InPost Paczkomat i statusy realizacji.
-                  </p>
+        {(activeTab === "sklep-zamowienia" || activeTab === "zamowienia") && (() => {
+          const filteredOrders = localOrders.filter((ord) => {
+            const st = (ord.status || "").toLowerCase();
+            if (orderFilter === "all") return true;
+            if (orderFilter === "paid") return st === "paid" || st === "opłacone";
+            if (orderFilter === "shipped") return st === "shipped" || st === "wysłane";
+            if (orderFilter === "completed") return st === "completed" || st === "zrealizowane";
+            return true;
+          });
+
+          return (
+            <div className="space-y-6 max-w-5xl">
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4 font-['Poppins',sans-serif]">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-xl font-bold text-white font-['Sora',sans-serif]">
+                      Zamówienia klientów
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Przeglądaj opłacone koszyki, dane Paczkomatu InPost / kuriera oraz zarządzaj wysyłką towaru.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { id: "all", label: "Wszystkie" },
+                      { id: "paid", label: "Opłacone" },
+                      { id: "shipped", label: "Wysłane" },
+                      { id: "completed", label: "Zrealizowane" },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setOrderFilter(f.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                          orderFilter === f.id
+                            ? "bg-[#D0FF00] text-black font-bold"
+                            : "bg-[#111319] text-zinc-400 hover:text-white border border-[#1C1E26]"
+                        }`}
+                      >
+                        {f.label} ({
+                          f.id === "all"
+                            ? localOrders.length
+                            : localOrders.filter((o) => {
+                                const s = (o.status || "").toLowerCase();
+                                return f.id === "paid"
+                                  ? s === "paid" || s === "opłacone"
+                                  : f.id === "shipped"
+                                  ? s === "shipped" || s === "wysłane"
+                                  : s === "completed" || s === "zrealizowane";
+                              }).length
+                        })
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {["all", "paid", "shipped"].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setOrderFilter(f as any)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] cursor-pointer transition-colors ${
-                        orderFilter === f
-                          ? "bg-[#D0FF00] text-black font-bold"
-                          : "bg-[#111319] text-zinc-400 hover:text-white border border-[#1C1E26]"
-                      }`}
-                    >
-                      {f === "all" ? "Wszystkie" : f === "paid" ? "Opłacone" : "Wysłane"}
-                    </button>
-                  ))}
-                </div>
+
+                {filteredOrders.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
+                        <tr>
+                          <th className="p-3.5">ID & Klient</th>
+                          <th className="p-3.5">Zamówione produkty</th>
+                          <th className="p-3.5">Dostawa / Paczkomat</th>
+                          <th className="p-3.5">Kwota</th>
+                          <th className="p-3.5">Status</th>
+                          <th className="p-3.5 text-right">Akcja</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#141419]">
+                        {filteredOrders.map((ord) => {
+                          const isShipped = String(ord.status).toLowerCase() === "shipped" || String(ord.status).toLowerCase() === "wysłane";
+                          const isCompleted = String(ord.status).toLowerCase() === "completed" || String(ord.status).toLowerCase() === "zrealizowane";
+
+                          return (
+                            <tr key={ord.id} className="hover:bg-[#111319]/50 transition-colors">
+                              <td className="p-3.5">
+                                <span className="font-bold text-white block">#{ord.id.slice(-8)}</span>
+                                <span className="text-[11px] text-zinc-400 block truncate max-w-[150px]">{ord.customerEmail}</span>
+                                {ord.customerName && <span className="text-[10px] text-zinc-500 block">{ord.customerName}</span>}
+                              </td>
+                              <td className="p-3.5">
+                                <span className="font-medium text-white block">{ord.productTitle || "Produkt"}</span>
+                                {Array.isArray(ord.items) && ord.items.length > 0 && ord.items[0]?.selectedVariant && (
+                                  <span className="text-[10px] text-zinc-400 font-mono block">
+                                    Rozmiar: {ord.items[0].selectedVariant}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3.5 text-zinc-300">
+                                {ord.paczkomatCode ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-400 font-mono text-[11px] font-semibold">
+                                    📦 InPost: {ord.paczkomatCode}
+                                  </span>
+                                ) : ord.shippingAddress ? (
+                                  <span className="text-zinc-300 block text-[11px] truncate max-w-[180px]">
+                                    🚚 {ord.shippingAddress}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-500 text-[11px]">
+                                    ⚡ E-mail (Produkt cyfrowy)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3.5 font-mono font-bold text-white">
+                                {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                              </td>
+                              <td className="p-3.5">
+                                {isCompleted ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold">
+                                    Zrealizowane
+                                  </span>
+                                ) : isShipped ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[10px] font-bold">
+                                    Wysłane 📦
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                                    Opłacone
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOrderModal(ord)}
+                                  className="px-3 py-1.5 bg-[#181B24] hover:bg-[#202430] text-zinc-300 hover:text-white border border-[#262B3B] hover:border-zinc-500 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                >
+                                  Szczegóły
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center space-y-3">
+                    <Package className="w-12 h-12 text-zinc-600 mx-auto" />
+                    <h3 className="text-base font-bold text-white">Brak zamówień w wybranej kategorii</h3>
+                    <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                      Kiedy klienci dokonają zakupu w Twoim sklepie, zamówienia pojawią się tutaj wraz z pełnymi danymi do wysyłki.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {localOrders.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
-                    <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
-                      <tr>
-                        <th className="p-3.5">ID & Klient</th>
-                        <th className="p-3.5">Zamówione produkty</th>
-                        <th className="p-3.5">Dostawa / Paczkomat</th>
-                        <th className="p-3.5">Kwota</th>
-                        <th className="p-3.5">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#141419]">
-                      {localOrders.map((ord, idx) => (
-                        <tr key={ord.id} className="hover:bg-[#111319]/50 transition-colors">
-                          <td className="p-3.5">
-                            <span className="font-bold text-white block">#{ord.id}</span>
-                            <span className="text-[11px] text-zinc-400 block">{ord.customerEmail}</span>
-                          </td>
-                          <td className="p-3.5 font-medium text-white">{ord.productTitle}</td>
-                          <td className="p-3.5 text-zinc-400">
-                            {idx % 2 === 0 ? "Paczkomat InPost: KRA01M (Kraków)" : "Wysyłka e-mail (Produkt cyfrowy)"}
-                          </td>
-                          <td className="p-3.5 font-mono font-bold text-white">
-                            {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
-                          </td>
-                          <td className="p-3.5">
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                              Opłacone
+              {/* MODAL SZCZEGÓŁÓW ZAMÓWIENIA & ZMIANY STATUSU */}
+              {selectedOrderModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                  <div className="bg-[#111319] border border-[#22283A] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl font-['Poppins',sans-serif] text-xs">
+                    <div className="flex items-center justify-between border-b border-[#1E2333] pb-4">
+                      <div>
+                        <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
+                          Szczegóły zamówienia #{selectedOrderModal.id.slice(-8)}
+                        </h3>
+                        <span className="text-[11px] text-zinc-400">
+                          Złożone: {new Date(selectedOrderModal.createdAt).toLocaleString("pl-PL")}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrderModal(null)}
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* DANE KLIENTA */}
+                      <div className="p-3.5 bg-[#0D0E12] border border-[#1C202E] rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
+                          Dane zamawiającego:
+                        </span>
+                        <div className="grid grid-cols-2 gap-2 text-zinc-300">
+                          <div>
+                            <span className="text-zinc-500 block text-[10px]">Imię i nazwisko:</span>
+                            <span className="font-semibold text-white">
+                              {selectedOrderModal.customerName || selectedOrderModal.shippingDetails?.name || "Brak (Klient)"}
                             </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center space-y-3">
-                  <Package className="w-12 h-12 text-zinc-600 mx-auto" />
-                  <h3 className="text-base font-bold text-white">Brak zamówień do wyświetlenia</h3>
-                  <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                    Kiedy pierwsi klienci dokonają zakupu i opłacą zamówienie przez Stripe / BLIK, pojawią się tutaj wraz z danymi Paczkomatu.
-                  </p>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 block text-[10px]">Numer telefonu:</span>
+                            <span className="font-mono text-white">
+                              {selectedOrderModal.customerPhone || selectedOrderModal.shippingDetails?.phone || "Brak"}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-zinc-500 block text-[10px]">Adres e-mail:</span>
+                            <span className="font-mono text-emerald-400">{selectedOrderModal.customerEmail}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DANE DOSTAWY */}
+                      <div className="p-3.5 bg-[#0D0E12] border border-[#1C202E] rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
+                          Sposób i adres doręczenia:
+                        </span>
+                        {selectedOrderModal.paczkomatCode || selectedOrderModal.shippingDetails?.paczkomat ? (
+                          <div className="flex items-center gap-2 text-white">
+                            <span className="text-base">📦</span>
+                            <div>
+                              <span className="font-bold text-white block">Paczkomat InPost</span>
+                              <span className="font-mono text-[#D0FF00] font-bold text-sm">
+                                {selectedOrderModal.paczkomatCode || selectedOrderModal.shippingDetails?.paczkomat}
+                              </span>
+                            </div>
+                          </div>
+                        ) : selectedOrderModal.shippingAddress || selectedOrderModal.shippingDetails?.address ? (
+                          <div className="flex items-center gap-2 text-white">
+                            <span className="text-base">🚚</span>
+                            <div>
+                              <span className="font-bold text-white block">Przesyłka kurierska</span>
+                              <span className="text-zinc-300 block">
+                                {selectedOrderModal.shippingAddress || selectedOrderModal.shippingDetails?.address}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-zinc-400">
+                            <span>⚡ Produkt cyfrowy dostarczony na e-mail</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ZAMÓWIONY TOWAR I KWOTA */}
+                      <div className="p-3.5 bg-[#0D0E12] border border-[#1C202E] rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                            Zamówione pozycje:
+                          </span>
+                          <span className="text-sm font-mono font-bold text-white">
+                            {((selectedOrderModal.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 border-t border-white/5 pt-2">
+                          <div className="flex items-center justify-between text-zinc-300">
+                            <span className="font-semibold text-white">{selectedOrderModal.productTitle}</span>
+                            <span className="font-mono font-bold text-[#D0FF00]">
+                              {((selectedOrderModal.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                            </span>
+                          </div>
+                          {Array.isArray(selectedOrderModal.items) && selectedOrderModal.items.length > 0 && selectedOrderModal.items[0]?.selectedVariant && (
+                            <span className="text-[11px] text-zinc-400 font-mono block">
+                              Wariant / Rozmiar: <strong>{selectedOrderModal.items[0].selectedVariant}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ID TRANSAKCJI STRIPE */}
+                      {selectedOrderModal.stripeSessionId && (
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                          Stripe ID: {selectedOrderModal.stripeSessionId}
+                        </div>
+                      )}
+
+                      {/* ZMIANA STATUSU ZAMÓWIENIA */}
+                      <div className="pt-2 border-t border-[#1E2333] space-y-2">
+                        <span className="text-[11px] font-bold text-zinc-300 block">
+                          Zmień status zamówienia:
+                        </span>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            disabled={updatingOrderStatus}
+                            onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "paid")}
+                            className={`py-2 px-2 rounded-xl text-center font-semibold border transition-all cursor-pointer ${
+                              String(selectedOrderModal.status).toLowerCase() === "paid" || String(selectedOrderModal.status).toLowerCase() === "opłacone"
+                                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                                : "bg-[#0D0E12] border-[#1C202E] text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            Opłacone
+                          </button>
+                          <button
+                            type="button"
+                            disabled={updatingOrderStatus}
+                            onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "shipped")}
+                            className={`py-2 px-2 rounded-xl text-center font-semibold border transition-all cursor-pointer ${
+                              String(selectedOrderModal.status).toLowerCase() === "shipped" || String(selectedOrderModal.status).toLowerCase() === "wysłane"
+                                ? "bg-sky-500/20 border-sky-500/50 text-sky-300"
+                                : "bg-[#0D0E12] border-[#1C202E] text-zinc-400 hover:text-white"
+                            }`}
+                            title="Oznacz jako wysłane i wyślij automatyczny e-mail do klienta"
+                          >
+                            📦 Wysłane
+                          </button>
+                          <button
+                            type="button"
+                            disabled={updatingOrderStatus}
+                            onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "completed")}
+                            className={`py-2 px-2 rounded-xl text-center font-semibold border transition-all cursor-pointer ${
+                              String(selectedOrderModal.status).toLowerCase() === "completed" || String(selectedOrderModal.status).toLowerCase() === "zrealizowane"
+                                ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                                : "bg-[#0D0E12] border-[#1C202E] text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            ✓ Zrealizowane
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrderModal(null)}
+                        className="w-full py-2.5 rounded-xl bg-[#181B24] hover:bg-[#202430] text-zinc-300 hover:text-white border border-[#262B3B] font-semibold transition-colors cursor-pointer"
+                      >
+                        Zamknij podgląd
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ========================================================================= */}
         {/* WIDOK: WŁASNA DOMENA (sklep-domena) */}

@@ -382,3 +382,79 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
     return false;
   }
 }
+
+/**
+ * Delete product from Supabase products table
+ */
+export async function deleteProductFromSupabase(productId: string): Promise<boolean> {
+  if (!productId) return false;
+  const client: any = supabaseAdmin || supabase;
+  if (!client) return false;
+
+  try {
+    const { error } = await client.from("products").delete().eq("id", productId);
+    if (error) {
+      console.warn(`[Supabase] Delete product error for '${productId}':`, error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[Supabase] Exception deleting product '${productId}':`, err);
+    return false;
+  }
+}
+
+/**
+ * Upsert product into Supabase products table
+ */
+export async function upsertProductInSupabase(prod: any, storeId: string): Promise<boolean> {
+  if (!prod || !storeId) return false;
+  const client: any = supabaseAdmin || supabase;
+  if (!client) return false;
+
+  try {
+    const cleanPrice = String(prod.price || "").replace(",", ".").replace(/[^0-9.]/g, "");
+    const priceNum = parseFloat(cleanPrice) || 149;
+    const priceCents = prod.priceCents || Math.round(priceNum * 100);
+
+    const rawImages = prod.images || prod.image || prod.imageUrl || prod.image_url;
+    let safeImageList: string[] = [];
+    if (Array.isArray(rawImages)) {
+      safeImageList = rawImages.filter((img: any): img is string => typeof img === "string" && img.trim().length > 0);
+    } else if (typeof rawImages === "string" && rawImages.trim().length > 0) {
+      safeImageList = [rawImages.trim()];
+    }
+
+    const payload = {
+      id: prod.id || `prod_${Date.now()}`,
+      store_id: storeId,
+      name: prod.name,
+      description: prod.description || "",
+      price: prod.price || `${priceNum.toFixed(2)} PLN`,
+      price_cents: priceCents,
+      compare_price: prod.comparePrice || null,
+      compare_price_cents: prod.comparePriceCents || null,
+      type: prod.type || "Fizyczny",
+      status: prod.status || "Aktywny",
+      is_active: prod.status !== "Nieaktywny" && prod.status !== "Szkic",
+      stock: prod.stock !== undefined ? parseInt(String(prod.stock)) : 50,
+      image_url: safeImageList[0] || null,
+      images: safeImageList,
+      is_digital: prod.isDigital || prod.type === "Cyfrowy",
+      digital_file_name: prod.digitalFileName || null,
+      digital_file_size: prod.digitalFileSize || null,
+      digital_file_url: prod.digitalFileUrl || null,
+    };
+
+    const { error } = await client.from("products").upsert(payload, { onConflict: "id" });
+    if (error) {
+      console.warn(`[Supabase] Upsert product error for '${prod.name}':`, error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[Supabase] Exception upserting product:`, err);
+    return false;
+  }
+}
+

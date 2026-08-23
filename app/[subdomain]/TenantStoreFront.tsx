@@ -283,6 +283,15 @@ export function TenantStoreFront({
   const [selectedProductModal, setSelectedProductModal] = useState<Product | null>(null);
   const [activeModalImageIdx, setActiveModalImageIdx] = useState<number>(0);
 
+  // Checkout shipping & customer details
+  const [checkoutEmail, setCheckoutEmail] = useState<string>("");
+  const [checkoutName, setCheckoutName] = useState<string>("");
+  const [checkoutPhone, setCheckoutPhone] = useState<string>("");
+  const [checkoutShippingMethod, setCheckoutShippingMethod] = useState<"paczkomat" | "courier">("paczkomat");
+  const [checkoutPaczkomat, setCheckoutPaczkomat] = useState<string>("");
+  const [checkoutAddress, setCheckoutAddress] = useState<string>("");
+  const [checkoutError, setCheckoutError] = useState<string>("");
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -663,13 +672,50 @@ export function TenantStoreFront({
     return sum + (pCents || 24900) * (item.quantity || 1);
   }, 0);
 
+  const hasPhysicalItems = cart.some(
+    (item) => !item.product.isDigital && item.product.type !== "Cyfrowy"
+  );
+
   const handleStripeCheckout = async () => {
     if (cart.length === 0) return;
+    setCheckoutError("");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!checkoutEmail.trim() || !emailRegex.test(checkoutEmail.trim())) {
+      setCheckoutError("Podaj poprawny adres e-mail do zamówienia.");
+      return;
+    }
+
+    if (hasPhysicalItems) {
+      if (!checkoutName.trim()) {
+        setCheckoutError("Podaj imię i nazwisko odbiorcy.");
+        return;
+      }
+      if (!checkoutPhone.trim() || checkoutPhone.trim().length < 7) {
+        setCheckoutError("Podaj numer telefonu (niezbędny dla kuriera / InPost).");
+        return;
+      }
+      if (checkoutShippingMethod === "paczkomat" && !checkoutPaczkomat.trim()) {
+        setCheckoutError("Podaj kod lub adres Paczkomatu InPost (np. KRA01M).");
+        return;
+      }
+      if (checkoutShippingMethod === "courier" && !checkoutAddress.trim()) {
+        setCheckoutError("Podaj pełny adres doręczenia (ulica, nr, kod pocztowy, miasto).");
+        return;
+      }
+    }
+
     setCheckoutLoading(true);
 
     try {
       const firstItem = cart[0]?.product;
-      const digitalItems = cart.map((i) => i.product).filter((p) => p && (p.isDigital || p.digitalFileUrl));
+      const itemsPayload = cart.map((i) => ({
+        productId: i.product.id,
+        title: i.product.name,
+        quantity: i.quantity || 1,
+        selectedVariant: i.selectedVariant || "",
+        amountCents: (i.product.priceCents || 0) * (i.quantity || 1),
+      }));
 
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -680,7 +726,14 @@ export function TenantStoreFront({
           productId: firstItem?.id || "order_prod",
           title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
           priceCents: cartTotalCents,
-          customerEmail: "klient@iskral.pl",
+          customerEmail: checkoutEmail.trim(),
+          customerName: checkoutName.trim(),
+          customerPhone: checkoutPhone.trim(),
+          shippingType: hasPhysicalItems ? checkoutShippingMethod : "digital",
+          paczkomatCode: hasPhysicalItems && checkoutShippingMethod === "paczkomat" ? checkoutPaczkomat.trim().toUpperCase() : undefined,
+          shippingAddress: hasPhysicalItems && checkoutShippingMethod === "courier" ? checkoutAddress.trim() : undefined,
+          selectedVariant: cart[0]?.selectedVariant || "",
+          items: itemsPayload,
           action: "buy_product",
         }),
       });
@@ -699,25 +752,27 @@ export function TenantStoreFront({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             storeId: store.id,
+            tenantId: store.id,
             productId: firstItem.id,
-            customerEmail: "klient@iskral.pl",
+            productTitle: firstItem.name,
+            customerEmail: checkoutEmail.trim(),
+            customerName: checkoutName.trim(),
+            customerPhone: checkoutPhone.trim(),
+            shippingType: hasPhysicalItems ? checkoutShippingMethod : "digital",
+            paczkomatCode: hasPhysicalItems && checkoutShippingMethod === "paczkomat" ? checkoutPaczkomat.trim().toUpperCase() : undefined,
+            shippingAddress: hasPhysicalItems && checkoutShippingMethod === "courier" ? checkoutAddress.trim() : undefined,
             amountTotalCents: cartTotalCents,
+            items: itemsPayload,
           }),
         }).catch(() => {});
       }
 
       setCart([]);
       setIsCartOpen(false);
-
-      if (digitalItems.length > 0) {
-        setPurchasedDigitalItems(digitalItems);
-        setShowSuccessModal(true);
-      } else {
-        alert("🎉 Zamówienie opłacone pomyślnie! Transakcja trafiła do panelu Twojego sklepu.");
-      }
+      setShowSuccessModal(true);
     } catch (checkoutErr) {
       console.error("Błąd podczas realizacji zamówienia Stripe:", checkoutErr);
-      alert("Wystąpił problem z realizacją zamówienia. Spróbuj ponownie.");
+      setCheckoutError("Wystąpił problem z realizacją zamówienia. Spróbuj ponownie.");
     } finally {
       setCheckoutLoading(false);
     }
@@ -1237,7 +1292,7 @@ export function TenantStoreFront({
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-['Poppins',sans-serif]">
-            <div>
+            <div className="overflow-y-auto pr-1 flex-1">
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <h3 className="font-bold text-base text-white font-['Sora',sans-serif]">
                   Twój Koszyk ({cart.reduce((s, i) => s + (i.quantity || 1), 0)})
@@ -1251,7 +1306,7 @@ export function TenantStoreFront({
                 </button>
               </div>
 
-              <div className="mt-4 space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <div className="mt-4 space-y-3">
                 {cart.length === 0 ? (
                   <div className="py-12 text-center text-zinc-500">
                     <p className="text-xs">Twój koszyk jest pusty.</p>
@@ -1302,10 +1357,139 @@ export function TenantStoreFront({
                   })
                 )}
               </div>
+
+              {/* Formularz danych do zamówienia i wysyłki */}
+              {cart.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-3.5 text-xs">
+                  <div>
+                    <label className="text-[11px] font-semibold text-zinc-300 block mb-1">
+                      Adres e-mail *
+                    </label>
+                    <input
+                      type="email"
+                      value={checkoutEmail}
+                      onChange={(e) => setCheckoutEmail(e.target.value)}
+                      placeholder="twoj@email.com"
+                      className="w-full px-3.5 py-2.5 bg-[#0E0E11] border border-white/10 rounded-xl text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00] transition-colors"
+                      required
+                    />
+                    <span className="text-[10px] text-zinc-500 block mt-0.5">
+                      Na ten adres otrzymasz potwierdzenie zakupu oraz powiadomienia o wysyłce.
+                    </span>
+                  </div>
+
+                  {hasPhysicalItems && (
+                    <div className="space-y-3 pt-2 border-t border-white/5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+                          Dostawa i dane odbiorcy
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-bold">Darmowa dostawa</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-medium text-zinc-400 block mb-1">
+                            Imię i nazwisko *
+                          </label>
+                          <input
+                            type="text"
+                            value={checkoutName}
+                            onChange={(e) => setCheckoutName(e.target.value)}
+                            placeholder="Jan Kowalski"
+                            className="w-full px-3 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium text-zinc-400 block mb-1">
+                            Telefon (dla kuriera / InPost) *
+                          </label>
+                          <input
+                            type="tel"
+                            value={checkoutPhone}
+                            onChange={(e) => setCheckoutPhone(e.target.value)}
+                            placeholder="np. 500 123 456"
+                            className="w-full px-3 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Wybór metody dostawy */}
+                      <div>
+                        <label className="text-[10px] font-medium text-zinc-400 block mb-1">
+                          Wybierz sposób dostawy:
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCheckoutShippingMethod("paczkomat")}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-left flex items-center justify-between ${
+                              checkoutShippingMethod === "paczkomat"
+                                ? "bg-[#0E0E11] border-[#D0FF00] text-white"
+                                : "bg-[#0E0E11]/40 border-white/5 text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            <span>📦 Paczkomat</span>
+                            {checkoutShippingMethod === "paczkomat" && <span className="text-[#D0FF00]">✓</span>}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCheckoutShippingMethod("courier")}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-left flex items-center justify-between ${
+                              checkoutShippingMethod === "courier"
+                                ? "bg-[#0E0E11] border-[#D0FF00] text-white"
+                                : "bg-[#0E0E11]/40 border-white/5 text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            <span>🚚 Kurier</span>
+                            {checkoutShippingMethod === "courier" && <span className="text-[#D0FF00]">✓</span>}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Pole zależne od wybranej metody dostawy */}
+                      {checkoutShippingMethod === "paczkomat" ? (
+                        <div>
+                          <label className="text-[10px] font-medium text-zinc-400 block mb-1">
+                            Kod Paczkomatu InPost *
+                          </label>
+                          <input
+                            type="text"
+                            value={checkoutPaczkomat}
+                            onChange={(e) => setCheckoutPaczkomat(e.target.value.toUpperCase())}
+                            placeholder="np. KRA01M lub WAW22A"
+                            className="w-full px-3 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="text-[10px] font-medium text-zinc-400 block mb-1">
+                            Adres dostawy (Ulica, nr, kod pocztowy, miasto) *
+                          </label>
+                          <input
+                            type="text"
+                            value={checkoutAddress}
+                            onChange={(e) => setCheckoutAddress(e.target.value)}
+                            placeholder="ul. Marszałkowska 10/2, 00-001 Warszawa"
+                            className="w-full px-3 py-2 bg-[#0E0E11] border border-white/10 rounded-xl text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Błąd walidacji */}
+                  {checkoutError && (
+                    <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-400 font-medium">
+                      ⚠️ {checkoutError}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Cart Summary & Checkout */}
-            <div className="pt-4 border-t border-white/10 space-y-3">
+            <div className="pt-4 border-t border-white/10 space-y-3 mt-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-400">Do zapłaty:</span>
                 <span className="text-xl font-bold font-mono text-white">
@@ -1353,3 +1537,4 @@ export function TenantStoreFront({
     </main>
   );
 }
+

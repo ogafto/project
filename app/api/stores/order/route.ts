@@ -5,7 +5,20 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const rawStoreId = body.storeId || body.tenantId || body.store_id;
-    const { productId, productTitle, customerEmail, amountTotalCents, stripeSessionId } = body;
+    const {
+      productId,
+      productTitle,
+      customerEmail,
+      customerName,
+      customerPhone,
+      shippingType,
+      paczkomatCode,
+      shippingAddress,
+      shippingDetails,
+      items,
+      amountTotalCents,
+      stripeSessionId,
+    } = body;
 
     if (!rawStoreId || !amountTotalCents) {
       return NextResponse.json({ success: false, error: "Brak wymaganych danych zamówienia." }, { status: 400 });
@@ -29,9 +42,22 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
 
-    // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id
+    // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id oraz danymi klienta i wysyłki
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const orderPayload = {
+    const resolvedShippingDetails = shippingDetails || {
+      method: shippingType || (paczkomatCode ? "paczkomat" : shippingAddress ? "courier" : "digital"),
+      paczkomat: paczkomatCode || null,
+      address: shippingAddress || null,
+      name: customerName || null,
+      phone: customerPhone || null,
+      email: customerEmail || null,
+    };
+
+    const resolvedItems = Array.isArray(items) && items.length > 0
+      ? items
+      : [{ productId: productId || "item", title: productTitle || "Produkt", quantity: 1, amountCents: amountTotalCents }];
+
+    const orderPayload: any = {
       id: orderId,
       store_id: targetStoreId,
       stripe_session_id: stripeSessionId || `manual_${Date.now()}`,
@@ -39,8 +65,13 @@ export async function POST(req: NextRequest) {
       total_amount: ((amountTotalCents || 0) / 100).toFixed(2),
       status: "paid",
       customer_email: customerEmail || "klient@iskral.pl",
-      product_title: productTitle || "Zamówienie w sklepie",
-      items: [{ productId: productId || "item", quantity: 1, amountCents: amountTotalCents }],
+      customer_name: customerName || null,
+      customer_phone: customerPhone || null,
+      shipping_address: shippingAddress || null,
+      inpost_box: paczkomatCode || null,
+      shipping_details: resolvedShippingDetails,
+      product_title: productTitle || (resolvedItems[0]?.title) || "Zamówienie w sklepie",
+      items: resolvedItems,
       created_at: new Date().toISOString(),
     };
 
@@ -126,25 +157,35 @@ export async function GET(req: NextRequest) {
       .select("*")
       .or(`store_id.eq.${targetStoreId},store_id.eq.${rawStoreId}`)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (error) {
       console.warn("[API /api/stores/order GET warning]:", error.message);
       return NextResponse.json({ success: true, orders: [] });
     }
 
-    const safeOrders = (orders || []).map((o: any) => ({
-      id: o.id,
-      tenantId: o.store_id || targetStoreId,
-      storeId: o.store_id || targetStoreId,
-      stripeSessionId: o.stripe_session_id || "",
-      amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
-      totalAmount: o.total_amount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-      status: o.status || "paid",
-      customerEmail: o.customer_email || "klient@iskral.pl",
-      productTitle: o.product_title || "Zamówienie w sklepie",
-      createdAt: o.created_at || new Date().toISOString(),
-    }));
+    const safeOrders = (orders || []).map((o: any) => {
+      const shipDet = o.shipping_details || {};
+      return {
+        id: o.id,
+        tenantId: o.store_id || targetStoreId,
+        storeId: o.store_id || targetStoreId,
+        stripeSessionId: o.stripe_session_id || "",
+        amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
+        totalAmount: o.total_amount || ((o.amount_total_cents || 0) / 100).toFixed(2),
+        status: o.status || "paid",
+        customerEmail: o.customer_email || shipDet.email || "klient@iskral.pl",
+        customerName: o.customer_name || shipDet.name || "",
+        customerPhone: o.customer_phone || shipDet.phone || "",
+        shippingType: o.shipping_type || shipDet.method || (o.inpost_box ? "paczkomat" : o.shipping_address ? "courier" : "digital"),
+        shippingAddress: o.shipping_address || shipDet.address || "",
+        paczkomatCode: o.inpost_box || shipDet.paczkomat || "",
+        shippingDetails: shipDet,
+        items: Array.isArray(o.items) ? o.items : [],
+        productTitle: o.product_title || "Zamówienie w sklepie",
+        createdAt: o.created_at || new Date().toISOString(),
+      };
+    });
 
     return NextResponse.json({ success: true, orders: safeOrders });
   } catch (err: any) {
@@ -152,3 +193,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, orders: [] });
   }
 }
+
