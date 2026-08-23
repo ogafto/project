@@ -130,7 +130,19 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
       return null;
     }, 3, 250);
 
-    if (store) return store;
+    if (store) {
+      return {
+        ...store,
+        logoUrl: store.logo_url || store.logoUrl || "",
+        accentColor: store.accent_color || store.accentColor || "#D0FF00",
+        customDomain: store.custom_domain || store.customDomain || null,
+        domainVerified: Boolean(store.domain_verified || store.domainVerified),
+        planType: store.plan_type || store.planType || "Start",
+        planStatus: store.plan_status || store.planStatus || "active",
+        socials: store.social_links || store.socials || {},
+        dropConfig: store.drop_config || store.dropConfig || { enabled: false },
+      };
+    }
   }
 
   // Fallback: pobieranie przez wewnętrzne API serwera

@@ -570,7 +570,7 @@ export default function AeuxDashboard({
     }
   };
 
-  const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "unshipped" | "paid" | "shipped" | "completed">("all");
   const [selectedOrderModal, setSelectedOrderModal] = useState<OrderRecord | null>(null);
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState<boolean>(false);
 
@@ -1525,8 +1525,8 @@ export default function AeuxDashboard({
           .map(([size, stock]) => `${size} (${stock} szt.)`)
       : [];
 
-    const defaultImg = prodImages[0] || prodImage || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&auto=format&fit=crop&q=80";
-    const allImages = prodImages.length > 0 ? prodImages : [defaultImg];
+    const defaultImg = prodImages[0] || prodImage || "";
+    const allImages = prodImages.length > 0 ? prodImages : (defaultImg ? [defaultImg] : []);
     const targetStoreId = activeStorePackage?.id || currentStore.id;
 
     if (editingProductId) {
@@ -1567,7 +1567,7 @@ export default function AeuxDashboard({
         }).catch((err) => console.warn("Product direct update error:", err));
       }
 
-      if (setMessage) setMessage({ type: "success", text: `Zaktualizowano produkt: ${prodName}` });
+      if (setMessage) setMessage({ type: "success", text: "Zapisano zmiany w produkcie" });
     } else {
       const newProduct: Product = {
         id: `prod_${Date.now()}`,
@@ -1601,7 +1601,7 @@ export default function AeuxDashboard({
         }).catch((err) => console.warn("Product direct create error:", err));
       }
 
-      if (setMessage) setMessage({ type: "success", text: `🎉 Dodano produkt: ${prodName} (${totalStock} szt.)` });
+      if (setMessage) setMessage({ type: "success", text: "Pomyślnie dodano produkt do sklepu" });
     }
 
     setProductSubTab("list");
@@ -1858,6 +1858,31 @@ export default function AeuxDashboard({
                     </button>
                   </div>
 
+                  {/* Karta aktywnego sklepu w mobilnym menu */}
+                  <div className="mb-4">
+                    <div className="p-3 bg-[#0D0E12] border border-[#17181F] rounded-2xl flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center shrink-0 overflow-hidden">
+                        {activeStorePackage?.logoUrl || editorLogo || currentStore?.logoUrl ? (
+                          <img
+                            src={activeStorePackage?.logoUrl || editorLogo || currentStore?.logoUrl}
+                            alt="Logo"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ShoppingBag className="w-4 h-4 text-[#D0FF00]" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-white block truncate font-['Poppins',sans-serif]">
+                          {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
+                        </span>
+                        <span className="text-[10px] text-[#D0FF00] block truncate font-mono font-medium">
+                          {activeStorePackage?.subdomain || activeSubdomain || editorSubdomain || "iskral"}.iskral.pl
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-['Poppins',sans-serif]">
                     FUNKCJE SKLEPU
                   </div>
@@ -2064,18 +2089,22 @@ export default function AeuxDashboard({
               <div className="px-[36px] mb-5">
                 <div className="p-3 bg-[#0D0E12] border border-[#17181F] rounded-2xl flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center shrink-0 overflow-hidden">
-                    {activeStorePackage?.logoUrl ? (
-                      <img src={activeStorePackage.logoUrl} alt="Store" className="w-full h-full object-cover" />
+                    {activeStorePackage?.logoUrl || editorLogo || currentStore?.logoUrl ? (
+                      <img
+                        src={activeStorePackage?.logoUrl || editorLogo || currentStore?.logoUrl}
+                        alt="Logo"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <ShoppingBag className="w-4 h-4 text-[#D0FF00]" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-bold text-white block truncate font-['Poppins',sans-serif]">
-                      {activeStorePackage?.storeName || activeStorePackage?.name || "Mój Sklep"}
+                      {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                     </span>
                     <span className="text-[10px] text-[#D0FF00] block truncate font-mono font-medium">
-                      {activeStorePackage?.subdomain || activeSubdomain || "iskral"}.iskral.pl
+                      {activeStorePackage?.subdomain || activeSubdomain || editorSubdomain || "iskral"}.iskral.pl
                     </span>
                   </div>
                 </div>
@@ -3933,14 +3962,14 @@ export default function AeuxDashboard({
               </div>
 
               <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-                {/* PRZYCISK PRZEDŁUŻ (+30 DNI) */}
+                {/* PRZYCISK PRZEDŁUŻ PAKIET */}
                 <button
                   type="button"
                   onClick={() => activeStorePackage && handleExtendPackage(activeStorePackage.id)}
                   className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-['Poppins',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer"
-                  title="Przedłuż o 30 dni"
+                  title="Przedłuż pakiet"
                 >
-                  +30 dni
+                  Przedłuż pakiet
                 </button>
 
                 {/* PRZYCISK ULEPSZ PAKIET */}
@@ -4620,12 +4649,18 @@ export default function AeuxDashboard({
                   onClick={() => {
                     setEditingProductId(null);
                     setProdName("");
-                    setProdPrice("249.00");
-                    setProdComparePrice("319.00");
+                    setProdPrice("");
+                    setProdComparePrice("");
                     setProdType("Fizyczny");
-                    setIsClothing(true);
+                    setIsClothing(false);
+                    setSizeStocks({ XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 });
+                    setProdStock("50");
                     setProdDescription("");
+                    setProdImage("");
+                    setProdImages([]);
+                    setImageInputUrl("");
                     setDigitalFile(null);
+                    setIsScheduledLaunch(false);
                     setProductSubTab("add");
                   }}
                   className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -4635,7 +4670,7 @@ export default function AeuxDashboard({
                   }`}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Dodaj produkt</span>
+                  <span>Dodaj produkt</span>
                 </button>
               </div>
             </div>
@@ -5069,12 +5104,18 @@ export default function AeuxDashboard({
                       onClick={() => {
                         setEditingProductId(null);
                         setProdName("");
-                        setProdPrice("249.00");
-                        setProdComparePrice("319.00");
+                        setProdPrice("");
+                        setProdComparePrice("");
                         setProdType("Fizyczny");
-                        setIsClothing(true);
+                        setIsClothing(false);
+                        setSizeStocks({ XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 });
+                        setProdStock("50");
                         setProdDescription("");
+                        setProdImage("");
+                        setProdImages([]);
+                        setImageInputUrl("");
                         setDigitalFile(null);
+                        setIsScheduledLaunch(false);
                         setProductSubTab("add");
                       }}
                       className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
@@ -5096,7 +5137,8 @@ export default function AeuxDashboard({
           const filteredOrders = localOrders.filter((ord) => {
             const st = (ord.status || "").toLowerCase();
             if (orderFilter === "all") return true;
-            if (orderFilter === "paid") return st === "paid" || st === "opłacone";
+            if (orderFilter === "unshipped" || (orderFilter as any) === "paid")
+              return st === "unshipped" || st === "paid" || st === "opłacone" || st === "niewysłane" || !st;
             if (orderFilter === "shipped") return st === "shipped" || st === "wysłane";
             if (orderFilter === "completed") return st === "completed" || st === "zrealizowane";
             return true;
@@ -5117,7 +5159,7 @@ export default function AeuxDashboard({
                   <div className="flex items-center gap-2 flex-wrap">
                     {[
                       { id: "all", label: "Wszystkie" },
-                      { id: "paid", label: "Opłacone" },
+                      { id: "unshipped", label: "Niewysłane" },
                       { id: "shipped", label: "Wysłane" },
                       { id: "completed", label: "Zrealizowane" },
                     ].map((f) => (
@@ -5126,7 +5168,7 @@ export default function AeuxDashboard({
                         type="button"
                         onClick={() => setOrderFilter(f.id as any)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
-                          orderFilter === f.id
+                          orderFilter === f.id || (f.id === "unshipped" && (orderFilter as any) === "paid")
                             ? "bg-[#D0FF00] text-black font-bold"
                             : "bg-[#111319] text-zinc-400 hover:text-white border border-[#1C1E26]"
                         }`}
@@ -5136,8 +5178,8 @@ export default function AeuxDashboard({
                             ? localOrders.length
                             : localOrders.filter((o) => {
                                 const s = (o.status || "").toLowerCase();
-                                return f.id === "paid"
-                                  ? s === "paid" || s === "opłacone"
+                                return f.id === "unshipped"
+                                  ? s === "unshipped" || s === "paid" || s === "opłacone" || s === "niewysłane" || !s
                                   : f.id === "shipped"
                                   ? s === "shipped" || s === "wysłane"
                                   : s === "completed" || s === "zrealizowane";
@@ -5201,16 +5243,16 @@ export default function AeuxDashboard({
                               </td>
                               <td className="p-3.5">
                                 {isCompleted ? (
-                                  <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold">
-                                    Zrealizowane
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                                    Zrealizowane ✓
                                   </span>
                                 ) : isShipped ? (
                                   <span className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[10px] font-bold">
                                     Wysłane 📦
                                   </span>
                                 ) : (
-                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                                    Opłacone
+                                  <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                                    Niewysłane
                                   </span>
                                 )}
                               </td>
@@ -5361,14 +5403,17 @@ export default function AeuxDashboard({
                           <button
                             type="button"
                             disabled={updatingOrderStatus}
-                            onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "paid")}
+                            onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "unshipped")}
                             className={`py-2 px-2 rounded-xl text-center font-semibold border transition-all cursor-pointer ${
-                              String(selectedOrderModal.status).toLowerCase() === "paid" || String(selectedOrderModal.status).toLowerCase() === "opłacone"
-                                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                              String(selectedOrderModal.status).toLowerCase() === "unshipped" ||
+                              String(selectedOrderModal.status).toLowerCase() === "paid" ||
+                              String(selectedOrderModal.status).toLowerCase() === "opłacone" ||
+                              String(selectedOrderModal.status).toLowerCase() === "niewysłane"
+                                ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
                                 : "bg-[#0D0E12] border-[#1C202E] text-zinc-400 hover:text-white"
                             }`}
                           >
-                            Opłacone
+                            Niewysłane
                           </button>
                           <button
                             type="button"
@@ -5389,7 +5434,7 @@ export default function AeuxDashboard({
                             onClick={() => handleUpdateOrderStatus(selectedOrderModal.id, "completed")}
                             className={`py-2 px-2 rounded-xl text-center font-semibold border transition-all cursor-pointer ${
                               String(selectedOrderModal.status).toLowerCase() === "completed" || String(selectedOrderModal.status).toLowerCase() === "zrealizowane"
-                                ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
                                 : "bg-[#0D0E12] border-[#1C202E] text-zinc-400 hover:text-white"
                             }`}
                           >

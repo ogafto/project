@@ -44,14 +44,10 @@ export default function LogowaniePage() {
       setStep2FA(true);
       setSuccess("Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod.");
     } else {
-      setSuccess("Logowanie pomyślne! Przekierowywanie...");
+      setSuccess("Logowanie pomyślne! Przekierowywanie do panelu...");
       setTimeout(() => {
-        if (formattedEmail.includes("projekt@motywo.pl") || formattedEmail.includes("projekt@iskral.pl") || formattedEmail.includes("admin")) {
-          router.push("/admin");
-        } else {
-          router.push("/dashboard");
-        }
-      }, 600);
+        router.push("/dashboard");
+      }, 500);
     }
   };
 

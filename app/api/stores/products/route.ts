@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
 
 export async function DELETE(req: NextRequest) {
@@ -26,6 +27,11 @@ export async function DELETE(req: NextRequest) {
       console.warn("[API /api/stores/products DELETE Error]:", error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/[subdomain]", "page");
+    } catch {}
 
     return NextResponse.json({ success: true, message: "Produkt został pomyślnie usunięty z bazy." });
   } catch (err: any) {
@@ -89,6 +95,11 @@ export async function POST(req: NextRequest) {
       console.warn("[API /api/stores/products POST Error]:", error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/[subdomain]", "page");
+    } catch {}
 
     return NextResponse.json({ success: true, product: data ? data[0] : prodPayload });
   } catch (err: any) {

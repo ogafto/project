@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin, supabase } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
@@ -192,12 +193,12 @@ export async function POST(req: NextRequest) {
       name: store.name || "Mój Sklep",
       subdomain: cleanSubdomain,
       custom_domain: store.customDomain || null,
-      logo_url: store.logoUrl || null,
+      logo_url: store.logoUrl || store.logo_url || null,
       description: store.description || null,
       announcement: store.announcement || null,
       niche: store.niche || null,
       template: store.template || "Dark Vibe",
-      accent_color: store.accentColor || "#FF5B28",
+      accent_color: store.accentColor || store.accent_color || "#D0FF00",
       stripe_status: store.stripeStatus || "disconnected",
       balance_cents: store.balanceCents || 0,
       plan_type: store.planType || "Start",
@@ -207,7 +208,7 @@ export async function POST(req: NextRequest) {
       social_links: store.socials || {},
       theme_config: {
         template: store.template || "Dark Vibe",
-        accentColor: store.accentColor || "#FF5B28",
+        accentColor: store.accentColor || store.accent_color || "#D0FF00",
         ownerEmail: store.ownerEmail,
       },
       drop_config: store.dropConfig || { enabled: false },
@@ -285,6 +286,11 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath(`/${cleanSubdomain}`, "page");
+    } catch {}
 
     return NextResponse.json({
       success: true,
