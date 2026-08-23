@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         const { data: storeOrders } = await dbClient
           .from("orders")
           .select("*")
-          .eq("store_id", st.id)
+          .or(`store_id.eq.${st.id},store_id.eq.${st.subdomain}`)
           .order("created_at", { ascending: false });
 
         const mappedOrders = (storeOrders || []).map((o: any) => ({

@@ -4,10 +4,10 @@ import { supabaseAdmin, supabase } from "@/lib/supabase";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const targetStoreId = body.storeId || body.tenantId || body.store_id;
+    const rawStoreId = body.storeId || body.tenantId || body.store_id;
     const { productId, productTitle, customerEmail, amountTotalCents, stripeSessionId } = body;
 
-    if (!targetStoreId || !amountTotalCents) {
+    if (!rawStoreId || !amountTotalCents) {
       return NextResponse.json({ success: false, error: "Brak wymaganych danych zamówienia." }, { status: 400 });
     }
 
@@ -15,6 +15,19 @@ export async function POST(req: NextRequest) {
     if (!dbClient) {
       return NextResponse.json({ success: true, warning: "Brak połączenia z bazą, zapisano lokalnie." });
     }
+
+    // Resolve exact store ID from database
+    let targetStoreId = rawStoreId;
+    try {
+      const { data: st } = await dbClient
+        .from("stores")
+        .select("id")
+        .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
+        .maybeSingle();
+      if (st?.id) {
+        targetStoreId = st.id;
+      }
+    } catch {}
 
     // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -42,11 +55,14 @@ export async function POST(req: NextRequest) {
       try {
         const { data: prod } = await dbClient.from("products").select("stock, sales").eq("id", productId).maybeSingle();
         if (prod) {
+          const currentStock = typeof prod.stock === "number" ? prod.stock : 50;
+          const newStock = Math.max(0, currentStock - 1);
           await dbClient
             .from("products")
             .update({
-              stock: Math.max(0, (prod.stock || 50) - 1),
+              stock: newStock,
               sales: (prod.sales || 0) + 1,
+              status: newStock <= 0 ? "Wyprzedany" : "Aktywny",
             })
             .eq("id", productId);
         }
@@ -80,9 +96,9 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const targetStoreId = searchParams.get("tenantId") || searchParams.get("storeId") || searchParams.get("store_id");
+    const rawStoreId = searchParams.get("tenantId") || searchParams.get("storeId") || searchParams.get("store_id");
 
-    if (!targetStoreId) {
+    if (!rawStoreId) {
       return NextResponse.json({ success: true, orders: [] });
     }
 
@@ -91,11 +107,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, orders: [] });
     }
 
+    // Resolve exact store ID
+    let targetStoreId = rawStoreId;
+    try {
+      const { data: st } = await dbClient
+        .from("stores")
+        .select("id")
+        .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
+        .maybeSingle();
+      if (st?.id) {
+        targetStoreId = st.id;
+      }
+    } catch {}
+
     // Pobieramy zamówienia bezpośrednio po właściwej kolumnie store_id
     const { data: orders, error } = await dbClient
       .from("orders")
       .select("*")
-      .eq("store_id", targetStoreId)
+      .or(`store_id.eq.${targetStoreId},store_id.eq.${rawStoreId}`)
       .order("created_at", { ascending: false })
       .limit(50);
 

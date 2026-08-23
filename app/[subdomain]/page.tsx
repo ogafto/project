@@ -440,6 +440,11 @@ export default function TenantStorePage({ params }: PageProps) {
     }
 
     const isDigital = Boolean(product.isDigital || product.type === "Cyfrowy");
+    if (!isDigital && typeof product.stock === "number" && product.stock <= 0) {
+      alert("Przepraszamy, ten produkt został wyprzedany!");
+      return;
+    }
+
     const isClothing = Boolean(!isDigital && product.isClothing);
     const finalVariant = isClothing
       ? (chosenVariant || selectedVariants[product.id] || (product.variants && product.variants[0]) || undefined)
@@ -780,6 +785,7 @@ export default function TenantStorePage({ params }: PageProps) {
 
               const isDigital = Boolean(prod.isDigital || prod.type === "Cyfrowy");
               const isClothing = Boolean(!isDigital && prod.isClothing);
+              const isSoldOut = !isDigital && typeof prod.stock === "number" && prod.stock <= 0;
               const currentVariant = selectedVariants[prod.id] || (prod.variants && prod.variants[0]) || "";
               const prodImgs = extractProductImages(prod);
               const mainCoverImg = prodImgs[0] || DEFAULT_PRODUCT_IMAGE;
@@ -814,7 +820,12 @@ export default function TenantStorePage({ params }: PageProps) {
                         >
                           {isDigital ? "💻 Cyfrowy" : (isClothing ? "👕 Odzież" : "📦 Fizyczny")}
                         </span>
-                        {isLockedProductDrop && (
+                        {isSoldOut && (
+                          <span className="px-2.5 py-1 bg-rose-500/90 text-white rounded-full text-[10px] font-bold backdrop-blur-md">
+                            🚫 Wyprzedane
+                          </span>
+                        )}
+                        {isLockedProductDrop && !isSoldOut && (
                           <span className="px-2.5 py-1 bg-amber-500 text-black rounded-full text-[10px] font-bold backdrop-blur-md">
                             🔒 Drop Only
                           </span>
@@ -843,6 +854,8 @@ export default function TenantStorePage({ params }: PageProps) {
                       <span>
                         {isDigital ? (
                           <span className="text-emerald-400 font-medium">⚡ Dostęp natychmiastowy</span>
+                        ) : isSoldOut ? (
+                          <span className="text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md">🚫 Wyprzedane</span>
                         ) : (
                           <span>Stan: <strong className="text-zinc-200">{prod.stock ?? 50} szt.</strong></span>
                         )}
@@ -906,15 +919,20 @@ export default function TenantStorePage({ params }: PageProps) {
 
                     <button
                       type="button"
-                      onClick={() => addToCart(prod)}
-                      disabled={isLockedProductDrop}
-                      className="py-2.5 px-3 font-medium text-[13px] rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      onClick={() => {
+                        if (isSoldOut) return;
+                        addToCart(prod);
+                      }}
+                      disabled={isLockedProductDrop || isSoldOut}
+                      className={`py-2.5 px-3 font-medium text-[13px] rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md ${
+                        isSoldOut ? "opacity-60 cursor-not-allowed bg-zinc-800 text-zinc-500" : "cursor-pointer"
+                      }`}
                       style={{
-                        backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : accentColor,
-                        color: isLockedProductDrop ? "#71717A" : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
+                        backgroundColor: isLockedProductDrop ? "rgba(255,255,255,0.1)" : isSoldOut ? undefined : accentColor,
+                        color: isLockedProductDrop ? "#71717A" : isSoldOut ? undefined : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
                       }}
                     >
-                      <span>{isLockedProductDrop ? "🔒 Zablokowany" : "Do koszyka"}</span>
+                      <span>{isLockedProductDrop ? "🔒 Zablokowany" : isSoldOut ? "Wyprzedane" : "Do koszyka"}</span>
                     </button>
                   </div>
                 </div>
@@ -1025,6 +1043,8 @@ export default function TenantStorePage({ params }: PageProps) {
                     <span className="font-semibold text-white">
                       {selectedProductModal.isDigital || selectedProductModal.type === "Cyfrowy" ? (
                         <span className="text-emerald-400 font-bold">⚡ Plik gotowy do pobrania od ręki</span>
+                      ) : (typeof selectedProductModal.stock === "number" && selectedProductModal.stock <= 0) ? (
+                        <span className="text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-md">🚫 Wyprzedane</span>
                       ) : (
                         <span>W magazynie: <strong className="text-[#D0FF00] font-mono">{selectedProductModal.stock ?? 50} sztuk</strong></span>
                       )}
@@ -1068,29 +1088,38 @@ export default function TenantStorePage({ params }: PageProps) {
                 </div>
 
                 {/* Przyciski zakupowe */}
-                <div className="space-y-2.5 pt-4 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addToCart(selectedProductModal);
-                      setSelectedProductModal(null);
-                    }}
-                    className="w-full py-3.5 font-bold text-[14px] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-                    style={{
-                      backgroundColor: accentColor,
-                      color: accentColor === "#D0FF00" ? "#000" : "#FFF",
-                    }}
-                  >
-                    <span>Dodaj do koszyka</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedProductModal(null)}
-                    className="w-full py-2.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white text-xs font-medium rounded-xl transition-colors cursor-pointer text-center"
-                  >
-                    Wróć do przeglądania sklepu
-                  </button>
-                </div>
+                {(() => {
+                  const isModalSoldOut = !selectedProductModal.isDigital && selectedProductModal.type !== "Cyfrowy" && typeof selectedProductModal.stock === "number" && selectedProductModal.stock <= 0;
+                  return (
+                    <div className="space-y-2.5 pt-4 border-t border-white/10">
+                      <button
+                        type="button"
+                        disabled={isModalSoldOut}
+                        onClick={() => {
+                          if (isModalSoldOut) return;
+                          addToCart(selectedProductModal);
+                          setSelectedProductModal(null);
+                        }}
+                        className={`w-full py-3.5 font-bold text-[14px] rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${
+                          isModalSoldOut ? "opacity-50 cursor-not-allowed bg-zinc-800 text-zinc-500" : "cursor-pointer"
+                        }`}
+                        style={{
+                          backgroundColor: isModalSoldOut ? undefined : accentColor,
+                          color: isModalSoldOut ? undefined : (accentColor === "#D0FF00" ? "#000" : "#FFF"),
+                        }}
+                      >
+                        <span>{isModalSoldOut ? "🚫 Produkt Wyprzedany" : "Dodaj do koszyka"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProductModal(null)}
+                        className="w-full py-2.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white text-xs font-medium rounded-xl transition-colors cursor-pointer text-center"
+                      >
+                        Wróć do przeglądania sklepu
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

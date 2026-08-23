@@ -666,9 +666,10 @@ export default function AeuxDashboard({
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<OrderRecord | null>(null);
   const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
 
-  const storeOrders = localOrders;
-  const totalRevenuePLN = ((localOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), 0)) / 100).toFixed(2);
-  const totalOrdersCount = localOrders.length;
+  const storeOrders = Array.isArray(localOrders) ? localOrders : [];
+  const paidOrders = storeOrders.filter((o) => !o.status || o.status === "paid" || (o.status as string) === "completed" || (o.status as string) === "shipped");
+  const totalRevenuePLN = ((paidOrders.reduce((acc, o) => acc + (Number(o.amountTotalCents) || 0), 0)) / 100).toFixed(2);
+  const totalOrdersCount = paidOrders.length;
 
   // Sync state whenever the active user changes (Login/Logout/Switch)
   useEffect(() => {

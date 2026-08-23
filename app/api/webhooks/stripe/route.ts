@@ -37,7 +37,23 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as any;
     const metadata = session.metadata || {};
 
-    const tenantId = metadata.tenant_id || metadata.storeId || metadata.store_id || metadata.tenantId;
+    const rawStoreId = metadata.store_id || metadata.storeId || metadata.tenant_id || metadata.tenantId;
+    let resolvedStoreId = rawStoreId;
+
+    if (dbAdmin && rawStoreId) {
+      try {
+        const { data: stRow } = await dbAdmin
+          .from("stores")
+          .select("id")
+          .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
+          .maybeSingle();
+        if (stRow?.id) {
+          resolvedStoreId = stRow.id;
+        }
+      } catch {}
+    }
+
+    const tenantId = resolvedStoreId || rawStoreId;
     const productId = metadata.product_id || metadata.productId;
     const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10) || 1);
     const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
@@ -48,7 +64,7 @@ export async function POST(req: NextRequest) {
     const paymentStatus = session.payment_status === "paid" ? "paid" : "pending";
     const productTitle = metadata.title || metadata.product_title || (isPlan ? planNameFormatted : "Zamówienie w sklepie");
 
-    console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for tenant: ${tenantId}`);
+    console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for store: ${tenantId}`);
 
     if (dbAdmin && tenantId) {
       try {
@@ -106,44 +122,53 @@ export async function POST(req: NextRequest) {
             status: paymentStatus,
             customer_email: customerEmail,
             product_title: productTitle,
-            items: [{ productId, quantity, amountCents: amountTotalCents, title: productTitle }],
+            items: [{ productId: productId || "prod_item", quantity, amountCents: amountTotalCents, title: productTitle }],
             created_at: new Date().toISOString(),
           });
 
           // 2. Decrement stock and increment sales for product
           if (productId) {
-            const { data: prod } = await dbAdmin
-              .from("products")
-              .select("stock, sales")
-              .eq("id", productId)
-              .maybeSingle();
-
-            if (prod) {
-              const newStock = Math.max(0, (prod.stock ?? 50) - quantity);
-              const newSales = (prod.sales ?? 0) + quantity;
-              await dbAdmin
+            try {
+              const { data: prod } = await dbAdmin
                 .from("products")
-                .update({
-                  stock: newStock,
-                  sales: newSales,
-                  status: newStock === 0 ? "Wyprzedany" : "Aktywny",
-                })
-                .eq("id", productId);
+                .select("stock, sales")
+                .eq("id", productId)
+                .maybeSingle();
+
+              if (prod) {
+                const currentStock = typeof prod.stock === "number" ? prod.stock : 50;
+                const newStock = Math.max(0, currentStock - quantity);
+                const newSales = (prod.sales ?? 0) + quantity;
+                await dbAdmin
+                  .from("products")
+                  .update({
+                    stock: newStock,
+                    sales: newSales,
+                    status: newStock <= 0 ? "Wyprzedany" : "Aktywny",
+                  })
+                  .eq("id", productId);
+              }
+            } catch (stockErr) {
+              console.warn("[Stripe Webhook] Stock update warning:", stockErr);
             }
           }
 
           // 3. Increment store balance_cents
-          const { data: storeData } = await dbAdmin
-            .from("stores")
-            .select("balance_cents")
-            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
-            .maybeSingle();
+          try {
+            const { data: storeData } = await dbAdmin
+              .from("stores")
+              .select("balance_cents")
+              .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
+              .maybeSingle();
 
-          const currentBalance = storeData?.balance_cents || 0;
-          await dbAdmin
-            .from("stores")
-            .update({ balance_cents: currentBalance + amountTotalCents })
-            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
+            const currentBalance = storeData?.balance_cents || 0;
+            await dbAdmin
+              .from("stores")
+              .update({ balance_cents: currentBalance + amountTotalCents })
+              .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
+          } catch (balErr) {
+            console.warn("[Stripe Webhook] Balance update warning:", balErr);
+          }
         }
       } catch (dbErr) {
         console.error("Supabase webhook update error:", dbErr);
