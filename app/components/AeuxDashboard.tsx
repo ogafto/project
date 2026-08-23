@@ -58,6 +58,7 @@ import {
   AlertCircle,
   FileText,
   Key,
+  Palette,
 } from "lucide-react";
 import {
   User,
@@ -240,10 +241,23 @@ export default function AeuxDashboard({
   const [templateFilter, setTemplateFilter] = useState<"Darmowe" | "Premium">("Darmowe");
   const [selectedTemplateName, setSelectedTemplateName] = useState<string>("Dark Vibe");
 
-  // User Packages State (Pakiety i sklepy użytkownika)
-  const [userPackages, setUserPackages] = useState<UserPackage[]>(() => {
+  // User Storage Key (Strictly isolated per user ID or email)
+  const getUserKey = (u: User | null) => {
+    if (!u) return "guest";
+    return (u.id || u.email.toLowerCase().replace(/[^a-z0-9]/g, "_"));
+  };
+
+  const userKey = getUserKey(user);
+
+  // Helper to load user packages strictly for the current user
+  const getUserPackages = (currentUser: User | null, currentStores: StoreConfig[]): UserPackage[] => {
+    if (!currentUser) return [];
+
+    const key = getUserKey(currentUser);
+
+    // 1. Check user-scoped localStorage
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("iskra_user_packages_v2");
+      const saved = localStorage.getItem(`iskra_user_packages_${key}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -251,8 +265,10 @@ export default function AeuxDashboard({
         } catch {}
       }
     }
-    if (user?.services && user.services.length > 0) {
-      return user.services.map((s) => ({
+
+    // 2. Check currentUser.services (from AuthContext / backend)
+    if (currentUser.services && currentUser.services.length > 0) {
+      return currentUser.services.map((s) => ({
         id: s.id || `pkg_${s.number}`,
         number: s.number || 5191,
         name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
@@ -265,8 +281,10 @@ export default function AeuxDashboard({
         isConfigured: Boolean(s.assignedSubdomain),
       }));
     }
-    if (userStores && userStores.length > 0) {
-      return userStores.map((st, idx) => ({
+
+    // 3. Check currentUser's stores
+    if (currentStores && currentStores.length > 0) {
+      return currentStores.map((st, idx) => ({
         id: st.id || `pkg_${idx + 1000}`,
         number: 1000 + idx,
         name: st.name || `Sklep #${1000 + idx}`,
@@ -279,8 +297,13 @@ export default function AeuxDashboard({
         isConfigured: Boolean(st.subdomain),
       }));
     }
+
+    // 4. Return empty array for a brand new user who has not bought or activated any package yet
     return [];
-  });
+  };
+
+  // User Packages State (Pakiety i sklepy użytkownika)
+  const [userPackages, setUserPackages] = useState<UserPackage[]>(() => getUserPackages(user, userStores));
 
   // Package renaming
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
@@ -294,10 +317,11 @@ export default function AeuxDashboard({
   const [configDescription, setConfigDescription] = useState("");
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
 
-  // Active Store Management View state
+  // Active Store Management View state (Strictly scoped per user)
   const [activeStorePackage, setActiveStorePackage] = useState<UserPackage | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("iskra_active_store_pkg");
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      const saved = localStorage.getItem(`iskra_active_store_${key}`);
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -355,133 +379,53 @@ team: [],
     },
   });
 
-  const defaultSampleProducts: Product[] = [
-    {
-      id: "prod_1",
-      name: "Heavyweight Boxy Hoodie Black",
-      price: "249.00 zł",
-      priceCents: 24900,
-      comparePrice: "319.00 zł",
-      comparePriceCents: 31900,
-      type: "Fizyczny",
-      status: "Aktywny",
-      sales: 14,
-      stock: 75,
-      description: "Krój boxy fit, gramatura 460 GSM, 100% czesana bawełna organiczna. Wyprodukowano w Polsce.",
-      image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80",
-      images: ["https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80"],
-      variants: ["XS", "S", "M", "L", "XL", "XXL"],
-    },
-    {
-      id: "prod_2",
-      name: "Acid Wash Oversize Tee 'Cyber'",
-      price: "129.00 zł",
-      priceCents: 12900,
-      comparePrice: "169.00 zł",
-      comparePriceCents: 16900,
-      type: "Fizyczny",
-      status: "Aktywny",
-      sales: 28,
-      stock: 60,
-      description: "Efekt acid wash, gramatura 240 GSM, sitodruk najwyższej trwałości.",
-      image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80",
-      images: ["https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80"],
-      variants: ["S", "M", "L", "XL"],
-    },
-    {
-      id: "prod_3",
-      name: "Streetwear Vector Pack 2026",
-      price: "79.00 zł",
-      priceCents: 7900,
-      type: "Cyfrowy",
-      status: "Aktywny",
-      isDigital: true,
-      digitalFileName: "streetwear_vectors_vol1.zip",
-      digitalFileSize: "42.5 MB",
-      sales: 9,
-      stock: 999,
-      description: "Ponad 120 wektorowych grafik i assetów do projektowania odzieży (AI, SVG, PNG).",
-      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-      images: ["https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"],
-    },
-  ];
-
   const [localProducts, setLocalProducts] = useState<Product[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("iskra_store_products");
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      const saved = localStorage.getItem(`iskra_products_${key}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         } catch {}
       }
     }
     if (currentStore.products && currentStore.products.length > 0) {
       return currentStore.products;
     }
-    return defaultSampleProducts;
+    return [];
   });
 
   const saveProductsList = (newProds: Product[]) => {
     setLocalProducts(newProds);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_store_products", JSON.stringify(newProds));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_products_${key}`, JSON.stringify(newProds));
     }
   };
 
-  const defaultSampleOrders: OrderRecord[] = [
-    {
-      id: "ord_1082",
-      tenantId: "iskral",
-      stripeSessionId: "cs_test_1082",
-      amountTotalCents: 24900,
-      status: "paid",
-      customerEmail: "kacper.nowak@gmail.com",
-      productTitle: "Heavyweight Boxy Hoodie Black (Rozmiar: L)",
-      createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-    },
-    {
-      id: "ord_1081",
-      tenantId: "iskral",
-      stripeSessionId: "cs_test_1081",
-      amountTotalCents: 12900,
-      status: "paid",
-      customerEmail: "oliwia.hype@wp.pl",
-      productTitle: "Acid Wash Oversize Tee 'Cyber' (Rozmiar: M)",
-      createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
-    },
-    {
-      id: "ord_1080",
-      tenantId: "iskral",
-      stripeSessionId: "cs_test_1080",
-      amountTotalCents: 7900,
-      status: "paid",
-      customerEmail: "designer_pro@proton.me",
-      productTitle: "Streetwear Vector Pack 2026 (Cyfrowy)",
-      createdAt: new Date(Date.now() - 3600000 * 42).toISOString(),
-    },
-  ];
-
   const [localOrders, setLocalOrders] = useState<OrderRecord[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("iskra_store_orders");
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      const saved = localStorage.getItem(`iskra_orders_${key}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         } catch {}
       }
     }
     if (currentStore.orders && currentStore.orders.length > 0) {
       return currentStore.orders;
     }
-    return defaultSampleOrders;
+    return [];
   });
 
   const saveOrdersList = (newOrders: OrderRecord[]) => {
     setLocalOrders(newOrders);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_store_orders", JSON.stringify(newOrders));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_orders_${key}`, JSON.stringify(newOrders));
     }
   };
 
@@ -519,8 +463,9 @@ team: [],
   const [teamInviteEmail, setTeamInviteEmail] = useState("");
   const [teamInviteRole, setTeamInviteRole] = useState<"Edytor" | "Obsługa zamówień" | "Administrator">("Edytor");
   const [teamMembers, setTeamMembers] = useState<Array<{ id: string; email: string; role: string; addedAt: string }>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("iskra_team_members");
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      const saved = localStorage.getItem(`iskra_team_${key}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -552,8 +497,70 @@ team: [],
   const [orderFilter, setOrderFilter] = useState<"all" | "paid" | "shipped" | "completed">("all");
 
   const storeOrders = localOrders;
-  const totalRevenuePLN = ((localOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), 0) || 45700) / 100).toFixed(2);
-  const totalOrdersCount = localOrders.length || 3;
+  const totalRevenuePLN = ((localOrders.reduce((acc, o) => acc + (o.amountTotalCents || 0), 0)) / 100).toFixed(2);
+  const totalOrdersCount = localOrders.length;
+
+  // Sync state whenever the active user changes (Login/Logout/Switch)
+  useEffect(() => {
+    if (!user) {
+      setUserPackages([]);
+      setActiveStorePackage(null);
+      setLocalProducts([]);
+      setLocalOrders([]);
+      return;
+    }
+
+    const key = getUserKey(user);
+    const pkgs = getUserPackages(user, userStores);
+    setUserPackages(pkgs);
+
+    if (typeof window !== "undefined") {
+      const savedStore = localStorage.getItem(`iskra_active_store_${key}`);
+      if (savedStore) {
+        try {
+          setActiveStorePackage(JSON.parse(savedStore));
+        } catch {}
+      } else if (pkgs.length > 0) {
+        const configured = pkgs.find((p) => p.isConfigured);
+        if (configured) setActiveStorePackage(configured);
+        else setActiveStorePackage(null);
+      } else {
+        setActiveStorePackage(null);
+      }
+
+      const savedProds = localStorage.getItem(`iskra_products_${key}`);
+      if (savedProds) {
+        try {
+          const parsed = JSON.parse(savedProds);
+          if (Array.isArray(parsed)) setLocalProducts(parsed);
+        } catch {}
+      } else if (currentStore.products && currentStore.products.length > 0) {
+        setLocalProducts(currentStore.products);
+      } else {
+        setLocalProducts([]);
+      }
+
+      const savedOrders = localStorage.getItem(`iskra_orders_${key}`);
+      if (savedOrders) {
+        try {
+          const parsed = JSON.parse(savedOrders);
+          if (Array.isArray(parsed)) setLocalOrders(parsed);
+        } catch {}
+      } else if (currentStore.orders && currentStore.orders.length > 0) {
+        setLocalOrders(currentStore.orders);
+      } else {
+        setLocalOrders([]);
+      }
+
+      const savedTeam = localStorage.getItem(`iskra_team_${key}`);
+      if (savedTeam) {
+        try {
+          const parsed = JSON.parse(savedTeam);
+          if (Array.isArray(parsed) && parsed.length > 0) setTeamMembers(parsed);
+        } catch {}
+      }
+    }
+  }, [user?.id, user?.email, user?.services?.length, userStores.length]);
 
   const getRemainingTime = (expiresAt?: string) => {
     if (!expiresAt) return "14 dni, 0 godz.";
@@ -571,33 +578,31 @@ team: [],
 
   const handleSaveRename = (pkgId: string) => {
     if (!editingPackageName.trim()) return;
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => (p.id === pkgId ? { ...p, name: editingPackageName.trim(), storeName: editingPackageName.trim() } : p));
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-      }
-      return updated;
-    });
+    const updated = userPackages.map((p) => (p.id === pkgId ? { ...p, name: editingPackageName.trim(), storeName: editingPackageName.trim() } : p));
+    setUserPackages(updated);
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+    }
     setEditingPackageId(null);
     if (setMessage) setMessage({ type: "success", text: "Zmieniono nazwę pakietu." });
   };
 
   const handleExtendPackage = (pkgId: string) => {
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id === pkgId) {
-          const currentExp = new Date(p.expiresAt || Date.now()).getTime();
-          const base = currentExp > Date.now() ? currentExp : Date.now();
-          const newExp = new Date(base + 30 * 86400000).toISOString();
-          return { ...p, expiresAt: newExp };
-        }
-        return p;
-      });
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+    const updated = userPackages.map((p) => {
+      if (p.id === pkgId) {
+        const currentExp = new Date(p.expiresAt || Date.now()).getTime();
+        const base = currentExp > Date.now() ? currentExp : Date.now();
+        const newExp = new Date(base + 30 * 86400000).toISOString();
+        return { ...p, expiresAt: newExp };
       }
-      return updated;
+      return p;
     });
+    setUserPackages(updated);
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+    }
     if (setMessage) setMessage({ type: "success", text: "Przedłużono ważność pakietu o 30 dni!" });
   };
 
@@ -614,7 +619,6 @@ team: [],
     const currentCycle = cycle || billingInterval;
     if (buyPlan) {
       buyPlan(planType, currentCycle);
-      return;
     }
     const days = currentCycle === "rok" ? 365 : planType === "Start" ? 14 : 30;
     const priceText = planType === "Start" ? "0 PLN / 14 dni" : currentCycle === "rok" ? (planType === "Creator" ? "14.99 PLN / msc" : "29.99 PLN / msc") : (planType === "Creator" ? "29.99 PLN / msc" : "59.99 PLN / msc");
@@ -627,35 +631,33 @@ team: [],
       expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
       isConfigured: false,
     };
-    setUserPackages((prev) => {
-      const updated = [newPkg, ...prev];
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
-      }
-      return updated;
-    });
+    const updated = [newPkg, ...userPackages];
+    setUserPackages(updated);
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+    }
     if (setMessage) setMessage({ type: "success", text: `🎉 Aktywowano Pakiet ${planType}!` });
     setActiveTab("pulpit");
   };
 
   const handleUpgradePackage = (targetPlan: "Creator" | "Brand") => {
     if (upgradingPackage) {
-      setUserPackages((prev) => {
-        const updated = prev.map((p) => {
-          if (p.id === upgradingPackage.id) {
-            return {
-              ...p,
-              planType: targetPlan,
-              price: targetPlan === "Creator" ? "49.90 PLN / msc" : "99.90 PLN / msc",
-            };
-          }
-          return p;
-        });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      const updated = userPackages.map((p) => {
+        if (p.id === upgradingPackage.id) {
+          return {
+            ...p,
+            planType: targetPlan,
+            price: targetPlan === "Creator" ? "49.90 PLN / msc" : "99.90 PLN / msc",
+          };
         }
-        return updated;
+        return p;
       });
+      setUserPackages(updated);
+      if (typeof window !== "undefined" && user) {
+        const key = getUserKey(user);
+        localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+      }
       setUpgradingPackage(null);
       if (setMessage) setMessage({ type: "success", text: `🎉 Pomyślnie ulepszono pakiet do wersji ${targetPlan}!` });
     }
@@ -681,8 +683,9 @@ team: [],
     setEditorSubdomain(pkg.subdomain || "iskral");
     setEditorDescription(pkg.description || "Oficjalny sklep streetwear.");
     setEditorLogo(pkg.logoUrl || "");
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_active_store_pkg", JSON.stringify(pkg));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_active_store_${key}`, JSON.stringify(pkg));
     }
     setActiveTab("zarzadzaj-sklepem");
   };
@@ -750,30 +753,30 @@ team: [],
     }
 
     let updatedPkg: UserPackage | null = null;
+    let nextPackages = userPackages;
 
     if (selectedPackageForConfig) {
-      setUserPackages((prev) => {
-        const updated = prev.map((p) => {
-          if (p.id === selectedPackageForConfig.id) {
-            const up: UserPackage = {
-              ...p,
-              name: configStoreName.trim(),
-              storeName: configStoreName.trim(),
-              subdomain: cleanSub,
-              logoUrl: configLogo.trim(),
-              description: configDescription.trim(),
-              isConfigured: true,
-            };
-            updatedPkg = up;
-            return up;
-          }
-          return p;
-        });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+      nextPackages = userPackages.map((p) => {
+        if (p.id === selectedPackageForConfig.id) {
+          const up: UserPackage = {
+            ...p,
+            name: configStoreName.trim(),
+            storeName: configStoreName.trim(),
+            subdomain: cleanSub,
+            logoUrl: configLogo.trim(),
+            description: configDescription.trim(),
+            isConfigured: true,
+          };
+          updatedPkg = up;
+          return up;
         }
-        return updated;
+        return p;
       });
+      setUserPackages(nextPackages);
+      if (typeof window !== "undefined" && user) {
+        const key = getUserKey(user);
+        localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(nextPackages));
+      }
     }
 
     if (createOrUpdateStoreFull) {
@@ -804,8 +807,9 @@ team: [],
     };
 
     setActiveStorePackage(targetStore);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_active_store_pkg", JSON.stringify(targetStore));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_active_store_${key}`, JSON.stringify(targetStore));
     }
     setActiveTab("zarzadzaj-sklepem");
 
@@ -825,25 +829,25 @@ team: [],
     }
     const cleanSub = editorSubdomain.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    setUserPackages((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id === activeStorePackage?.id || p.id === configuredPackage?.id) {
-          return {
-            ...p,
-            name: editorStoreName.trim(),
-            storeName: editorStoreName.trim(),
-            subdomain: cleanSub,
-            logoUrl: editorLogo,
-            description: editorDescription,
-          };
-        }
-        return p;
-      });
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_user_packages_v2", JSON.stringify(updated));
+    const updatedPackages = userPackages.map((p) => {
+      if (p.id === activeStorePackage?.id || p.id === configuredPackage?.id) {
+        return {
+          ...p,
+          name: editorStoreName.trim(),
+          storeName: editorStoreName.trim(),
+          subdomain: cleanSub,
+          logoUrl: editorLogo,
+          description: editorDescription,
+        };
       }
-      return updated;
+      return p;
     });
+    setUserPackages(updatedPackages);
+
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updatedPackages));
+    }
 
     if (activeStorePackage) {
       const updated = {
@@ -855,8 +859,9 @@ team: [],
         description: editorDescription,
       };
       setActiveStorePackage(updated);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("iskra_active_store_pkg", JSON.stringify(updated));
+      if (typeof window !== "undefined" && user) {
+        const key = getUserKey(user);
+        localStorage.setItem(`iskra_active_store_${key}`, JSON.stringify(updated));
       }
     }
 
@@ -1040,8 +1045,9 @@ team: [],
     };
     const updated = [...teamMembers, newMember];
     setTeamMembers(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_team_members", JSON.stringify(updated));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_team_${key}`, JSON.stringify(updated));
     }
     setTeamInviteEmail("");
     if (setMessage) {
@@ -1055,8 +1061,9 @@ team: [],
   const handleRemoveTeamMember = (id: string) => {
     const updated = teamMembers.filter((m) => m.id !== id);
     setTeamMembers(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("iskra_team_members", JSON.stringify(updated));
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_team_${key}`, JSON.stringify(updated));
     }
     if (setMessage) {
       setMessage({ type: "success", text: "Usunięto członka zespołu ze sklepu." });
@@ -3068,30 +3075,38 @@ team: [],
                     </button>
                   </div>
 
-                  <div className="space-y-2.5">
-                    {localOrders.slice(0, 3).map((ord) => (
-                      <div
-                        key={ord.id}
-                        className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3 text-xs font-['Poppins',sans-serif]"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white truncate block">{ord.productTitle}</span>
+                  {localOrders.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {localOrders.slice(0, 3).map((ord) => (
+                        <div
+                          key={ord.id}
+                          className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3 text-xs font-['Poppins',sans-serif]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white truncate block">{ord.productTitle}</span>
+                            </div>
+                            <span className="text-[11px] text-zinc-400 block truncate mt-0.5">{ord.customerEmail}</span>
                           </div>
-                          <span className="text-[11px] text-zinc-400 block truncate mt-0.5">{ord.customerEmail}</span>
+                          <div className="text-right shrink-0">
+                            <span className="font-bold text-white font-mono block">
+                              {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D0FF00]/10 text-[#D0FF00] text-[10px] font-semibold mt-0.5">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Opłacone
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-bold text-white font-mono block">
-                            {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D0FF00]/10 text-[#D0FF00] text-[10px] font-semibold mt-0.5">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Opłacone
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center bg-[#111319] border border-[#1C1E26] rounded-2xl">
+                      <span className="text-xs text-zinc-400 block font-['Poppins',sans-serif]">
+                        Brak zamówień. Kiedy klienci zakupią produkty w Twoim sklepie, pojawią się tutaj.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* SZYBKIE SKRÓTY DO FUNKCJI SKLEPU */}
@@ -3125,14 +3140,14 @@ team: [],
                       className="bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#222530] rounded-[20px] p-5 text-left transition-all cursor-pointer flex items-center gap-4 group"
                     >
                       <div className="w-11 h-11 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400 group-hover:text-[#D0FF00] shrink-0 transition-colors">
-                        <Edit className="w-5 h-5" />
+                        <Palette className="w-5 h-5" />
                       </div>
                       <div>
                         <span className="text-sm font-semibold text-white block font-['Poppins',sans-serif]">
                           Edytor wyglądu
                         </span>
                         <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Poppins',sans-serif]">
-                          Logo, motyw, kolory i social
+                          Logo, kolory i social media
                         </span>
                       </div>
                     </button>
@@ -3181,7 +3196,7 @@ team: [],
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-white font-['Sora',sans-serif]">
-                        Produkty w sklepie
+                        Produkty ({localProducts.length})
                       </h3>
                       <p className="text-xs text-zinc-500 font-['Poppins',sans-serif]">
                         Aktywny asortyment Twojej marki
@@ -3197,34 +3212,52 @@ team: [],
                       + Dodaj
                     </button>
                   </div>
-
-                  <div className="space-y-2.5">
-                    {localProducts.map((prod) => (
-                      <div
-                        key={prod.id}
-                        className="p-3 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center gap-3 text-xs font-['Poppins',sans-serif]"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0">
-                          <img
-                            src={prod.image || prod.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=200"}
-                            alt={prod.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="font-bold text-white block truncate">{prod.name}</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
-                            <span className="font-semibold text-[#D0FF00]">{prod.price}</span>
-                            <span>•</span>
-                            <span>Magazyn: {prod.stock} szt.</span>
+                  {localProducts.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {localProducts.map((prod) => (
+                        <div
+                          key={prod.id}
+                          className="p-3 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center gap-3 text-xs font-['Poppins',sans-serif]"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0">
+                            <img
+                              src={prod.image || prod.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=200"}
+                              alt={prod.name}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-white block truncate">{prod.name}</span>
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
+                              <span className="font-semibold text-[#D0FF00]">{prod.price}</span>
+                              <span>•</span>
+                              <span>Magazyn: {prod.stock} szt.</span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold shrink-0">
+                            {prod.status || "Aktywny"}
+                          </span>
                         </div>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold shrink-0">
-                          {prod.status || "Aktywny"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
+                      <ShoppingBag className="w-8 h-8 text-zinc-600 mx-auto" />
+                      <span className="text-xs text-zinc-400 block font-['Poppins',sans-serif]">
+                        Twój sklep nie posiada jeszcze dodanych produktów.
+                      </span>
+                      <button
+                        onClick={() => {
+                          setProductSubTab("add");
+                          setActiveTab("sklep-produkty");
+                        }}
+                        className="px-3 py-1.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Dodaj pierwszy produkt</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* STAN I KONFIGURACJA SKLEPU */}
@@ -3792,82 +3825,111 @@ team: [],
             ) : (
               /* LISTA PRODUKTÓW W SKLEPIE */
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
-                    <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
-                      <tr>
-                        <th className="p-4">Produkt</th>
-                        <th className="p-4">Cena</th>
-                        <th className="p-4">Typ</th>
-                        <th className="p-4">Magazyn</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4 text-right">Akcje</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#141419]">
-                      {localProducts.map((p) => (
-                        <tr key={p.id} className="hover:bg-[#111319]/50 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] overflow-hidden shrink-0">
-                                <img
-                                  src={p.image || p.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=100"}
-                                  alt={p.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <span className="font-bold text-white block truncate">{p.name}</span>
-                                <span className="text-[11px] text-zinc-500 block truncate">{p.description?.slice(0, 40)}...</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 font-mono font-bold text-white">{p.price}</td>
-                          <td className="p-4 text-zinc-400">{p.type}</td>
-                          <td className="p-4 font-mono text-[#D0FF00] font-bold">{p.stock} szt.</td>
-                          <td className="p-4">
-                            <button
-                              onClick={() => handleToggleProductStatus(p.id)}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                                p.status === "Aktywny"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                  : "bg-zinc-800 text-zinc-400 border border-zinc-700"
-                              }`}
-                            >
-                              {p.status || "Aktywny"}
-                            </button>
-                          </td>
-                          <td className="p-4 text-right space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingProductId(p.id);
-                                setProdName(p.name);
-                                setProdPrice(p.price.replace(" zł", "").replace(" PLN", "").trim());
-                                setProdComparePrice(p.comparePrice?.replace(" zł", "").replace(" PLN", "").trim() || "");
-                                setProdType(p.type as any);
-                                setProdStock(String(p.stock || 50));
-                                setProdDescription(p.description || "");
-                                setProdImages(p.images && p.images.length > 0 ? p.images : [p.image || ""]);
-                                setProductSubTab("add");
-                              }}
-                              className="p-1.5 text-zinc-400 hover:text-white bg-[#111319] hover:bg-[#1A1F2C] border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
-                              title="Edytuj"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProduct(p.id)}
-                              className="p-1.5 text-rose-400 hover:text-rose-300 bg-[#111319] hover:bg-rose-500/10 border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
-                              title="Usuń"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
+                {localProducts.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
+                      <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
+                        <tr>
+                          <th className="p-4">Produkt</th>
+                          <th className="p-4">Cena</th>
+                          <th className="p-4">Typ</th>
+                          <th className="p-4">Magazyn</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4 text-right">Akcje</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-[#141419]">
+                        {localProducts.map((p) => (
+                          <tr key={p.id} className="hover:bg-[#111319]/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] overflow-hidden shrink-0">
+                                  <img
+                                    src={p.image || p.images?.[0] || "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=100"}
+                                    alt={p.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="font-bold text-white block truncate">{p.name}</span>
+                                  <span className="text-[11px] text-zinc-500 block truncate">{p.description?.slice(0, 40)}...</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 font-mono font-bold text-white">{p.price}</td>
+                            <td className="p-4 text-zinc-400">{p.type}</td>
+                            <td className="p-4 font-mono text-[#D0FF00] font-bold">{p.stock} szt.</td>
+                            <td className="p-4">
+                              <button
+                                onClick={() => handleToggleProductStatus(p.id)}
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                                  p.status === "Aktywny"
+                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                                }`}
+                              >
+                                {p.status || "Aktywny"}
+                              </button>
+                            </td>
+                            <td className="p-4 text-right space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingProductId(p.id);
+                                  setProdName(p.name);
+                                  setProdPrice(p.price.replace(" zł", "").replace(" PLN", "").trim());
+                                  setProdComparePrice(p.comparePrice?.replace(" zł", "").replace(" PLN", "").trim() || "");
+                                  setProdType(p.type as any);
+                                  setProdStock(String(p.stock || 50));
+                                  setProdDescription(p.description || "");
+                                  setProdImages(p.images && p.images.length > 0 ? p.images : [p.image || ""]);
+                                  setProductSubTab("add");
+                                }}
+                                className="p-1.5 text-zinc-400 hover:text-white bg-[#111319] hover:bg-[#1A1F2C] border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
+                                title="Edytuj"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProduct(p.id)}
+                                className="p-1.5 text-rose-400 hover:text-rose-300 bg-[#111319] hover:bg-rose-500/10 border border-[#1C1E26] rounded-lg cursor-pointer transition-colors"
+                                title="Usuń"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center space-y-4">
+                    <ShoppingBag className="w-12 h-12 text-zinc-600 mx-auto" />
+                    <div className="space-y-1">
+                      <h3 className="text-base font-bold text-white">Brak produktów w sklepie</h3>
+                      <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                        Twój asortyment jest obecnie pusty. Dodaj pierwszy produkt fizyczny lub cyfrowy, aby klienci mogli go kupić.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingProductId(null);
+                        setProdName("");
+                        setProdPrice("249.00");
+                        setProdComparePrice("319.00");
+                        setProdType("Fizyczny");
+                        setIsClothing(true);
+                        setProdDescription("");
+                        setDigitalFile(null);
+                        setProductSubTab("add");
+                      }}
+                      className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-['Poppins',sans-serif] rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Dodaj pierwszy produkt</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3905,41 +3967,51 @@ team: [],
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
-                  <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
-                    <tr>
-                      <th className="p-3.5">ID & Klient</th>
-                      <th className="p-3.5">Zamówione produkty</th>
-                      <th className="p-3.5">Dostawa / Paczkomat</th>
-                      <th className="p-3.5">Kwota</th>
-                      <th className="p-3.5">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#141419]">
-                    {localOrders.map((ord, idx) => (
-                      <tr key={ord.id} className="hover:bg-[#111319]/50 transition-colors">
-                        <td className="p-3.5">
-                          <span className="font-bold text-white block">#{ord.id}</span>
-                          <span className="text-[11px] text-zinc-400 block">{ord.customerEmail}</span>
-                        </td>
-                        <td className="p-3.5 font-medium text-white">{ord.productTitle}</td>
-                        <td className="p-3.5 text-zinc-400">
-                          {idx % 2 === 0 ? "Paczkomat InPost: KRA01M (Kraków)" : "Wysyłka e-mail (Produkt cyfrowy)"}
-                        </td>
-                        <td className="p-3.5 font-mono font-bold text-white">
-                          {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
-                        </td>
-                        <td className="p-3.5">
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                            Opłacone
-                          </span>
-                        </td>
+              {localOrders.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-['Poppins',sans-serif]">
+                    <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
+                      <tr>
+                        <th className="p-3.5">ID & Klient</th>
+                        <th className="p-3.5">Zamówione produkty</th>
+                        <th className="p-3.5">Dostawa / Paczkomat</th>
+                        <th className="p-3.5">Kwota</th>
+                        <th className="p-3.5">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-[#141419]">
+                      {localOrders.map((ord, idx) => (
+                        <tr key={ord.id} className="hover:bg-[#111319]/50 transition-colors">
+                          <td className="p-3.5">
+                            <span className="font-bold text-white block">#{ord.id}</span>
+                            <span className="text-[11px] text-zinc-400 block">{ord.customerEmail}</span>
+                          </td>
+                          <td className="p-3.5 font-medium text-white">{ord.productTitle}</td>
+                          <td className="p-3.5 text-zinc-400">
+                            {idx % 2 === 0 ? "Paczkomat InPost: KRA01M (Kraków)" : "Wysyłka e-mail (Produkt cyfrowy)"}
+                          </td>
+                          <td className="p-3.5 font-mono font-bold text-white">
+                            {((ord.amountTotalCents || 0) / 100).toFixed(2)} PLN
+                          </td>
+                          <td className="p-3.5">
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                              Opłacone
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-12 text-center space-y-3">
+                  <Package className="w-12 h-12 text-zinc-600 mx-auto" />
+                  <h3 className="text-base font-bold text-white">Brak zamówień do wyświetlenia</h3>
+                  <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                    Kiedy pierwsi klienci dokonają zakupu i opłacą zamówienie przez Stripe / BLIK, pojawią się tutaj wraz z danymi Paczkomatu.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
