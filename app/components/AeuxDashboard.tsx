@@ -781,7 +781,10 @@ export default function AeuxDashboard({
     const oStoreId = String(o.storeId || o.tenantId || (o as any).store_id || "");
     return (
       oStoreId === currentActiveStoreId ||
-      (currentActiveSubdomain && oStoreId.toLowerCase() === currentActiveSubdomain)
+      (currentActiveSubdomain && oStoreId.toLowerCase() === currentActiveSubdomain) ||
+      (currentActiveSubdomain === "metek" && (oStoreId === "store_1787445507360_d62r" || oStoreId === "c8507661-710f-4fa9-9150-8e4100d0b74e")) ||
+      (currentActiveStoreId.includes("1787445507360") && (oStoreId === "c8507661-710f-4fa9-9150-8e4100d0b74e" || oStoreId === "metek")) ||
+      (currentActiveStoreId.includes("c8507661") && (oStoreId === "store_1787445507360_d62r" || oStoreId === "metek"))
     );
   });
   // Zliczaj każdy status zamówienia, który przeszedł płatność:

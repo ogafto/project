@@ -91,23 +91,28 @@ export async function POST(req: NextRequest) {
       store_id: finalStoreId,
       stripe_session_id: stripeSessionId || `manual_${Date.now()}`,
       amount_total_cents: amountTotalCents,
-      total_amount: ((amountTotalCents || 0) / 100).toFixed(2),
+      total_amount: Number(((amountTotalCents || 0) / 100).toFixed(2)),
       status: body.status || "Opłacone",
       customer_email: customerEmail || "klient@iskral.pl",
       customer_name: customerName || null,
       customer_phone: customerPhone || null,
       shipping_address: shippingAddress || null,
       inpost_box: paczkomatCode || null,
-      shipping_details: resolvedShippingDetails,
+      shipping_details: typeof resolvedShippingDetails === 'object' ? JSON.stringify(resolvedShippingDetails) : String(resolvedShippingDetails || ''),
       product_title: productTitle || (resolvedItems[0]?.title) || "Zamówienie w sklepie",
       items: resolvedItems,
       created_at: new Date().toISOString(),
     };
 
-    const { data: orderData, error: orderErr } = await dbClient.from("orders").insert(orderPayload).select();
+    const { data: orderData, error: orderErr } = await dbClient
+      .from("orders")
+      .insert([orderPayload])
+      .select();
 
     if (orderErr) {
-      console.warn("[API /api/stores/order POST error]:", orderErr.message);
+      console.error("[Supabase Order Insert Error]:", orderErr);
+    } else {
+      console.log("[Supabase Order Insert Success]:", orderData);
     }
 
     // 2. Zaktualizuj stan magazynowy i sprzedaż produktu

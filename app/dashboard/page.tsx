@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -10,6 +10,7 @@ import AeuxDashboard from "../components/AeuxDashboard";
 import { X } from "lucide-react";
 
 export default function DashboardPage() {
+  const [mounted, setMounted] = useState(false);
   const {
     user,
     allUsers,
@@ -33,8 +34,12 @@ export default function DashboardPage() {
   } = useAuth();
   const router = useRouter();
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Auto-dismiss Toast notification after 4 seconds
-  React.useEffect(() => {
+  useEffect(() => {
     if (message) {
       const timer = setTimeout(() => {
         setMessage(null);
@@ -43,14 +48,18 @@ export default function DashboardPage() {
     }
   }, [message, setMessage]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('=== DASHBOARD DANE ===');
     console.log('SZUKAM ZAMÓWIEŃ DLA STORE_ID:', activeStore?.id);
     console.log('ZNALEZIONE ZAMÓWIENIA W BAZIE:', activeStore?.orders || []);
   }, [activeStore]);
 
+  if (!mounted) {
+    return <div className="min-h-screen w-full bg-[#0A0B0D]" />;
+  }
+
   return (
-    <div className="min-h-screen w-full bg-[#0A0B0D]">
+    <div className="min-h-screen w-full bg-[#0A0B0D]" suppressHydrationWarning>
       {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #D0FF00) */}
       <AeuxDashboard
         user={user}
