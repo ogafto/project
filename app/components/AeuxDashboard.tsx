@@ -69,7 +69,7 @@ import {
   PlanType,
   OrderRecord,
 } from "../context/AuthContext";
-import { SubscriptionTimer } from "./SubscriptionTimer";
+import { SubscriptionTimer, SubscriptionBadge } from "./SubscriptionBadge";
 
 export interface UserPackage {
   id: string;
@@ -575,13 +575,21 @@ export default function AeuxDashboard({
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState<boolean>(false);
 
   useEffect(() => {
-    const stId = activeStorePackage?.id || currentStore.id;
-    const stSub = activeStorePackage?.subdomain || currentStore.subdomain || "";
-    if ((!stId || stId === "empty_store") && !stSub) return;
+    if (!user) return;
 
     const queryParams = new URLSearchParams();
-    if (stId && stId !== "empty_store") queryParams.set("storeId", stId);
+    if (user.id) queryParams.set("userId", user.id);
+    if (user.email) queryParams.set("userEmail", user.email);
+
+    const stId = activeStorePackage?.id || (currentStore.id !== "empty_store" ? currentStore.id : "");
+    const stSub = activeStorePackage?.subdomain || currentStore.subdomain || "";
+    if (stId) queryParams.set("storeId", stId);
     if (stSub) queryParams.set("subdomain", stSub);
+
+    if (userStores && userStores.length > 0) {
+      const allStoreIds = userStores.map((s) => s.id).filter((id) => id && id !== "empty_store");
+      if (allStoreIds.length > 0) queryParams.set("storeIds", allStoreIds.join(","));
+    }
 
     fetch(`/api/stores/order?${queryParams.toString()}`)
       .then((res) => res.json())
@@ -597,7 +605,7 @@ export default function AeuxDashboard({
               stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
               amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
               totalAmount: o.total_amount || o.totalAmount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-              status: o.status || "unshipped",
+              status: o.status || "Niewysłane",
               customerEmail: o.customer_email || o.customerEmail || shipDet.email || "klient@iskral.pl",
               customerName: o.customer_name || o.customerName || shipDet.name || "",
               customerPhone: o.customer_phone || o.customerPhone || shipDet.phone || "",
@@ -606,7 +614,7 @@ export default function AeuxDashboard({
               paczkomatCode: o.inpost_box || o.paczkomatCode || shipDet.paczkomat || "",
               shippingDetails: shipDet,
               items: Array.isArray(o.items) ? o.items : [],
-              productTitle: o.product_title || o.productTitle || "Zamówienie w sklepie",
+              productTitle: o.product_title || o.productTitle || (Array.isArray(o.items) && o.items[0]?.title) || "Zamówienie w sklepie",
               createdAt: o.created_at || o.createdAt || new Date().toISOString(),
             };
           });
@@ -618,7 +626,7 @@ export default function AeuxDashboard({
         }
       })
       .catch((err) => console.warn("Błąd pobierania zamówień sklepu:", err));
-  }, [activeStorePackage?.id, activeStorePackage?.subdomain, currentStore.id, currentStore.subdomain, activeTab, user?.id]);
+  }, [activeStorePackage?.id, activeStorePackage?.subdomain, currentStore.id, currentStore.subdomain, activeTab, user?.id, user?.email, userStores]);
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     setUpdatingOrderStatus(true);
@@ -2765,9 +2773,8 @@ export default function AeuxDashboard({
               /* DLA UŻYTKOWNIKA Z PAKIETEM: CZYSTA SIATKA KART PAKIETÓW */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userPackages.map((pkg) => {
-                  const expInfo = getRemainingTimeInfo(pkg.expiresAt);
-                  const isExp = expInfo.isExpired;
-                  const remaining = expInfo.text;
+                  const targetDate = pkg.expiresAt ? new Date(pkg.expiresAt).getTime() : 0;
+                  const isExp = isMounted && targetDate > 0 && targetDate - Date.now() <= 0;
 
                   return (
                     <div
@@ -2834,7 +2841,7 @@ export default function AeuxDashboard({
                             Ważność sklepu
                           </span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <SubscriptionTimer expiresAt={pkg.expiresAt} />
+                            <SubscriptionBadge expiresAt={pkg.expiresAt} />
                           </div>
                         </div>
 
@@ -4169,7 +4176,7 @@ export default function AeuxDashboard({
                       Pakiet {activeStorePackage?.planType || "Creator"}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-['Poppins',sans-serif]">
-                      Ważność: <strong className="text-white"><SubscriptionTimer expiresAt={activeStorePackage?.expiresAt} /></strong>
+                      Ważność: <strong className="text-white"><SubscriptionBadge expiresAt={activeStorePackage?.expiresAt} /></strong>
                     </span>
                   </div>
 

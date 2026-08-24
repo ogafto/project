@@ -159,36 +159,67 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const rawStoreId = searchParams.get("tenantId") || searchParams.get("storeId") || searchParams.get("store_id");
+    const rawStoreIds = searchParams.get("storeIds");
     const rawSubdomain = searchParams.get("subdomain");
-
-    if (!rawStoreId && !rawSubdomain) {
-      return NextResponse.json({ success: true, orders: [] });
-    }
+    const rawUserId = searchParams.get("userId") || searchParams.get("ownerId");
+    const rawUserEmail = searchParams.get("userEmail") || searchParams.get("email");
 
     const dbClient: any = supabaseAdmin || supabase;
     if (!dbClient) {
       return NextResponse.json({ success: true, orders: [] });
     }
 
-    const matchingIds = new Set<string>();
+    const matchingStoreIds = new Set<string>();
+
+    // 1. Dodaj przekazane storeId
     if (rawStoreId && rawStoreId !== "empty_store") {
-      matchingIds.add(rawStoreId);
+      rawStoreId.split(",").map((s) => s.trim()).filter(Boolean).forEach((id) => matchingStoreIds.add(id));
+    }
+    if (rawStoreIds) {
+      rawStoreIds.split(",").map((s) => s.trim()).filter(Boolean).forEach((id) => matchingStoreIds.add(id));
     }
     if (rawSubdomain) {
-      matchingIds.add(rawSubdomain);
+      rawSubdomain.split(",").map((s) => s.trim()).filter(Boolean).forEach((sub) => matchingStoreIds.add(sub));
     }
 
-    // Resolve all related store IDs and subdomains
+    // 2. Jeśli przekazano userId lub userEmail, pobierz wszystkie powiązane sklepy
+    try {
+      let resolvedOwnerId = rawUserId;
+      if (!resolvedOwnerId && rawUserEmail) {
+        const { data: prof } = await dbClient
+          .from("profiles")
+          .select("id")
+          .eq("email", rawUserEmail.trim().toLowerCase())
+          .maybeSingle();
+        if (prof?.id) {
+          resolvedOwnerId = prof.id;
+        }
+      }
+
+      if (resolvedOwnerId) {
+        const { data: userStores } = await dbClient
+          .from("stores")
+          .select("id, subdomain")
+          .eq("owner_id", resolvedOwnerId);
+
+        if (userStores && Array.isArray(userStores)) {
+          userStores.forEach((st: any) => {
+            if (st.id) matchingStoreIds.add(st.id);
+            if (st.subdomain) matchingStoreIds.add(st.subdomain);
+          });
+        }
+      }
+    } catch (ownerErr) {
+      console.warn("[API /api/stores/order GET owner resolution warning]:", ownerErr);
+    }
+
+    // 3. Resolve stores matching store IDs or subdomains
     try {
       const orClauses: string[] = [];
-      if (rawStoreId && rawStoreId !== "empty_store") {
-        orClauses.push(`id.eq.${rawStoreId}`);
-        orClauses.push(`subdomain.eq.${rawStoreId}`);
-      }
-      if (rawSubdomain) {
-        orClauses.push(`id.eq.${rawSubdomain}`);
-        orClauses.push(`subdomain.eq.${rawSubdomain}`);
-      }
+      matchingStoreIds.forEach((id) => {
+        orClauses.push(`id.eq.${id}`);
+        orClauses.push(`subdomain.eq.${id}`);
+      });
 
       if (orClauses.length > 0) {
         const { data: stList } = await dbClient
@@ -198,15 +229,18 @@ export async function GET(req: NextRequest) {
 
         if (stList && Array.isArray(stList)) {
           stList.forEach((s: any) => {
-            if (s.id) matchingIds.add(s.id);
-            if (s.subdomain) matchingIds.add(s.subdomain);
+            if (s.id) matchingStoreIds.add(s.id);
+            if (s.subdomain) matchingStoreIds.add(s.subdomain);
           });
         }
       }
-    } catch {}
+    } catch (resolveErr) {
+      console.warn("[API /api/stores/order GET store resolution warning]:", resolveErr);
+    }
 
-    const idList = Array.from(matchingIds);
+    const idList = Array.from(matchingStoreIds).filter((id) => id && id !== "empty_store");
     if (idList.length === 0) {
+      // Jeśli brak filtrów ID, ale jest podany email lub id usera
       return NextResponse.json({ success: true, orders: [] });
     }
 
@@ -217,15 +251,17 @@ export async function GET(req: NextRequest) {
       .select("*")
       .or(orFilter)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error) {
-      console.warn("[API /api/stores/order GET warning]:", error.message);
+      console.warn("[API /api/stores/order GET query warning]:", error.message);
       return NextResponse.json({ success: true, orders: [] });
     }
 
     const safeOrders = (orders || []).map((o: any) => {
       const shipDet = o.shipping_details || {};
+      const resolvedStatus = o.status || "Niewysłane";
+
       return {
         id: o.id,
         tenantId: o.store_id || idList[0],
@@ -233,7 +269,7 @@ export async function GET(req: NextRequest) {
         stripeSessionId: o.stripe_session_id || "",
         amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
         totalAmount: o.total_amount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-        status: o.status || "unshipped",
+        status: resolvedStatus,
         customerEmail: o.customer_email || shipDet.email || "klient@iskral.pl",
         customerName: o.customer_name || shipDet.name || "",
         customerPhone: o.customer_phone || shipDet.phone || "",
@@ -242,7 +278,7 @@ export async function GET(req: NextRequest) {
         paczkomatCode: o.inpost_box || shipDet.paczkomat || "",
         shippingDetails: shipDet,
         items: Array.isArray(o.items) ? o.items : [],
-        productTitle: o.product_title || "Zamówienie w sklepie",
+        productTitle: o.product_title || (Array.isArray(o.items) && o.items[0]?.title) || "Zamówienie w sklepie",
         createdAt: o.created_at || new Date().toISOString(),
       };
     });

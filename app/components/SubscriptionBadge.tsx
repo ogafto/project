@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export function SubscriptionTimer({
+export function SubscriptionBadge({
   expiresAt,
   className,
   onExpireChange,
@@ -52,8 +52,10 @@ export function SubscriptionTimer({
 
   return (
     <span
-      className={`text-xs font-medium font-['Poppins',sans-serif] ${
-        isExpired ? 'text-rose-400 font-bold' : 'text-zinc-300'
+      className={`text-xs font-medium font-['Poppins',sans-serif] px-2 py-0.5 rounded-md ${
+        isExpired
+          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold'
+          : 'text-zinc-300'
       } ${className || ''}`}
     >
       {timeLeft}
@@ -61,5 +63,5 @@ export function SubscriptionTimer({
   );
 }
 
-export { SubscriptionBadge } from './SubscriptionBadge';
-export default SubscriptionTimer;
+export { SubscriptionTimer } from './SubscriptionTimer';
+export default SubscriptionBadge;
