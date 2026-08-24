@@ -183,6 +183,7 @@ export interface StoreConfig {
     privacyPolicy?: string;
     updatedAt?: string;
   };
+  createdAt?: string;
 }
 
 export interface ServicePackage {
@@ -1258,7 +1259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       title: `Pakiet ${plan} #${packageNumber}`,
       planType: plan,
       status: "Nieprzypisany",
-      expiresAt: `${new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toLocaleDateString("pl-PL")}, godz. 00:02`,
+      expiresAt: expiresAt,
       createdAt: new Date().toISOString(),
     };
 
@@ -1317,6 +1318,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
     setMessage({ type: "success", text: "Zaktualizowano profil i dane konta!" });
+
+    // Trwały zapis do bazy Supabase przez API
+    fetch("/api/auth/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: updatedUser }),
+    }).catch((err) => console.warn("[updateUserProfile sync error]:", err));
+
+    if (supabase) {
+      const dbPayload: any = {};
+      if (data.name !== undefined) dbPayload.name = data.name;
+      if (data.avatarUrl !== undefined) dbPayload.avatar_url = data.avatarUrl;
+      if (data.role !== undefined) dbPayload.role = data.role;
+      if (data.plan !== undefined) dbPayload.plan = data.plan;
+      if (Object.keys(dbPayload).length > 0) {
+        supabase.from("profiles").update(dbPayload).eq("email", user.email).then(() => {});
+      }
+    }
   };
 
   const createStripeCheckout = async (params: {

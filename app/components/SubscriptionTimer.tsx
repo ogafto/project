@@ -11,14 +11,31 @@ export function SubscriptionTimer({
   className?: string;
   onExpireChange?: (isExpired: boolean) => void;
 }) {
-  const [timeLeft, setTimeLeft] = useState<string>('Ładowanie...');
+  const [mounted, setMounted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>('');
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    if (!expiresAt) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!expiresAt) {
+      setTimeLeft('Wygasł');
+      setIsExpired(true);
+      if (onExpireChange) onExpireChange(true);
+      return;
+    }
 
     const targetDate = new Date(expiresAt).getTime();
-    if (isNaN(targetDate)) return;
+    if (isNaN(targetDate) || targetDate <= 0) {
+      setTimeLeft('Wygasł');
+      setIsExpired(true);
+      if (onExpireChange) onExpireChange(true);
+      return;
+    }
 
     const updateCounter = () => {
       const now = Date.now();
@@ -33,32 +50,44 @@ export function SubscriptionTimer({
 
       setIsExpired(false);
       if (onExpireChange) onExpireChange(false);
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-      const pad = (n: number) => String(n).padStart(2, '0');
+      const totalSec = Math.floor(diff / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      const seconds = totalSec % 60;
 
       if (days > 0) {
-        setTimeLeft(`${days} ${days === 1 ? 'dzień' : 'dni'}, ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+        const dayLabel = days === 1 ? 'dzień' : 'dni';
+        setTimeLeft(`Pozostało: ${days} ${dayLabel}, ${hours} godz. ${minutes} min. ${seconds} sek.`);
       } else {
-        setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+        setTimeLeft(`Pozostało: ${hours} godz. ${minutes} min. ${seconds} sek.`);
       }
     };
 
     updateCounter();
     const interval = setInterval(updateCounter, 1000);
     return () => clearInterval(interval);
-  }, [expiresAt, onExpireChange]);
+  }, [mounted, expiresAt, onExpireChange]);
+
+  if (!mounted) {
+    return (
+      <span className={`text-xs font-semibold font-mono tracking-tight text-zinc-400 ${className || ''}`} suppressHydrationWarning>
+        Ładowanie...
+      </span>
+    );
+  }
 
   return (
     <span
-      className={`text-xs font-semibold font-mono tracking-tight ${
-        isExpired ? 'px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold' : 'text-white'
+      className={`text-xs font-semibold font-mono tracking-tight transition-colors ${
+        isExpired
+          ? 'px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold'
+          : 'text-white'
       } ${className || ''}`}
+      suppressHydrationWarning
     >
-      {timeLeft}
+      {timeLeft || 'Ładowanie...'}
     </span>
   );
 }

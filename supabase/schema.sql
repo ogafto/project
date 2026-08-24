@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS public.stores (
     plan_status TEXT DEFAULT 'trialing' CHECK (plan_status IN ('trialing', 'active', 'past_due', 'suspended', 'canceled')),
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'canceled')),
     is_active BOOLEAN DEFAULT TRUE,
+    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days'),
     trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
     grace_period_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '44 days'),
     social_links JSONB DEFAULT '{}'::jsonb,

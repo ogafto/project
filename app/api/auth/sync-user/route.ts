@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    // 3. Dla każdego sklepu pobierz produkty
+    // 3. Dla każdego sklepu pobierz produkty i zamówienia
     const storesWithDetails = await Promise.all(
       userStores.map(async (st: any) => {
         const { data: prods } = await dbClient
@@ -94,16 +94,30 @@ export async function GET(req: NextRequest) {
           .or(`store_id.eq.${st.id},store_id.eq.${st.subdomain}`)
           .order("created_at", { ascending: false });
 
-        const mappedOrders = (storeOrders || []).map((o: any) => ({
-          id: o.id || `ord_${Date.now()}`,
-          tenantId: o.store_id || st.id,
-          storeId: o.store_id || st.id,
-          stripeSessionId: o.stripe_session_id || "",
-          amountTotalCents: o.amount_total_cents || 0,
-          status: o.status || "paid",
-          customerEmail: o.customer_email || "klient@iskral.pl",
-          createdAt: o.created_at || new Date().toISOString(),
-        }));
+        const mappedOrders = (storeOrders || []).map((o: any) => {
+          const shipDet = o.shipping_details || {};
+          return {
+            id: o.id || `ord_${Date.now()}`,
+            tenantId: o.store_id || st.id,
+            storeId: o.store_id || st.id,
+            stripeSessionId: o.stripe_session_id || "",
+            amountTotalCents: o.amount_total_cents || Math.round((Number(o.total_amount) || 0) * 100),
+            totalAmount: o.total_amount || ((o.amount_total_cents || 0) / 100).toFixed(2),
+            status: o.status || "Opłacone",
+            customerEmail: o.customer_email || shipDet.email || "klient@iskral.pl",
+            customerName: o.customer_name || shipDet.name || "",
+            customerPhone: o.customer_phone || shipDet.phone || "",
+            shippingType: o.shipping_type || shipDet.method || (o.inpost_box ? "paczkomat" : o.shipping_address ? "courier" : "digital"),
+            shippingAddress: o.shipping_address || shipDet.address || "",
+            paczkomatCode: o.inpost_box || shipDet.paczkomat || "",
+            shippingDetails: shipDet,
+            items: Array.isArray(o.items) ? o.items : [],
+            productTitle: o.product_title || (Array.isArray(o.items) && o.items[0]?.title) || "Zamówienie w sklepie",
+            createdAt: o.created_at || new Date().toISOString(),
+          };
+        });
+
+        const storeExpiresAt = st.expires_at || st.trial_ends_at || null;
 
         return {
           id: st.id,
@@ -120,6 +134,10 @@ export async function GET(req: NextRequest) {
           planStatus: st.plan_status || "active",
           status: st.status || "active",
           isActive: st.is_active,
+          expiresAt: storeExpiresAt,
+          planExpiresAt: storeExpiresAt,
+          trialEndsAt: st.trial_ends_at || null,
+          gracePeriodEndsAt: st.grace_period_ends_at || null,
           visitsCount: typeof st.visits_count === "number" ? st.visits_count : 0,
           balanceCents: typeof st.balance_cents === "number" ? st.balance_cents : 0,
           socials: st.social_links || {},
@@ -207,7 +225,7 @@ export async function POST(req: NextRequest) {
     const profilePayload: any = {
       email: cleanEmail,
       name: incomingUser.name || cleanEmail.split("@")[0],
-      avatar_url: incomingUser.avatarUrl || incomingUser.image || null,
+      avatar_url: incomingUser.avatarUrl !== undefined ? incomingUser.avatarUrl : incomingUser.image || null,
       role: isSuperadmin ? "superadmin" : (incomingUser.role || "user"),
       plan: incomingUser.plan || "Start",
       account_status: incomingUser.accountStatus || "Active",
@@ -270,7 +288,7 @@ export async function POST(req: NextRequest) {
         const cleanSub = st.subdomain.toLowerCase().replace(/[^a-z0-9]/g, "");
         if (!cleanSub) continue;
 
-        const storePayload = {
+        const storePayload: any = {
           id: st.id || `store_${cleanSub}`,
           owner_id: resolvedOwnerId,
           name: st.name || "Mój Sklep",
@@ -294,6 +312,13 @@ export async function POST(req: NextRequest) {
           },
           drop_config: st.dropConfig || { enabled: false },
         };
+
+        if (st.expiresAt || st.planExpiresAt || st.expires_at) {
+          storePayload.expires_at = st.expiresAt || st.planExpiresAt || st.expires_at;
+        }
+        if (st.trialEndsAt || st.trial_ends_at) {
+          storePayload.trial_ends_at = st.trialEndsAt || st.trial_ends_at;
+        }
 
         await dbClient.from("stores").upsert(storePayload, { onConflict: "subdomain" });
 

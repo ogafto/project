@@ -139,6 +139,9 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         domainVerified: Boolean(store.domain_verified || store.domainVerified),
         planType: store.plan_type || store.planType || "Start",
         planStatus: store.plan_status || store.planStatus || "active",
+        planExpiresAt: store.expires_at || store.planExpiresAt || store.trial_ends_at || null,
+        expiresAt: store.expires_at || store.planExpiresAt || store.trial_ends_at || null,
+        trialEndsAt: store.trial_ends_at || null,
         socials: store.social_links || store.socials || {},
         dropConfig: store.drop_config || store.dropConfig || { enabled: false },
       };
@@ -374,6 +377,8 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
       plan_status: storeData.planStatus || "active",
       status: storeData.status || "active",
       is_active: storeData.is_active !== false && storeData.status !== "deleted",
+      expires_at: storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at || undefined,
+      trial_ends_at: storeData.trialEndsAt || storeData.trial_ends_at || undefined,
       social_links: storeData.socials || {},
       theme_config: { template: storeData.template, accentColor: storeData.accentColor, ownerEmail: storeData.ownerEmail },
       drop_config: storeData.dropConfig || { enabled: false },

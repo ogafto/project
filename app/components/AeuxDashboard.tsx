@@ -262,6 +262,24 @@ export default function AeuxDashboard({
     return (u.id || (u.email ? u.email.toLowerCase().replace(/[^a-z0-9]/g, "_") : "guest"));
   };
 
+  const getUserInitials = (name?: string, email?: string) => {
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (email && email.trim()) {
+      const clean = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+      if (clean.length >= 2) {
+        return clean.slice(0, 2).toUpperCase();
+      }
+      return clean.toUpperCase() || "US";
+    }
+    return "US";
+  };
+
   const userKey = getUserKey(user);
 
   // Profile Management State
@@ -395,18 +413,21 @@ export default function AeuxDashboard({
 
     // 3. Check currentUser's stores
     if (currentStores && currentStores.length > 0) {
-      return currentStores.map((st, idx) => ({
-        id: st.id || `pkg_${idx + 1000}`,
-        number: 1000 + idx,
-        name: st.name || `Sklep #${1000 + idx}`,
-        planType: (st.planType as any) || "Creator",
-        price: "29.99 zł / msc",
-        expiresAt: st.planExpiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
-        storeName: st.name,
-        subdomain: st.subdomain,
-        logoUrl: st.logoUrl || "",
-        isConfigured: Boolean(st.subdomain),
-      }));
+      return currentStores.map((st, idx) => {
+        const storeExp = st.planExpiresAt || (st as any).expires_at || (st as any).expiresAt || st.trialEndsAt || (st as any).trial_ends_at;
+        return {
+          id: st.id || `pkg_${idx + 1000}`,
+          number: 1000 + idx,
+          name: st.name || `Sklep #${1000 + idx}`,
+          planType: (st.planType as any) || "Creator",
+          price: "29.99 zł / msc",
+          expiresAt: storeExp || (st.createdAt ? new Date(new Date(st.createdAt).getTime() + 30 * 86400000).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString()),
+          storeName: st.name,
+          subdomain: st.subdomain,
+          logoUrl: st.logoUrl || "",
+          isConfigured: Boolean(st.subdomain),
+        };
+      });
     }
 
     // 4. Return empty array for a brand new user who has not bought or activated any package yet
@@ -869,13 +890,14 @@ export default function AeuxDashboard({
 
               // 1. Zbuduj pakiety ze sklepów zapisanych w bazie Supabase
               serverStores.forEach((st: any, idx: number) => {
+                const storeExp = st.planExpiresAt || st.expires_at || st.expiresAt || st.trialEndsAt || st.trial_ends_at;
                 serverPkgs.push({
                   id: st.id || `pkg_${idx + 1000}`,
                   number: 1000 + idx,
                   name: st.name || `Sklep #${1000 + idx}`,
                   planType: (st.planType as any) || "Creator",
                   price: "29.99 zł / msc",
-                  expiresAt: st.planExpiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+                  expiresAt: storeExp || (st.createdAt ? new Date(new Date(st.createdAt).getTime() + 30 * 86400000).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString()),
                   storeName: st.name,
                   subdomain: st.subdomain,
                   logoUrl: st.logoUrl || "",
@@ -2571,6 +2593,17 @@ export default function AeuxDashboard({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Licznik ważności pakietu w nagłówku */}
+            {((activeStorePackage && activeStorePackage.expiresAt) || (userPackages.length > 0 && userPackages[0].expiresAt) || currentStore?.planExpiresAt) && (
+              <div className="hidden md:flex items-center gap-2 h-[54px] px-4 rounded-[18px] bg-[#0D0E12] border border-[#17181F] text-xs font-sans">
+                <Clock className="w-4 h-4 text-[#D0FF00] shrink-0" />
+                <SubscriptionTimer
+                  expiresAt={activeStorePackage?.expiresAt || (userPackages.length > 0 ? userPackages[0].expiresAt : currentStore?.planExpiresAt)}
+                  className="text-xs"
+                />
+              </div>
+            )}
+
             {/* Dzwonek powiadomień */}
             <div className="relative">
               <button
@@ -2655,11 +2688,11 @@ export default function AeuxDashboard({
                     <img
                       src={user.avatarUrl}
                       alt="Profil"
-                      className="w-9 h-9 rounded-full object-cover border border-zinc-700"
+                      className="w-9 h-9 rounded-full object-cover border border-[#262835]"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-white">
-                      {user?.name?.slice(0, 2).toUpperCase() || 'US'}
+                    <div className="w-9 h-9 rounded-full bg-[#181B24] border border-[#262835] flex items-center justify-center text-xs font-bold text-[#D0FF00]">
+                      {getUserInitials(user?.name, user?.email)}
                     </div>
                   )}
                 </div>
@@ -2677,12 +2710,27 @@ export default function AeuxDashboard({
               {/* Dropdown menu konta */}
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-1.5 z-50 shadow-2xl animate-in fade-in">
-                  <div className="px-3 py-2.5 border-b border-[#17181F] mb-1">
-                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-sans">
-                      {isAdmin ? "Administrator" : "Konto Klienta"}
-                    </span>
-                    <span className="text-xs font-semibold text-white block truncate font-sans">{user?.name || "Jan Kowalski"}</span>
-                    <span className="text-[10px] text-zinc-500 block truncate font-sans">{user?.email || "jan.kowalski@gmail.com"}</span>
+                  <div className="px-3 py-2.5 border-b border-[#17181F] mb-1 flex items-center gap-2.5">
+                    <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                      {user?.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt="Profil"
+                          className="w-8 h-8 rounded-full object-cover border border-[#262835]"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-[#181B24] border border-[#262835] flex items-center justify-center text-[10px] font-bold text-[#D0FF00]">
+                          {getUserInitials(user?.name, user?.email)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-sans">
+                        {isAdmin ? "Administrator" : "Konto Klienta"}
+                      </span>
+                      <span className="text-xs font-semibold text-white block truncate font-sans">{user?.name || "Jan Kowalski"}</span>
+                      <span className="text-[10px] text-zinc-500 block truncate font-sans">{user?.email || "jan.kowalski@gmail.com"}</span>
+                    </div>
                   </div>
 
                   <button
@@ -3644,8 +3692,8 @@ export default function AeuxDashboard({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-xl font-bold text-white">
-                        {profileName ? profileName.slice(0, 2).toUpperCase() : (user?.name?.slice(0, 2).toUpperCase() || "US")}
+                      <div className="w-full h-full bg-[#181B24] flex items-center justify-center text-xl font-bold text-[#D0FF00]">
+                        {getUserInitials(profileName || user?.name, user?.email)}
                       </div>
                     )}
                   </div>

@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const dbClient: any = supabaseAdmin || supabase;
 
-    // Lookup product to extract exact store_id
+    // 1. Lookup product to extract exact store_id if not explicitly provided
     let productStoreId = "";
     if (productId && dbClient) {
       try {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Resolve exact store ID from database (by ID or subdomain)
+    // 2. Resolve exact store ID from database (by ID or subdomain)
     let targetStoreId = String(rawStoreId || productStoreId || "");
     if (dbClient && targetStoreId) {
       try {
@@ -55,9 +55,9 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
-    const finalStoreId = String(productStoreId || targetStoreId || rawStoreId);
+    const finalStoreId = String(targetStoreId || productStoreId || rawStoreId);
 
-    console.log('=== PROCES ZAKUPU ===');
+    console.log('=== PROCES ZAKUPU (API /api/stores/order) ===');
     console.log('ID PRODUKTU:', productId);
     console.log('STORE ID Z PRODUKTU:', productStoreId);
     console.log('STORE ID AKTYWNEGO SKLEPU:', targetStoreId);
@@ -67,11 +67,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Brak wymaganych danych zamówienia." }, { status: 400 });
     }
 
-    if (!dbClient) {
-      return NextResponse.json({ success: true, warning: "Brak połączenia z bazą, zapisano lokalnie." });
-    }
-
-    // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id oraz danymi klienta i wysyłki
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const resolvedShippingDetails = shippingDetails || {
       method: shippingType || (paczkomatCode ? "paczkomat" : shippingAddress ? "courier" : "digital"),
@@ -104,84 +99,96 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    const { data: orderData, error: orderErr } = await dbClient
-      .from("orders")
-      .insert([orderPayload])
-      .select();
+    let orderResult = orderPayload;
 
-    if (orderErr) {
-      console.error("[Supabase Order Insert Error]:", orderErr);
-    } else {
-      console.log("[Supabase Order Insert Success]:", orderData);
-    }
+    if (dbClient) {
+      // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id powiązanym z ID aktualnego sklepu
+      const { data: orderData, error: orderErr } = await dbClient
+        .from("orders")
+        .insert([orderPayload])
+        .select();
 
-    // 2. Zaktualizuj stan magazynowy i sprzedaż produktu
-    if (productId) {
-      try {
-        const { data: prod } = await dbClient.from("products").select("stock, sales").eq("id", productId).maybeSingle();
-        if (prod) {
-          const currentStock = typeof prod.stock === "number" ? prod.stock : 50;
-          const newStock = Math.max(0, currentStock - 1);
-          await dbClient
-            .from("products")
-            .update({
-              stock: newStock,
-              sales: (prod.sales || 0) + 1,
-              status: newStock <= 0 ? "Wyprzedany" : "Aktywny",
-            })
-            .eq("id", productId);
+      if (orderErr) {
+        console.error("[Supabase Order Insert Error]:", orderErr);
+      } else if (orderData && orderData.length > 0) {
+        console.log("[Supabase Order Insert Success]:", orderData[0]);
+        orderResult = orderData[0];
+      }
+
+      // 2. Zaktualizuj stan magazynowy (odejmij 1 szt. lub ilość z koszyka) i zwiększ sprzedaż produktu
+      const purchasedQty = resolvedItems[0]?.quantity || 1;
+      if (productId) {
+        try {
+          const { data: prod } = await dbClient.from("products").select("stock, sales").eq("id", productId).maybeSingle();
+          if (prod) {
+            const currentStock = typeof prod.stock === "number" ? prod.stock : 50;
+            const newStock = Math.max(0, currentStock - purchasedQty);
+            await dbClient
+              .from("products")
+              .update({
+                stock: newStock,
+                sales: (prod.sales || 0) + purchasedQty,
+                status: newStock <= 0 ? "Wyprzedany" : "Aktywny",
+              })
+              .eq("id", productId);
+          }
+        } catch (prodErr) {
+          console.warn("[API /api/stores/order update product stock error]:", prodErr);
         }
-      } catch (prodErr) {
-        console.warn("[API /api/stores/order update product stock error]:", prodErr);
       }
-    }
 
-    // 3. Zwiększ balance_cents w tabeli stores
-    try {
-      const { data: st } = await dbClient.from("stores").select("balance_cents").eq("id", targetStoreId).maybeSingle();
-      if (st) {
-        await dbClient
-          .from("stores")
-          .update({
-            balance_cents: (st.balance_cents || 0) + amountTotalCents,
-          })
-          .eq("id", targetStoreId);
-      }
-    } catch (storeErr) {
-      console.warn("[API /api/stores/order update balance error]:", storeErr);
-    }
-
-    // 4. Wysyłanie e-maila transakcyjnego z potwierdzeniem zakupu do klienta
-    if (customerEmail && customerEmail.includes("@")) {
+      // 3. Zwiększ balance_cents w tabeli stores dla aktualnego sklepu
       try {
-        let storeName = "IskraL Sklep";
-        const { data: stInfo } = await dbClient
+        const { data: st } = await dbClient
           .from("stores")
-          .select("name")
-          .or(`id.eq.${targetStoreId},subdomain.eq.${targetStoreId}`)
+          .select("balance_cents")
+          .or(`id.eq.${finalStoreId},subdomain.eq.${finalStoreId}`)
           .maybeSingle();
-        if (stInfo?.name) storeName = stInfo.name;
 
-        const amountFormatted = `${((amountTotalCents || 0) / 100).toFixed(2)} PLN`;
+        if (st) {
+          await dbClient
+            .from("stores")
+            .update({
+              balance_cents: (st.balance_cents || 0) + amountTotalCents,
+            })
+            .or(`id.eq.${finalStoreId},subdomain.eq.${finalStoreId}`);
+        }
+      } catch (storeErr) {
+        console.warn("[API /api/stores/order update balance error]:", storeErr);
+      }
 
-        sendCustomerOrderConfirmationEmail({
-          to: customerEmail,
-          storeName,
-          orderId,
-          amountTotalFormatted: amountFormatted,
-          items: resolvedItems,
-          productTitle: productTitle || resolvedItems[0]?.title,
-          shippingMethod: resolvedShippingDetails?.method,
-          paczkomatCode: paczkomatCode || resolvedShippingDetails?.paczkomat,
-          shippingAddress: shippingAddress || resolvedShippingDetails?.address,
-          customerName: customerName || resolvedShippingDetails?.name,
-        }).catch((emailErr) => console.error("[Order API Email Error]:", emailErr));
-      } catch (emailEx) {
-        console.error("[Order API Email Exception]:", emailEx);
+      // 4. Wysyłanie e-maila transakcyjnego z potwierdzeniem zakupu do klienta
+      if (customerEmail && customerEmail.includes("@")) {
+        try {
+          let storeName = "IskraL Sklep";
+          const { data: stInfo } = await dbClient
+            .from("stores")
+            .select("name")
+            .or(`id.eq.${finalStoreId},subdomain.eq.${finalStoreId}`)
+            .maybeSingle();
+          if (stInfo?.name) storeName = stInfo.name;
+
+          const amountFormatted = `${((amountTotalCents || 0) / 100).toFixed(2)} PLN`;
+
+          sendCustomerOrderConfirmationEmail({
+            to: customerEmail,
+            storeName,
+            orderId,
+            amountTotalFormatted: amountFormatted,
+            items: resolvedItems,
+            productTitle: productTitle || resolvedItems[0]?.title,
+            shippingMethod: resolvedShippingDetails?.method,
+            paczkomatCode: paczkomatCode || resolvedShippingDetails?.paczkomat,
+            shippingAddress: shippingAddress || resolvedShippingDetails?.address,
+            customerName: customerName || resolvedShippingDetails?.name,
+          }).catch((emailErr) => console.error("[Order API Email Error]:", emailErr));
+        } catch (emailEx) {
+          console.error("[Order API Email Exception]:", emailEx);
+        }
       }
     }
 
-    return NextResponse.json({ success: true, order: orderData ? orderData[0] : orderPayload, orderId });
+    return NextResponse.json({ success: true, order: orderResult, orderId });
   } catch (err: any) {
     console.error("[API /api/stores/order Error]:", err);
     return NextResponse.json({ success: false, error: err.message || "Błąd zapisu zamówienia" }, { status: 500 });
@@ -205,7 +212,7 @@ export async function GET(req: NextRequest) {
     const matchingStoreIds = new Set<string>();
 
     // 1. Dodaj przekazane storeId
-    if (rawStoreId && rawStoreId !== "empty_store") {
+    if (rawStoreId && rawStoreId !== "empty_store" && rawStoreId !== "wszystkie") {
       rawStoreId.split(",").map((s) => s.trim()).filter(Boolean).forEach((id) => matchingStoreIds.add(id));
     }
     if (rawStoreIds) {
@@ -271,13 +278,12 @@ export async function GET(req: NextRequest) {
       console.warn("[API /api/stores/order GET store resolution warning]:", resolveErr);
     }
 
-    const idList = Array.from(matchingStoreIds).filter((id) => id && id !== "empty_store");
+    const idList = Array.from(matchingStoreIds).filter((id) => id && id !== "empty_store" && id !== "wszystkie");
     if (idList.length === 0) {
-      // Jeśli brak filtrów ID, ale jest podany email lub id usera
       return NextResponse.json({ success: true, orders: [] });
     }
 
-    // Pobieramy zamówienia bezpośrednio po wszystkich powiązanych identyfikatorach
+    // Pobieramy zamówienia po wszystkich powiązanych identyfikatorach sklepu
     const orFilter = idList.map((id) => `store_id.eq.${id}`).join(",");
     const { data: orders, error } = await dbClient
       .from("orders")
@@ -292,8 +298,8 @@ export async function GET(req: NextRequest) {
     }
 
     const safeOrders = (orders || []).map((o: any) => {
-      const shipDet = o.shipping_details || {};
-      const resolvedStatus = o.status || "Niewysłane";
+      const shipDet = typeof o.shipping_details === 'string' ? (() => { try { return JSON.parse(o.shipping_details); } catch { return {}; } })() : (o.shipping_details || {});
+      const resolvedStatus = o.status || "Opłacone";
 
       return {
         id: o.id,
@@ -322,4 +328,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, orders: [] });
   }
 }
-

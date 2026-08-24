@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
               plan_type: rawPlanName,
               plan_status: "active",
               is_active: true,
+              expires_at: expirationDate.toISOString(),
               trial_ends_at: expirationDate.toISOString(),
               updated_at: new Date().toISOString(),
             })
