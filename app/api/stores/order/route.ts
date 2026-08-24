@@ -5,7 +5,7 @@ import { sendCustomerOrderConfirmationEmail } from "@/lib/email";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const rawStoreId = body.storeId || body.tenantId || body.store_id;
+    let rawStoreId = body.storeId || body.tenantId || body.store_id;
     const {
       productId,
       productTitle,
@@ -21,16 +21,33 @@ export async function POST(req: NextRequest) {
       stripeSessionId,
     } = body;
 
+    const dbClient: any = supabaseAdmin || supabase;
+
+    // Hard fallback: if rawStoreId is missing, lookup store_id from the purchased product
+    if ((!rawStoreId || rawStoreId === "empty_store" || rawStoreId === "demo-tenant") && productId && dbClient) {
+      try {
+        const { data: prodRow } = await dbClient
+          .from("products")
+          .select("store_id")
+          .eq("id", productId)
+          .maybeSingle();
+        if (prodRow?.store_id) {
+          rawStoreId = prodRow.store_id;
+        }
+      } catch (prodErr) {
+        console.warn("[API /api/stores/order] Failed to lookup store_id from product:", prodErr);
+      }
+    }
+
     if (!rawStoreId || !amountTotalCents) {
       return NextResponse.json({ success: false, error: "Brak wymaganych danych zamówienia." }, { status: 400 });
     }
 
-    const dbClient: any = supabaseAdmin || supabase;
     if (!dbClient) {
       return NextResponse.json({ success: true, warning: "Brak połączenia z bazą, zapisano lokalnie." });
     }
 
-    // Resolve exact store ID from database
+    // Resolve exact store ID from database (by ID or subdomain)
     let targetStoreId = rawStoreId;
     try {
       const { data: st } = await dbClient

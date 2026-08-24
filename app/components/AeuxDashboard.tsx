@@ -760,15 +760,22 @@ export default function AeuxDashboard({
   const [domainStatus, setDomainStatus] = useState<"none" | "checking" | "verified">(currentStore.domainVerified ? "verified" : "none");
 
   const storeOrders = Array.isArray(localOrders) ? localOrders : [];
-  const validOrders = storeOrders.filter((o) => o.status !== "cancelled" && o.status !== "refunded" && o.status !== "failed");
-  const totalRevenuePLN = (
-    validOrders.reduce((acc, o) => {
-      const cents = typeof o.amountTotalCents === "number" && o.amountTotalCents > 0
-        ? o.amountTotalCents
-        : Math.round((parseFloat(String(o.totalAmount || 0).replace(",", ".")) || 0) * 100);
-      return acc + (isNaN(cents) ? 0 : cents);
-    }, 0) / 100
-  ).toFixed(2);
+  // Zliczaj każdy status zamówienia, który przeszedł płatność:
+  const validOrders = storeOrders.filter((o) => {
+    const s = (o.status || "").trim().toLowerCase();
+    return (
+      ["opłacone", "niewysłane", "wysłane", "zrealizowane", "paid", "shipped", "completed", "unshipped"].includes(s) ||
+      (!["cancelled", "refunded", "failed", "anulowane", "zwrócone"].includes(s))
+    );
+  });
+  const storeRevenue = validOrders.reduce((sum, order) => {
+    const cents =
+      typeof order.amountTotalCents === "number" && order.amountTotalCents > 0
+        ? order.amountTotalCents
+        : Math.round((parseFloat(String(order.totalAmount || (order as any).total || 0).replace(",", ".")) || 0) * 100);
+    return sum + (isNaN(cents) ? 0 : cents);
+  }, 0) / 100;
+  const totalRevenuePLN = storeRevenue.toFixed(2);
   const totalOrdersCount = validOrders.length;
 
   // Sync state whenever the active user changes (Login/Logout/Switch)

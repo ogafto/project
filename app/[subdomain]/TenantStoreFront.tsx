@@ -724,8 +724,8 @@ export function TenantStoreFront({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantId: store?.id || `t_${subdomain}`,
-          storeId: store?.id || `t_${subdomain}`,
+          tenantId: store?.id || (firstItem as any)?.storeId || `t_${subdomain}`,
+          storeId: store?.id || (firstItem as any)?.storeId || `t_${subdomain}`,
           productId: firstItem?.id || "order_prod",
           title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
           priceCents: cartTotalCents,
@@ -749,13 +749,14 @@ export function TenantStoreFront({
       }
 
       // Fallback local / manual order recording
-      if (store?.id && firstItem?.id) {
+      const fallbackStoreId = store?.id || (firstItem as any)?.storeId || subdomain;
+      if (fallbackStoreId && firstItem?.id) {
         fetch("/api/stores/order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            storeId: store.id,
-            tenantId: store.id,
+            storeId: fallbackStoreId,
+            tenantId: fallbackStoreId,
             productId: firstItem.id,
             productTitle: firstItem.name,
             customerEmail: checkoutEmail.trim(),

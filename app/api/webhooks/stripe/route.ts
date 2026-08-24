@@ -36,24 +36,40 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as any;
     const metadata = session.metadata || {};
-    const rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
+    let rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
+    const productId = metadata.product_id || metadata.productId;
     let resolvedStoreId = rawStoreId;
 
-    if (dbAdmin && rawStoreId) {
-      try {
-        const { data: stRow } = await dbAdmin
-          .from("stores")
-          .select("id")
-          .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
-          .maybeSingle();
-        if (stRow?.id) {
-          resolvedStoreId = stRow.id;
-        }
-      } catch {}
+    if (dbAdmin) {
+      if ((!rawStoreId || rawStoreId === "demo-tenant" || rawStoreId === "empty_store") && productId) {
+        try {
+          const { data: prodRow } = await dbAdmin
+            .from("products")
+            .select("store_id")
+            .eq("id", productId)
+            .maybeSingle();
+          if (prodRow?.store_id) {
+            rawStoreId = prodRow.store_id;
+            resolvedStoreId = prodRow.store_id;
+          }
+        } catch {}
+      }
+
+      if (rawStoreId) {
+        try {
+          const { data: stRow } = await dbAdmin
+            .from("stores")
+            .select("id")
+            .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
+            .maybeSingle();
+          if (stRow?.id) {
+            resolvedStoreId = stRow.id;
+          }
+        } catch {}
+      }
     }
 
     const tenantId = resolvedStoreId || rawStoreId;
-    const productId = metadata.product_id || metadata.productId;
     const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10) || 1);
     const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
     const rawPlanName = metadata.plan_type || "Creator";

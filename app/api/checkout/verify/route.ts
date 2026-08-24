@@ -61,20 +61,37 @@ async function processStripeSession(sessionId: string) {
   const dbAdmin: any = supabaseAdmin || supabase;
   const metadata = session.metadata || {};
   const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
-  const rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
+  let rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
+  const productId = metadata.productId || metadata.product_id;
   let resolvedStoreId = rawStoreId;
 
-  if (dbAdmin && rawStoreId) {
-    try {
-      const { data: stRow } = await dbAdmin
-        .from("stores")
-        .select("id")
-        .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
-        .maybeSingle();
-      if (stRow?.id) {
-        resolvedStoreId = stRow.id;
-      }
-    } catch {}
+  if (dbAdmin) {
+    if ((!rawStoreId || rawStoreId === "demo-tenant" || rawStoreId === "empty_store") && productId) {
+      try {
+        const { data: prodRow } = await dbAdmin
+          .from("products")
+          .select("store_id")
+          .eq("id", productId)
+          .maybeSingle();
+        if (prodRow?.store_id) {
+          rawStoreId = prodRow.store_id;
+          resolvedStoreId = prodRow.store_id;
+        }
+      } catch {}
+    }
+
+    if (rawStoreId) {
+      try {
+        const { data: stRow } = await dbAdmin
+          .from("stores")
+          .select("id")
+          .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
+          .maybeSingle();
+        if (stRow?.id) {
+          resolvedStoreId = stRow.id;
+        }
+      } catch {}
+    }
   }
 
   const tenantId = resolvedStoreId || rawStoreId;

@@ -267,12 +267,13 @@ export function StoreClientView({
 
     try {
       const firstItem = cart[0]?.product;
+      const effectiveStoreId = store?.id || (firstItem as any)?.storeId || subdomain;
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeId: store?.id || subdomain,
-          tenantId: store?.id || subdomain,
+          storeId: effectiveStoreId,
+          tenantId: effectiveStoreId,
           productId: firstItem?.id || "order_prod",
           title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
           priceCents: cartTotalCents,
@@ -289,12 +290,12 @@ export function StoreClientView({
       }
 
       // Fallback manual order recording
-      if (store?.id && firstItem?.id) {
+      if (effectiveStoreId && firstItem?.id) {
         fetch("/api/stores/order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            storeId: store.id,
+            storeId: effectiveStoreId,
             productId: firstItem.id,
             customerEmail: "klient@iskral.pl",
             amountTotalCents: cartTotalCents,
