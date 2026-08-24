@@ -1354,10 +1354,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newOrder: OrderRecord = {
       id: `ord_${Date.now()}`,
       tenantId,
+      storeId: tenantId,
       stripeSessionId: `cs_test_${Date.now()}`,
       amountTotalCents: amountCents,
-      status: "paid",
-      customerEmail,
+      totalAmount: (amountCents / 100).toFixed(2),
+      status: "Opłacone",
+      customerEmail: customerEmail || "klient@iskral.pl",
       createdAt: new Date().toISOString(),
     };
 
@@ -1388,6 +1390,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
+    setUser((prev) => {
+      if (!prev) return prev;
+      const uStores = prev.stores || (prev.store ? [prev.store] : []);
+      const updatedStores = uStores.map((s) => {
+        if (s.id === tenantId || s.subdomain === tenantId) {
+          const updatedProds = (s.products || []).map((p) => {
+            if (p.id === productId && p.stock > 0) {
+              return { ...p, stock: p.stock - 1, sales: p.sales + 1 };
+            }
+            return p;
+          });
+          return {
+            ...s,
+            products: updatedProds,
+            orders: [newOrder, ...(s.orders || [])],
+            balanceCents: (s.balanceCents || 0) + amountCents,
+          };
+        }
+        return s;
+      });
+      return { ...prev, stores: updatedStores, store: updatedStores[0] };
+    });
+
+    // Twardy bezpośredni zapis do API / bazy
+    fetch("/api/stores/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeId: tenantId,
+        tenantId,
+        productId,
+        customerEmail: customerEmail || "klient@iskral.pl",
+        amountTotalCents: amountCents,
+        status: "Opłacone",
+      }),
+    }).catch(() => {});
+
     setRecentNotifications((prev) => [
       `💳 Nowa sprzedaż Stripe Checkout! ${(amountCents / 100).toFixed(2)} PLN w sklepie ${tenantId}`,
       ...prev,
@@ -1395,7 +1434,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setMessage({
       type: "success",
-      text: `🎉 Zakceptowano opłacone zamówienie Stripe: ${(amountCents / 100).toFixed(2)} PLN! Statystyki zostały zaktualizowane.`,
+      text: `🎉 Zaakceptowano opłacone zamówienie: ${(amountCents / 100).toFixed(2)} PLN! Statystyki zostały zaktualizowane.`,
     });
   };
 

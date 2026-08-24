@@ -595,38 +595,46 @@ export default function AeuxDashboard({
       .then((res) => res.json())
       .then((data) => {
         const orderList = Array.isArray(data?.orders) ? data.orders : [];
-        if (orderList.length > 0) {
-          const mapped: OrderRecord[] = orderList.map((o: any) => {
-            const shipDet = o.shippingDetails || o.shipping_details || {};
-            return {
-              id: o.id || `ord_${Date.now()}`,
-              tenantId: o.store_id || o.storeId || o.tenant_id || stId,
-              storeId: o.store_id || o.storeId || stId,
-              stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
-              amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
-              totalAmount: o.total_amount || o.totalAmount || ((o.amount_total_cents || 0) / 100).toFixed(2),
-              status: o.status || "Niewysłane",
-              customerEmail: o.customer_email || o.customerEmail || shipDet.email || "klient@iskral.pl",
-              customerName: o.customer_name || o.customerName || shipDet.name || "",
-              customerPhone: o.customer_phone || o.customerPhone || shipDet.phone || "",
-              shippingType: o.shipping_type || o.shippingType || shipDet.method || (o.inpost_box || o.paczkomatCode ? "paczkomat" : o.shipping_address || o.shippingAddress ? "courier" : "digital"),
-              shippingAddress: o.shipping_address || o.shippingAddress || shipDet.address || "",
-              paczkomatCode: o.inpost_box || o.paczkomatCode || shipDet.paczkomat || "",
-              shippingDetails: shipDet,
-              items: Array.isArray(o.items) ? o.items : [],
-              productTitle: o.product_title || o.productTitle || (Array.isArray(o.items) && o.items[0]?.title) || "Zamówienie w sklepie",
-              createdAt: o.created_at || o.createdAt || new Date().toISOString(),
-            };
-          });
-          setLocalOrders(mapped);
+        const mapped: OrderRecord[] = orderList.map((o: any) => {
+          const shipDet = o.shippingDetails || o.shipping_details || {};
+          return {
+            id: o.id || `ord_${Date.now()}`,
+            tenantId: o.store_id || o.storeId || o.tenant_id || stId,
+            storeId: o.store_id || o.storeId || stId,
+            stripeSessionId: o.stripe_session_id || o.stripeSessionId || "",
+            amountTotalCents: o.amount_total_cents || o.amountTotalCents || Math.round((Number(o.total_amount) || 0) * 100),
+            totalAmount: o.total_amount || o.totalAmount || ((o.amount_total_cents || 0) / 100).toFixed(2),
+            status: o.status || "Opłacone",
+            customerEmail: o.customer_email || o.customerEmail || shipDet.email || "klient@iskral.pl",
+            customerName: o.customer_name || o.customerName || shipDet.name || "",
+            customerPhone: o.customer_phone || o.customerPhone || shipDet.phone || "",
+            shippingType: o.shipping_type || o.shippingType || shipDet.method || (o.inpost_box || o.paczkomatCode ? "paczkomat" : o.shipping_address || o.shippingAddress ? "courier" : "digital"),
+            shippingAddress: o.shipping_address || o.shippingAddress || shipDet.address || "",
+            paczkomatCode: o.inpost_box || o.paczkomatCode || shipDet.paczkomat || "",
+            shippingDetails: shipDet,
+            items: Array.isArray(o.items) ? o.items : [],
+            productTitle: o.product_title || o.productTitle || (Array.isArray(o.items) && o.items[0]?.title) || "Zamówienie w sklepie",
+            createdAt: o.created_at || o.createdAt || new Date().toISOString(),
+          };
+        });
+
+        setLocalOrders((prevOrders) => {
+          const existingMap = new Map<string, OrderRecord>();
+          (currentStore.orders || []).forEach((o) => o && o.id && existingMap.set(o.id, o));
+          prevOrders.forEach((o) => o && o.id && existingMap.set(o.id, o));
+          mapped.forEach((o) => o && o.id && existingMap.set(o.id, o));
+          const combined = Array.from(existingMap.values()).sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
           if (typeof window !== "undefined" && user) {
             const key = getUserKey(user);
-            localStorage.setItem(`iskra_orders_${key}`, JSON.stringify(mapped));
+            localStorage.setItem(`iskra_orders_${key}`, JSON.stringify(combined));
           }
-        }
+          return combined;
+        });
       })
       .catch((err) => console.warn("Błąd pobierania zamówień sklepu:", err));
-  }, [activeStorePackage?.id, activeStorePackage?.subdomain, currentStore.id, currentStore.subdomain, activeTab, user?.id, user?.email, userStores]);
+  }, [activeStorePackage?.id, activeStorePackage?.subdomain, currentStore.id, currentStore.subdomain, currentStore.orders, activeTab, user?.id, user?.email, userStores]);
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     setUpdatingOrderStatus(true);
