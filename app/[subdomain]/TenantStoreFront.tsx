@@ -712,6 +712,16 @@ export function TenantStoreFront({
 
     try {
       const firstItem = cart[0]?.product;
+      const productStoreId = (firstItem as any)?.storeId || (firstItem as any)?.store_id || "";
+      const currentStoreId = store?.id || "";
+      const resolvedStoreId = String(productStoreId || currentStoreId || subdomain);
+
+      console.log('=== PROCES ZAKUPU ===');
+      console.log('ID PRODUKTU:', firstItem?.id);
+      console.log('STORE ID Z PRODUKTU:', productStoreId);
+      console.log('STORE ID AKTYWNEGO SKLEPU:', currentStoreId);
+      console.log('TWORZENIE REKORDU ZAMÓWIENIA DLA STORE_ID:', resolvedStoreId);
+
       const itemsPayload = cart.map((i) => ({
         productId: i.product.id,
         title: i.product.name,
@@ -724,8 +734,8 @@ export function TenantStoreFront({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantId: store?.id || (firstItem as any)?.storeId || `t_${subdomain}`,
-          storeId: store?.id || (firstItem as any)?.storeId || `t_${subdomain}`,
+          tenantId: resolvedStoreId,
+          storeId: resolvedStoreId,
           productId: firstItem?.id || "order_prod",
           title: `${storeName} - Zamówienie (${cart.length} przedm.)`,
           priceCents: cartTotalCents,

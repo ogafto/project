@@ -591,10 +591,16 @@ export default function AeuxDashboard({
       if (allStoreIds.length > 0) queryParams.set("storeIds", allStoreIds.join(","));
     }
 
+    const targetLookupStoreId = String(stId || stSub || user?.id || "wszystkie");
+
     fetch(`/api/stores/order?${queryParams.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         const orderList = Array.isArray(data?.orders) ? data.orders : [];
+        console.log('=== DASHBOARD DANE ===');
+        console.log('SZUKAM ZAMÓWIEŃ DLA STORE_ID:', targetLookupStoreId);
+        console.log('ZNALEZIONE ZAMÓWIENIA W BAZIE:', orderList);
+
         const mapped: OrderRecord[] = orderList.map((o: any) => {
           const shipDet = o.shippingDetails || o.shipping_details || {};
           return {
@@ -767,7 +773,17 @@ export default function AeuxDashboard({
   const [customDomainInput, setCustomDomainInput] = useState(currentStore.customDomain || "");
   const [domainStatus, setDomainStatus] = useState<"none" | "checking" | "verified">(currentStore.domainVerified ? "verified" : "none");
 
-  const storeOrders = Array.isArray(localOrders) ? localOrders : [];
+  const currentActiveStoreId = String(activeStorePackage?.id || activeStore?.id || currentStore?.id || "");
+  const currentActiveSubdomain = String(activeStorePackage?.subdomain || activeStore?.subdomain || currentStore?.subdomain || "").toLowerCase();
+
+  const storeOrders = (Array.isArray(localOrders) ? localOrders : []).filter((o) => {
+    if (!currentActiveStoreId || currentActiveStoreId === "empty_store" || currentActiveStoreId === "wszystkie") return true;
+    const oStoreId = String(o.storeId || o.tenantId || (o as any).store_id || "");
+    return (
+      oStoreId === currentActiveStoreId ||
+      (currentActiveSubdomain && oStoreId.toLowerCase() === currentActiveSubdomain)
+    );
+  });
   // Zliczaj każdy status zamówienia, który przeszedł płatność:
   const validOrders = storeOrders.filter((o) => {
     const s = (o.status || "").trim().toLowerCase();

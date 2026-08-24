@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
     }
 
     const tenantId = resolvedStoreId || rawStoreId;
+
+    console.log('=== PROCES ZAKUPU (Stripe Webhook) ===');
+    console.log('ID PRODUKTU:', productId);
+    console.log('STORE ID Z PRODUKTU:', rawStoreId);
+    console.log('STORE ID AKTYWNEGO SKLEPU:', resolvedStoreId);
+    console.log('TWORZENIE REKORDU ZAMÓWIENIA DLA STORE_ID:', tenantId);
     const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10) || 1);
     const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
     const rawPlanName = metadata.plan_type || "Creator";

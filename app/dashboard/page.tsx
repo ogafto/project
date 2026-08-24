@@ -43,6 +43,12 @@ export default function DashboardPage() {
     }
   }, [message, setMessage]);
 
+  React.useEffect(() => {
+    console.log('=== DASHBOARD DANE ===');
+    console.log('SZUKAM ZAMÓWIEŃ DLA STORE_ID:', activeStore?.id);
+    console.log('ZNALEZIONE ZAMÓWIENIA W BAZIE:', activeStore?.orders || []);
+  }, [activeStore]);
+
   return (
     <div className="min-h-screen w-full bg-[#0A0B0D]">
       {/* GLÓWNY DASHBOARD PLATFORMY TWORZENIA SKLEPÓW (POLSKI INTERFEJS & DARK THEME Z #D0FF00) */}

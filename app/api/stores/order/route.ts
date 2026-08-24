@@ -23,42 +23,53 @@ export async function POST(req: NextRequest) {
 
     const dbClient: any = supabaseAdmin || supabase;
 
-    // Hard fallback: if rawStoreId is missing, lookup store_id from the purchased product
-    if ((!rawStoreId || rawStoreId === "empty_store" || rawStoreId === "demo-tenant") && productId && dbClient) {
+    // Lookup product to extract exact store_id
+    let productStoreId = "";
+    if (productId && dbClient) {
       try {
         const { data: prodRow } = await dbClient
           .from("products")
-          .select("store_id")
+          .select("id, store_id, name, price")
           .eq("id", productId)
           .maybeSingle();
         if (prodRow?.store_id) {
-          rawStoreId = prodRow.store_id;
+          productStoreId = String(prodRow.store_id);
         }
       } catch (prodErr) {
         console.warn("[API /api/stores/order] Failed to lookup store_id from product:", prodErr);
       }
     }
 
-    if (!rawStoreId || !amountTotalCents) {
+    // Resolve exact store ID from database (by ID or subdomain)
+    let targetStoreId = String(rawStoreId || productStoreId || "");
+    if (dbClient && targetStoreId) {
+      try {
+        const { data: st } = await dbClient
+          .from("stores")
+          .select("id")
+          .or(`id.eq.${targetStoreId},subdomain.eq.${targetStoreId}`)
+          .maybeSingle();
+        if (st?.id) {
+          targetStoreId = String(st.id);
+        }
+      } catch {}
+    }
+
+    const finalStoreId = String(productStoreId || targetStoreId || rawStoreId);
+
+    console.log('=== PROCES ZAKUPU ===');
+    console.log('ID PRODUKTU:', productId);
+    console.log('STORE ID Z PRODUKTU:', productStoreId);
+    console.log('STORE ID AKTYWNEGO SKLEPU:', targetStoreId);
+    console.log('TWORZENIE REKORDU ZAMÓWIENIA DLA STORE_ID:', finalStoreId);
+
+    if (!finalStoreId || !amountTotalCents) {
       return NextResponse.json({ success: false, error: "Brak wymaganych danych zamówienia." }, { status: 400 });
     }
 
     if (!dbClient) {
       return NextResponse.json({ success: true, warning: "Brak połączenia z bazą, zapisano lokalnie." });
     }
-
-    // Resolve exact store ID from database (by ID or subdomain)
-    let targetStoreId = rawStoreId;
-    try {
-      const { data: st } = await dbClient
-        .from("stores")
-        .select("id")
-        .or(`id.eq.${rawStoreId},subdomain.eq.${rawStoreId}`)
-        .maybeSingle();
-      if (st?.id) {
-        targetStoreId = st.id;
-      }
-    } catch {}
 
     // 1. Zapisz rekord zamówienia z poprawnym kluczem store_id oraz danymi klienta i wysyłki
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -77,11 +88,11 @@ export async function POST(req: NextRequest) {
 
     const orderPayload: any = {
       id: orderId,
-      store_id: targetStoreId,
+      store_id: finalStoreId,
       stripe_session_id: stripeSessionId || `manual_${Date.now()}`,
       amount_total_cents: amountTotalCents,
       total_amount: ((amountTotalCents || 0) / 100).toFixed(2),
-      status: body.status || "Niewysłane",
+      status: body.status || "Opłacone",
       customer_email: customerEmail || "klient@iskral.pl",
       customer_name: customerName || null,
       customer_phone: customerPhone || null,

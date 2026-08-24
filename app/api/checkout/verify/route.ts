@@ -95,6 +95,13 @@ async function processStripeSession(sessionId: string) {
   }
 
   const tenantId = resolvedStoreId || rawStoreId;
+
+  console.log('=== PROCES ZAKUPU (Checkout Verify) ===');
+  console.log('ID PRODUKTU:', productId);
+  console.log('STORE ID Z PRODUKTU:', rawStoreId);
+  console.log('STORE ID AKTYWNEGO SKLEPU:', resolvedStoreId);
+  console.log('TWORZENIE REKORDU ZAMÓWIENIA DLA STORE_ID:', tenantId);
+
   const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 24900);
   const customerEmail = session.customer_details?.email || metadata.customerEmail || metadata.customer_email || session.customer_email || "klient@iskral.pl";
 
