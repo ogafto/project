@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       packageId,
     } = body;
 
-    const resolvedTenantId = storeId || tenantId;
+    let resolvedTenantId = storeId || tenantId || "";
 
     const origin = req.headers.get("origin") || req.headers.get("referer") || "http://localhost:3000";
     const cleanOrigin = origin.replace(/\/$/, "");
@@ -53,18 +53,33 @@ export async function POST(req: NextRequest) {
 
     let finalUnitAmountCents = Number(priceCents || 0);
 
-    // If it's a store product, lookup real price in Supabase to guarantee 100% price integrity
-    if (!isPlan && productId) {
-      const dbClient: any = supabaseAdmin || supabase;
-      if (dbClient) {
-        try {
+    const dbClient: any = supabaseAdmin || supabase;
+    if (dbClient) {
+      try {
+        // Resolve store ID from database if provided as subdomain or missing
+        if (resolvedTenantId) {
+          const { data: stRow } = await dbClient
+            .from("stores")
+            .select("id")
+            .or(`id.eq.${resolvedTenantId},subdomain.eq.${resolvedTenantId}`)
+            .maybeSingle();
+          if (stRow?.id) {
+            resolvedTenantId = stRow.id;
+          }
+        }
+
+        // If it's a store product, lookup real price & store_id in Supabase to guarantee 100% price & store integrity
+        if (!isPlan && productId) {
           const { data: dbProd } = await dbClient
             .from("products")
-            .select("name, price, price_cents")
+            .select("name, price, price_cents, store_id")
             .eq("id", productId)
             .maybeSingle();
 
           if (dbProd) {
+            if (dbProd.store_id && (!resolvedTenantId || resolvedTenantId === "demo-tenant")) {
+              resolvedTenantId = dbProd.store_id;
+            }
             if (typeof dbProd.price_cents === "number" && dbProd.price_cents > 0) {
               finalUnitAmountCents = dbProd.price_cents;
             } else if (dbProd.price) {
@@ -78,9 +93,9 @@ export async function POST(req: NextRequest) {
               }
             }
           }
-        } catch (dbErr) {
-          console.warn("[Checkout API] Product lookup warning:", dbErr);
         }
+      } catch (dbErr) {
+        console.warn("[Checkout API] Store and product lookup warning:", dbErr);
       }
     }
 
