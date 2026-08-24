@@ -359,10 +359,10 @@ export function StoreClientView({
             <span>Nadchodzący Drop • Premiera wkrótce</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white mb-4 font-['Bricolage_Grotesque',sans-serif]">
+          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white mb-4 font-sans">
             {storeName}
           </h1>
-          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-10 leading-relaxed font-['Bricolage_Grotesque',sans-serif]">
+          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-10 leading-relaxed font-sans">
             {store?.description || "Przygotuj się na unikalny drop. Bądź gotowy w dniu premiery."}
           </p>
 
@@ -425,7 +425,7 @@ export function StoreClientView({
       {/* Announcement Bar */}
       {announcement && (
         <div
-          className="relative z-20 w-full py-2.5 px-4 text-center text-xs font-black tracking-wide shadow-md font-['Bricolage_Grotesque',sans-serif]"
+          className="relative z-20 w-full py-2.5 px-4 text-center text-xs font-black tracking-wide shadow-md font-sans"
           style={{
             backgroundColor: accentColor,
             color: accentColor === "#D0FF00" ? "#000" : "#FFF",
@@ -459,8 +459,8 @@ export function StoreClientView({
             </div>
           )}
           <div>
-            <h1 className="text-xl font-bold tracking-tight font-['Bricolage_Grotesque',sans-serif]">{storeName}</h1>
-            <span className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+            <h1 className="text-xl font-bold tracking-tight font-sans">{storeName}</h1>
+            <span className="text-xs text-zinc-400 font-sans">
               {store?.description ? store.description.slice(0, 45) : "Oficjalny sklep internetowy"}
             </span>
           </div>
@@ -529,10 +529,10 @@ export function StoreClientView({
               <Sparkles className="w-3.5 h-3.5" style={{ color: accentColor }} />
               <span>Oryginalna Kolekcja • Bezpieczne Płatności Stripe & BLIK</span>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white font-['Bricolage_Grotesque',sans-serif]">
+            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white font-sans">
               {storeName}
             </h2>
-            <p className="text-sm sm:text-base text-zinc-400 font-['Bricolage_Grotesque',sans-serif] leading-relaxed">
+            <p className="text-sm sm:text-base text-zinc-400 font-sans leading-relaxed">
               {store?.description || "Witaj w naszym sklepie. Przeglądaj dostępne produkty i zamawiaj z błyskawiczną realizacją."}
             </p>
           </div>
@@ -575,13 +575,13 @@ export function StoreClientView({
         {filteredProducts.length === 0 ? (
           <div className="p-16 text-center bg-[#14151A]/60 border border-white/10 rounded-3xl space-y-4">
             <ShoppingBag className="w-12 h-12 text-zinc-600 mx-auto" />
-            <h3 className="text-lg font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Brak produktów w tej kategorii</h3>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto font-['Bricolage_Grotesque',sans-serif]">
+            <h3 className="text-lg font-bold text-white font-sans">Brak produktów w tej kategorii</h3>
+            <p className="text-xs text-zinc-400 max-w-md mx-auto font-sans">
               Właściciel sklepu przygotowuje nowe artykuły. Sprawdź ponownie za chwilę lub wybierz inną kategorię.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-['Bricolage_Grotesque',sans-serif]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
             {filteredProducts.map((prod) => {
               if (!prod) return null;
 
@@ -641,7 +641,7 @@ export function StoreClientView({
                         setSelectedProductModal(prod);
                         setActiveModalImageIdx(0);
                       }}
-                      className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                      className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-sans"
                     >
                       {prod.name}
                     </h3>
@@ -761,7 +761,7 @@ export function StoreClientView({
               <X className="w-5 h-5" />
             </button>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 font-['Bricolage_Grotesque',sans-serif]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 font-sans">
               {/* Left Column: Gallery */}
               <div className="space-y-3">
                 {(() => {
@@ -813,7 +813,7 @@ export function StoreClientView({
               <div className="flex flex-col justify-between space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-sans">
                       {selectedProductModal.name}
                     </h2>
                     <div className="mt-2 flex items-center gap-3">
@@ -938,12 +938,12 @@ export function StoreClientView({
       {/* CART DRAWER */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-sans">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" style={{ color: accentColor }} />
-                  <h3 className="font-bold text-base text-white font-['Bricolage_Grotesque',sans-serif]">
+                  <h3 className="font-bold text-base text-white font-sans">
                     Twój Koszyk ({totalCartItemsCount})
                   </h3>
                 </div>
@@ -981,7 +981,7 @@ export function StoreClientView({
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate font-['Bricolage_Grotesque',sans-serif]">
+                          <h4 className="text-xs font-bold text-white truncate font-sans">
                             {item.product?.name}
                           </h4>
                           {item.selectedVariant && (
@@ -1063,10 +1063,10 @@ export function StoreClientView({
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+              <h3 className="text-xl font-bold text-white font-sans">
                 Dziękujemy za zamówienie!
               </h3>
-              <p className="text-xs text-zinc-400 mt-2 font-['Bricolage_Grotesque',sans-serif] leading-relaxed">
+              <p className="text-xs text-zinc-400 mt-2 font-sans leading-relaxed">
                 Płatność przez Stripe została zaksięgowana. Potwierdzenie oraz szczegóły wysłaliśmy na Twój adres e-mail.
               </p>
             </div>

@@ -16,7 +16,7 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex flex-col items-center justify-center p-6 font-['Bricolage_Grotesque',sans-serif] relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#0A0B0D] text-white flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#D0FF00]/5 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="relative z-10 max-w-md w-full bg-[#111319]/90 border border-[#1C1E26] rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl">

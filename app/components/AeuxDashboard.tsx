@@ -1990,7 +1990,7 @@ export default function AeuxDashboard({
                   <div className="mb-4">
                     <button
                       onClick={() => setActiveTab("pulpit")}
-                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white font-['Bricolage_Grotesque',sans-serif]"
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white font-sans"
                     >
                       <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
                       <span>Wszystkie pakiety</span>
@@ -2004,7 +2004,7 @@ export default function AeuxDashboard({
                         setActiveStorePackage(null);
                         setActiveTab("pulpit");
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-sans"
                     >
                       <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
                       <span>Wszystkie pakiety</span>
@@ -2026,7 +2026,7 @@ export default function AeuxDashboard({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white block truncate font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-xs font-bold text-white block truncate font-sans">
                           {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                         </span>
                         <span className="text-[10px] text-[#D0FF00] block truncate font-mono font-medium">
@@ -2036,11 +2036,11 @@ export default function AeuxDashboard({
                     </div>
                   </div>
 
-                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-['Bricolage_Grotesque',sans-serif]">
+                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-sans">
                     FUNKCJE SKLEPU
                   </div>
 
-                  <nav className="flex flex-col gap-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <nav className="flex flex-col gap-1 font-sans">
                     <button
                       onClick={() => setActiveTab("zarzadzaj-sklepem")}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs font-medium ${
@@ -2135,11 +2135,11 @@ export default function AeuxDashboard({
                 </>
               ) : (
                 <>
-                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Bricolage_Grotesque',sans-serif]">
+                  <div className="text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-sans">
                     GŁÓWNE
                   </div>
 
-                  <nav className="flex flex-col gap-2 font-['Bricolage_Grotesque',sans-serif]">
+                  <nav className="flex flex-col gap-2 font-sans">
                     <button
                       onClick={() => setActiveTab("pulpit")}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
@@ -2180,7 +2180,7 @@ export default function AeuxDashboard({
               )}
             </div>
 
-            <div className="flex flex-col gap-2 pt-6 border-t border-[#141419] font-['Bricolage_Grotesque',sans-serif]">
+            <div className="flex flex-col gap-2 pt-6 border-t border-[#141419] font-sans">
               <button
                 onClick={() => setActiveTab("profil")}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
@@ -2234,7 +2234,7 @@ export default function AeuxDashboard({
                     setActiveStorePackage(null);
                     setActiveTab("pulpit");
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-[#0D0E12] hover:bg-[#151720] border border-[#17181F] rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all cursor-pointer font-sans"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-[#D0FF00]" />
                   <span>Wszystkie pakiety</span>
@@ -2256,7 +2256,7 @@ export default function AeuxDashboard({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-bold text-white block truncate font-['Bricolage_Grotesque',sans-serif]">
+                    <span className="text-xs font-bold text-white block truncate font-sans">
                       {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                     </span>
                     <span className="text-[10px] text-[#D0FF00] block truncate font-mono font-medium">
@@ -2267,12 +2267,12 @@ export default function AeuxDashboard({
               </div>
 
               {/* SEKCJA FUNKCJE */}
-              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-['Bricolage_Grotesque',sans-serif]">
+              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[12px] font-sans">
                 FUNKCJE
               </div>
 
               {/* MENU FUNKCJI SKLEPU */}
-              <nav className="flex flex-col space-y-[2px] font-['Bricolage_Grotesque',sans-serif]">
+              <nav className="flex flex-col space-y-[2px] font-sans">
                 {/* Pulpit */}
                 <button
                   onClick={() => setActiveTab("zarzadzaj-sklepem")}
@@ -2397,12 +2397,12 @@ export default function AeuxDashboard({
           ) : (
             <>
               {/* SEKCJA GŁÓWNE */}
-              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-['Bricolage_Grotesque',sans-serif]">
+              <div className="px-[48px] text-[12px] font-medium text-[#333333] select-none text-left tracking-wider uppercase mb-[16px] font-sans">
                 GŁÓWNE
               </div>
 
               {/* MENU GŁÓWNE */}
-              <nav className="flex flex-col font-['Bricolage_Grotesque',sans-serif]">
+              <nav className="flex flex-col font-sans">
                 <button
                   onClick={() => setActiveTab("pulpit")}
                   className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
@@ -2477,7 +2477,7 @@ export default function AeuxDashboard({
         </div>
 
         {/* 4. DOLNA SEKCJA SIDEBARU */}
-        <div className="flex flex-col pb-[24px] font-['Bricolage_Grotesque',sans-serif]">
+        <div className="flex flex-col pb-[24px] font-sans">
           <button
             onClick={() => setActiveTab("profil")}
             className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
@@ -2525,7 +2525,7 @@ export default function AeuxDashboard({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-['Bricolage_Grotesque',sans-serif]">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-sans">
                 {activeTab === "pulpit" && "Strona główna"}
                 {activeTab === "produkty" && "Sklep"}
                 {activeTab === "kreator" && "Szablony"}
@@ -2547,7 +2547,7 @@ export default function AeuxDashboard({
                 {activeTab === "ustawienia" && "Ustawienia Konta"}
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif]">
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-sans">
               {activeTab === "pulpit" && "Zarządzaj swoimi pakietami i sklepami internetowymi w jednym miejscu."}
               {activeTab === "produkty" && "Wybierz pakiet dla swojej marki lub zarządzaj aktywnymi subskrypcjami."}
               {activeTab === "kreator" && "Wybierz gotowy motyw wizualny dla swojego sklepu."}
@@ -2586,7 +2586,7 @@ export default function AeuxDashboard({
 
               {/* Dropdown powiadomień */}
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-[#0D0E12]/95 backdrop-blur-2xl border border-[#17181F] rounded-[22px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 animate-in fade-in space-y-3 font-['Bricolage_Grotesque',sans-serif]">
+                <div className="absolute right-0 mt-2 w-80 bg-[#0D0E12]/95 backdrop-blur-2xl border border-[#17181F] rounded-[22px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50 animate-in fade-in space-y-3 font-sans">
                   <div className="flex items-center justify-between border-b border-[#17181F] pb-2.5 px-1">
                     <span className="text-xs font-bold text-white tracking-wide">
                       Powiadomienia ({notificationsList.length})
@@ -2664,10 +2664,10 @@ export default function AeuxDashboard({
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-xs sm:text-[13px] font-semibold text-white block leading-tight truncate font-sans">
                     {user?.name || "Użytkownik"}
                   </span>
-                  <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-[11px] text-zinc-500 block truncate font-normal leading-tight mt-0.5 font-sans">
                     {user?.email || "konto@iskral.pl"}
                   </span>
                 </div>
@@ -2678,11 +2678,11 @@ export default function AeuxDashboard({
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-1.5 z-50 shadow-2xl animate-in fade-in">
                   <div className="px-3 py-2.5 border-b border-[#17181F] mb-1">
-                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-['Bricolage_Grotesque',sans-serif]">
+                    <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-sans">
                       {isAdmin ? "Administrator" : "Konto Klienta"}
                     </span>
-                    <span className="text-xs font-semibold text-white block truncate font-['Bricolage_Grotesque',sans-serif]">{user?.name || "Jan Kowalski"}</span>
-                    <span className="text-[10px] text-zinc-500 block truncate font-['Bricolage_Grotesque',sans-serif]">{user?.email || "jan.kowalski@gmail.com"}</span>
+                    <span className="text-xs font-semibold text-white block truncate font-sans">{user?.name || "Jan Kowalski"}</span>
+                    <span className="text-[10px] text-zinc-500 block truncate font-sans">{user?.email || "jan.kowalski@gmail.com"}</span>
                   </div>
 
                   <button
@@ -2690,7 +2690,7 @@ export default function AeuxDashboard({
                       setActiveTab("profil");
                       setIsUserMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
                   >
                     <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Twój profil</span>
@@ -2701,7 +2701,7 @@ export default function AeuxDashboard({
                       setActiveTab("ustawienia");
                       setIsUserMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
                   >
                     <Settings className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Ustawienia konta</span>
@@ -2711,7 +2711,7 @@ export default function AeuxDashboard({
                     <Link
                       href="/admin"
                       onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full text-left px-3 py-2 text-xs font-medium text-[#D0FF00] hover:bg-[#D0FF00]/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                      className="w-full text-left px-3 py-2 text-xs font-medium text-[#D0FF00] hover:bg-[#D0FF00]/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
                     >
                       <Shield className="w-3.5 h-3.5 text-[#D0FF00]" />
                       <span>Panel Administratora</span>
@@ -2726,7 +2726,7 @@ export default function AeuxDashboard({
                         logout();
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
                     >
                       <LogOut className="w-3.5 h-3.5 text-rose-400" />
                       <span>Wyloguj się</span>
@@ -2753,10 +2753,10 @@ export default function AeuxDashboard({
                     <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
                       <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
                     </div>
-                    <h2 className="text-xl font-bold text-white tracking-tight font-['Bricolage_Grotesque',sans-serif]">
+                    <h2 className="text-xl font-bold text-white tracking-tight font-sans">
                       Nie posiadasz żadnego pakietu
                     </h2>
-                    <p className="text-sm text-zinc-400 leading-relaxed font-['Bricolage_Grotesque',sans-serif]">
+                    <p className="text-sm text-zinc-400 leading-relaxed font-sans">
                       Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
                     </p>
                   </div>
@@ -2764,7 +2764,7 @@ export default function AeuxDashboard({
                   <div className="pt-7">
                     <button
                       onClick={() => setActiveTab("produkty")}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Przejdź dalej</span>
                       <ArrowUpRight className="w-4 h-4" />
@@ -2775,16 +2775,16 @@ export default function AeuxDashboard({
                 {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
                 <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                   <div className="space-y-3.5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-['Bricolage_Grotesque',sans-serif]">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-sans">
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>Dla nowych użytkowników • Tylko raz</span>
                     </div>
 
-                    <h2 className="text-xl font-bold text-white tracking-tight font-['Bricolage_Grotesque',sans-serif]">
+                    <h2 className="text-xl font-bold text-white tracking-tight font-sans">
                       Sklep na 14 dni
                     </h2>
 
-                    <p className="text-sm text-zinc-400 leading-relaxed font-['Bricolage_Grotesque',sans-serif]">
+                    <p className="text-sm text-zinc-400 leading-relaxed font-sans">
                       Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
                     </p>
                   </div>
@@ -2794,7 +2794,7 @@ export default function AeuxDashboard({
                       onClick={() => {
                         setActiveTab("produkty");
                       }}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-sans rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Wypróbuj za darmo (14 dni)</span>
                       <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
@@ -2818,13 +2818,13 @@ export default function AeuxDashboard({
                       {/* HEADER KARTY: BADGE PAKIETU + DYSKRETNY UPGRADE */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 flex-wrap">
-                          <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-white font-['Bricolage_Grotesque',sans-serif]">
+                          <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-white font-sans">
                             Pakiet {pkg.planType}
                           </span>
                           
                           {/* BADGE WYGASŁ LUB PRZYCISK ULEPSZENIA */}
                           {isExp ? (
-                            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[11px] font-bold font-['Bricolage_Grotesque',sans-serif]">
+                            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[11px] font-bold font-sans">
                               Wygasł
                             </span>
                           ) : (
@@ -2832,7 +2832,7 @@ export default function AeuxDashboard({
                               <button
                                 type="button"
                                 onClick={() => setUpgradingPackage(pkg)}
-                                className="text-[11px] font-medium text-zinc-400 hover:text-[#D0FF00] hover:underline transition-colors flex items-center gap-1 cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+                                className="text-[11px] font-medium text-zinc-400 hover:text-[#D0FF00] hover:underline transition-colors flex items-center gap-1 cursor-pointer font-sans"
                                 title="Ulepsz pakiet do wyższej wersji"
                               >
                                 <span>Ulepsz</span>
@@ -2849,7 +2849,7 @@ export default function AeuxDashboard({
 
                       {/* TYTUŁ / NAZWA SKLEPU */}
                       <div className="space-y-1.5">
-                        <h2 className="text-xl font-bold text-white tracking-tight font-['Bricolage_Grotesque',sans-serif]">
+                        <h2 className="text-xl font-bold text-white tracking-tight font-sans">
                           {pkg.storeName || pkg.name}
                         </h2>
                         {pkg.isConfigured && pkg.subdomain ? (
@@ -2862,7 +2862,7 @@ export default function AeuxDashboard({
                             https://{pkg.subdomain}.iskral.pl
                           </a>
                         ) : (
-                          <p className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+                          <p className="text-xs text-zinc-400 font-sans">
                             Pakiet nie został jeszcze skonfigurowany.
                           </p>
                         )}
@@ -2871,7 +2871,7 @@ export default function AeuxDashboard({
                       {/* WAŻNOŚĆ SKLEPU + PRZYCISK PRZEDŁUŻ (+30 DNI) */}
                       <div className={`p-4 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-3`}>
                         <div className="min-w-0 flex-1 space-y-1">
-                          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-['Bricolage_Grotesque',sans-serif]">
+                          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-sans">
                             Ważność sklepu
                           </span>
                           <div className="flex items-center">
@@ -2883,7 +2883,7 @@ export default function AeuxDashboard({
                           <button
                             type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold font-['Bricolage_Grotesque',sans-serif] transition-all cursor-pointer shadow-sm ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm ${
                               isExp
                                 ? "bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold"
                                 : "bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500"
@@ -2909,7 +2909,7 @@ export default function AeuxDashboard({
                                 });
                               }
                             }}
-                            className="w-full px-[24px] py-[12px] bg-[#161820] hover:bg-[#1f222e] text-rose-300 text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-rose-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="w-full px-[24px] py-[12px] bg-[#161820] hover:bg-[#1f222e] text-rose-300 text-[14px] font-medium font-sans rounded-xl border border-rose-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                           >
                             <Lock className="w-4 h-4 text-rose-400" />
                             <span>Pakiet wygasł – przedłuż aby edytować</span>
@@ -2917,7 +2917,7 @@ export default function AeuxDashboard({
                         ) : pkg.isConfigured ? (
                           <button
                             onClick={() => handleOpenStorePanel(pkg)}
-                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                           >
                             <span>Przejdź do sklepu</span>
                             <ArrowUpRight className="w-4 h-4" />
@@ -2925,7 +2925,7 @@ export default function AeuxDashboard({
                         ) : (
                           <button
                             onClick={() => handleOpenConfigurator(pkg)}
-                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            className="w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                           >
                             <span>Przejdź dalej</span>
                             <ArrowUpRight className="w-4 h-4" />
@@ -2952,7 +2952,7 @@ export default function AeuxDashboard({
                 <div className="inline-flex p-1 bg-[#0D0E12] border border-[#17181F] rounded-2xl">
                   <button
                     onClick={() => setBillingInterval("miesiac")}
-                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-['Bricolage_Grotesque',sans-serif] transition-all cursor-pointer ${
+                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer ${
                       billingInterval === "miesiac"
                         ? "bg-[#D0FF00] text-black font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
@@ -2962,7 +2962,7 @@ export default function AeuxDashboard({
                   </button>
                   <button
                     onClick={() => setBillingInterval("rok")}
-                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-['Bricolage_Grotesque',sans-serif] transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center gap-1.5 ${
                       billingInterval === "rok"
                         ? "bg-[#D0FF00] text-black font-bold shadow-sm"
                         : "text-zinc-400 hover:text-white"
@@ -2984,27 +2984,27 @@ export default function AeuxDashboard({
                 {/* 1. PAKIET START */}
                 <div className="bg-[#0D0E12] border border-[#181A22] hover:border-[#242836] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                   <div className="space-y-4">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-['Bricolage_Grotesque',sans-serif] w-fit">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-sans w-fit">
                       <span>Pakiet Startowy</span>
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Pakiet Start</h3>
-                      <p className="text-xs text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif] leading-relaxed min-h-[36px]">
+                      <h3 className="text-xl font-bold text-white font-sans">Pakiet Start</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-sans leading-relaxed min-h-[36px]">
                         Dla osoby, która chce stworzyć pierwszy sklep i sprawdzić swój pomysł.
                       </p>
                     </div>
 
                     <div className="py-2.5 border-y border-[#17181F] flex items-baseline justify-between min-h-[52px]">
-                      <div className="text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                      <div className="text-2xl font-bold text-white font-sans">
                         0.00 PLN
                       </div>
-                      <span className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+                      <span className="text-xs text-zinc-400 font-sans">
                         Za darmo na 14 dni
                       </span>
                     </div>
 
-                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Bricolage_Grotesque',sans-serif]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-sans">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>1 gotowy szablon</span>
@@ -3034,7 +3034,7 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Start")}
-                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-sans rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
                   >
                     Zacznij za darmo
                   </button>
@@ -3043,35 +3043,35 @@ export default function AeuxDashboard({
                 {/* 2. PAKIET CREATOR (WYRÓŻNIONY - NAJBARDZIEJ WYBIERANY) */}
                 <div className="bg-[#0D0E12] border-2 border-[#D0FF00]/50 hover:border-[#D0FF00] rounded-[24px] p-7 flex flex-col justify-between transition-all relative">
                   <div className="space-y-4">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] text-[11px] font-semibold font-['Bricolage_Grotesque',sans-serif] w-fit">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/30 text-[#D0FF00] text-[11px] font-semibold font-sans w-fit">
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>Najbardziej wybierany</span>
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Pakiet Creator</h3>
-                      <p className="text-xs text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif] leading-relaxed min-h-[36px]">
+                      <h3 className="text-xl font-bold text-white font-sans">Pakiet Creator</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-sans leading-relaxed min-h-[36px]">
                         Dla twórców i marek, które zaczynają regularnie sprzedawać.
                       </p>
                     </div>
 
                     <div className="py-2.5 border-y border-[#17181F] flex items-baseline justify-between min-h-[52px]">
                       <div>
-                        <span className="text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-2xl font-bold text-white font-sans">
                           {billingInterval === "miesiac" ? "29.99 PLN" : "14.99 PLN"}
                         </span>
-                        <span className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif] ml-1">
+                        <span className="text-xs text-zinc-400 font-sans ml-1">
                           / miesięcznie
                         </span>
                       </div>
                       {billingInterval === "rok" && (
-                        <span className="text-[11px] font-medium text-[#D0FF00] font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] font-medium text-[#D0FF00] font-sans">
                           -50% taniej
                         </span>
                       )}
                     </div>
 
-                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Bricolage_Grotesque',sans-serif]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-sans">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>wszystko ze Start</span>
@@ -3105,7 +3105,7 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Creator")}
-                    className="mt-7 w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-sans rounded-xl transition-all shadow-sm cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
                   >
                     Kup Pakiet Creator
                   </button>
@@ -3114,34 +3114,34 @@ export default function AeuxDashboard({
                 {/* 3. PAKIET BRAND */}
                 <div className="bg-[#0D0E12] border border-[#181A22] hover:border-[#242836] rounded-[24px] p-7 flex flex-col justify-between transition-all">
                   <div className="space-y-4">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-['Bricolage_Grotesque',sans-serif] w-fit">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-zinc-400 text-[11px] font-medium font-sans w-fit">
                       <span>Dla marek i firm</span>
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Pakiet Brand</h3>
-                      <p className="text-xs text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif] leading-relaxed min-h-[36px]">
+                      <h3 className="text-xl font-bold text-white font-sans">Pakiet Brand</h3>
+                      <p className="text-xs text-zinc-400 mt-1 font-sans leading-relaxed min-h-[36px]">
                         Dla marek, które chcą mocniej rozwijać sprzedaż.
                       </p>
                     </div>
 
                     <div className="py-2.5 border-y border-[#17181F] flex items-baseline justify-between min-h-[52px]">
                       <div>
-                        <span className="text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-2xl font-bold text-white font-sans">
                           {billingInterval === "miesiac" ? "59.99 PLN" : "29.99 PLN"}
                         </span>
-                        <span className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif] ml-1">
+                        <span className="text-xs text-zinc-400 font-sans ml-1">
                           / miesięcznie
                         </span>
                       </div>
                       {billingInterval === "rok" && (
-                        <span className="text-[11px] font-medium text-[#D0FF00] font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] font-medium text-[#D0FF00] font-sans">
                           -50% taniej
                         </span>
                       )}
                     </div>
 
-                    <ul className="space-y-2.5 text-xs text-zinc-300 font-['Bricolage_Grotesque',sans-serif]">
+                    <ul className="space-y-2.5 text-xs text-zinc-300 font-sans">
                       <li className="flex items-center gap-2">
                         <Check className="w-3.5 h-3.5 text-[#D0FF00] shrink-0" />
                         <span>wszystko z Creator</span>
@@ -3171,7 +3171,7 @@ export default function AeuxDashboard({
 
                   <button
                     onClick={() => handleBuyPackage("Brand")}
-                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
+                    className="mt-7 w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-sans rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center text-center whitespace-nowrap"
                   >
                     Kup Pakiet Brand
                   </button>
@@ -3315,7 +3315,7 @@ export default function AeuxDashboard({
         {/* WIDOK 5: SZABLONY SKLEPÓW (KREATOR) */}
         {/* ========================================================================= */}
         {activeTab === "kreator" && (
-          <div className="space-y-6 max-w-5xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-5xl font-sans">
             {/* PRZEŁĄCZNIK DARMOWE / PREMIUM */}
             <div className="flex justify-start items-center">
               <div className="bg-[#0D0E12] border border-[#181A22] p-1.5 rounded-full inline-flex items-center gap-1.5">
@@ -3621,11 +3621,11 @@ export default function AeuxDashboard({
         {/* WIDOK 7: TWÓJ PROFIL */}
         {/* ========================================================================= */}
         {activeTab === "profil" && (
-          <div className="space-y-6 max-w-4xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-4xl font-sans">
             {/* SEKCJA 1: ZDJĘCIE PROFILOWE */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                <h2 className="text-xl font-bold text-white font-sans">
                   Zdjęcie profilowe
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
@@ -3711,7 +3711,7 @@ export default function AeuxDashboard({
             {/* SEKCJA 2: DANE PROFILOWE UŻYTKOWNIKA */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                <h2 className="text-xl font-bold text-white font-sans">
                   Dane Konta i Adres
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
@@ -3802,7 +3802,7 @@ export default function AeuxDashboard({
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[16px] font-medium font-sans rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
                   >
                     <span>Zapisz dane profilu</span>
                     <Check className="w-4 h-4" />
@@ -3853,7 +3853,7 @@ export default function AeuxDashboard({
                   </div>
                   <button
                     type="submit"
-                    className="w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[16px] font-medium font-sans rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
                     <span>Zmień hasło</span>
                     <Lock className="w-4 h-4 text-[#D0FF00]" />
@@ -3892,7 +3892,7 @@ export default function AeuxDashboard({
                           });
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold font-['Bricolage_Grotesque',sans-serif] transition-colors cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold font-sans transition-colors cursor-pointer ${
                         is2FAActive ? "bg-rose-500/15 text-rose-400 border border-rose-500/30" : "bg-[#D0FF00] text-black"
                       }`}
                     >
@@ -3927,7 +3927,7 @@ export default function AeuxDashboard({
         {/* WIDOK: USTAWIENIA KONTA & DOMENY */}
         {/* ========================================================================= */}
         {activeTab === "ustawienia" && (
-          <div className="space-y-6 max-w-3xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-3xl font-sans">
             <div>
               <h2 className="text-lg font-bold text-white">Ustawienia Domeny i Wypłat</h2>
               <p className="text-xs text-zinc-400">Zarządzaj domenami i wypłatami środków.</p>
@@ -3987,7 +3987,7 @@ export default function AeuxDashboard({
             {/* PRZYCISK POWROTU */}
             <button
               onClick={() => setActiveTab("pulpit")}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors cursor-pointer font-sans"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Wróć do Strony głównej</span>
@@ -3996,25 +3996,25 @@ export default function AeuxDashboard({
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="flex items-start justify-between gap-4 border-b border-[#17181F] pb-5">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white font-sans">
                     Konfiguracja nowego sklepu
                   </h2>
-                  <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-sans">
                     Uzupełnij poniższe dane, aby uruchomić swój sklep online na platformie IskraL.
                   </p>
                 </div>
 
                 {selectedPackageForConfig && (
-                  <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-['Bricolage_Grotesque',sans-serif] shrink-0">
+                  <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-sans shrink-0">
                     Pakiet {selectedPackageForConfig.planType}
                   </span>
                 )}
               </div>
 
-              <form onSubmit={handleSaveStoreConfig} className="space-y-5 font-['Bricolage_Grotesque',sans-serif]">
+              <form onSubmit={handleSaveStoreConfig} className="space-y-5 font-sans">
                 {/* NAZWA SKLEPU */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-['Bricolage_Grotesque',sans-serif]">
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-sans">
                     Nazwa sklepu *
                   </label>
                   <input
@@ -4034,7 +4034,7 @@ export default function AeuxDashboard({
 
                 {/* SUBDOMENA SKLEPU */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-['Bricolage_Grotesque',sans-serif]">
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-sans">
                     Subdomena sklepu *
                   </label>
                   <div className="flex items-center bg-[#111319] border border-[#1C1E26] rounded-xl overflow-hidden focus-within:border-[#D0FF00] transition-colors">
@@ -4050,7 +4050,7 @@ export default function AeuxDashboard({
                       .iskral.pl
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 mt-1.5 font-['Bricolage_Grotesque',sans-serif]">
+                  <p className="text-[11px] text-zinc-500 mt-1.5 font-sans">
                     Twój sklep będzie dostępny pod adresem:{" "}
                     <strong className="text-zinc-300">
                       https://{configSubdomain || "twojanazwa"}.iskral.pl
@@ -4060,7 +4060,7 @@ export default function AeuxDashboard({
 
                 {/* LOGO SKLEPU (DRAG & DROP + WYBÓR Z KOMPUTERA + URL) */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-['Bricolage_Grotesque',sans-serif]">
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-sans">
                     Logo sklepu
                   </label>
 
@@ -4146,7 +4146,7 @@ export default function AeuxDashboard({
 
                 {/* KRÓTKI OPIS SKLEPU */}
                 <div>
-                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-['Bricolage_Grotesque',sans-serif]">
+                  <label className="text-xs font-semibold text-zinc-300 block mb-2 font-sans">
                     Krótki opis sklepu (Bio / Hasło marki)
                   </label>
                   <textarea
@@ -4163,14 +4163,14 @@ export default function AeuxDashboard({
                   <button
                     type="button"
                     onClick={() => setActiveTab("pulpit")}
-                    className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[16px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer transition-colors"
+                    className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[16px] font-medium font-sans rounded-xl border border-[#1C1E26] cursor-pointer transition-colors"
                   >
                     Anuluj
                   </button>
 
                   <button
                     type="submit"
-                    className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2"
+                    className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl cursor-pointer transition-all shadow-sm flex items-center justify-center gap-2"
                   >
                     <span>Stwórz sklep i przejdź do panelu</span>
                     <ArrowUpRight className="w-4 h-4" />
@@ -4203,18 +4203,18 @@ export default function AeuxDashboard({
 
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-xl sm:text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif] truncate">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white font-sans truncate">
                       {activeStorePackage?.storeName || activeStorePackage?.name || editorStoreName || "Mój Sklep"}
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-['Bricolage_Grotesque',sans-serif]">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-sans">
                       Pakiet {activeStorePackage?.planType || "Creator"}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-['Bricolage_Grotesque',sans-serif]">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-sans">
                       Ważność: <strong className="text-white"><SubscriptionBadge expiresAt={activeStorePackage?.expiresAt} /></strong>
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif] flex-wrap">
+                  <div className="flex items-center gap-2 text-xs text-zinc-400 font-sans flex-wrap">
                     <span>ID: #{activeStorePackage?.number || 1000}</span>
                     <span>•</span>
                     <a
@@ -4235,7 +4235,7 @@ export default function AeuxDashboard({
                 <button
                   type="button"
                   onClick={() => activeStorePackage && handleExtendPackage(activeStorePackage.id)}
-                  className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer"
+                  className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-sans rounded-xl border border-[#22283A] transition-colors cursor-pointer"
                   title="Przedłuż pakiet"
                 >
                   Przedłuż pakiet
@@ -4246,7 +4246,7 @@ export default function AeuxDashboard({
                   <button
                     type="button"
                     onClick={() => setUpgradingPackage(activeStorePackage)}
-                    className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-[#D0FF00] text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-[#141722] hover:bg-[#1A1F2C] text-[#D0FF00] text-[14px] font-medium font-sans rounded-xl border border-[#22283A] transition-colors cursor-pointer flex items-center gap-1.5"
                     title="Ulepsz pakiet sklepu"
                   >
                     <span>Ulepsz pakiet</span>
@@ -4259,7 +4259,7 @@ export default function AeuxDashboard({
                   href={getStoreOnlineUrl(activeStorePackage?.subdomain || activeSubdomain || editorSubdomain)}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-[20px] py-[10px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  className="px-[20px] py-[10px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
                   <span>Otwórz sklep online</span>
                   <ExternalLink className="w-4 h-4" />
@@ -4272,7 +4272,7 @@ export default function AeuxDashboard({
               {/* PRZYCHÓD CAŁKOWITY */}
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-xs font-medium text-zinc-400 font-sans">
                     Przychód całkowity
                   </span>
                   <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
@@ -4283,7 +4283,7 @@ export default function AeuxDashboard({
                   <span className="text-2xl sm:text-3xl font-bold text-white font-mono block">
                     {totalRevenuePLN} PLN
                   </span>
-                  <span className="text-[11px] text-zinc-500 block mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-[11px] text-zinc-500 block mt-1 font-sans">
                     Suma ze wszystkich zrealizowanych zamówień
                   </span>
                 </div>
@@ -4292,7 +4292,7 @@ export default function AeuxDashboard({
               {/* ZAMÓWIENIA */}
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-xs font-medium text-zinc-400 font-sans">
                     Zamówienia
                   </span>
                   <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
@@ -4303,7 +4303,7 @@ export default function AeuxDashboard({
                   <span className="text-2xl sm:text-3xl font-bold text-white font-mono block">
                     {totalOrdersCount}
                   </span>
-                  <span className="text-[11px] text-zinc-500 block mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-[11px] text-zinc-500 block mt-1 font-sans">
                     Liczba złożonych i opłaconych koszyków
                   </span>
                 </div>
@@ -4312,7 +4312,7 @@ export default function AeuxDashboard({
               {/* ODWIEDZINY */}
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-xs font-medium text-zinc-400 font-sans">
                     Odwiedziny
                   </span>
                   <div className="w-9 h-9 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
@@ -4323,7 +4323,7 @@ export default function AeuxDashboard({
                   <span className="text-2xl sm:text-3xl font-bold text-white font-mono block">
                     0
                   </span>
-                  <span className="text-[11px] text-zinc-500 block mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <span className="text-[11px] text-zinc-500 block mt-1 font-sans">
                     Analityka odwiedzin (Wkrótce)
                   </span>
                 </div>
@@ -4338,16 +4338,16 @@ export default function AeuxDashboard({
                 <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                      <h3 className="text-base font-bold text-white font-sans">
                         Ostatnie zamówienia
                       </h3>
-                      <p className="text-xs text-zinc-500 font-['Bricolage_Grotesque',sans-serif]">
+                      <p className="text-xs text-zinc-500 font-sans">
                         Najnowsze zakupy Twoich klientów
                       </p>
                     </div>
                     <button
                       onClick={() => setActiveTab("sklep-zamowienia")}
-                      className="text-xs font-medium text-[#D0FF00] hover:underline font-['Bricolage_Grotesque',sans-serif] inline-flex items-center gap-1"
+                      className="text-xs font-medium text-[#D0FF00] hover:underline font-sans inline-flex items-center gap-1"
                     >
                       <span>Zobacz wszystkie ({localOrders.length})</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
@@ -4359,7 +4359,7 @@ export default function AeuxDashboard({
                       {localOrders.slice(0, 3).map((ord) => (
                         <div
                           key={ord.id}
-                          className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3 text-xs font-['Bricolage_Grotesque',sans-serif]"
+                          className="p-3.5 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between gap-3 text-xs font-sans"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -4381,7 +4381,7 @@ export default function AeuxDashboard({
                     </div>
                   ) : (
                     <div className="p-6 text-center bg-[#111319] border border-[#1C1E26] rounded-2xl">
-                      <span className="text-xs text-zinc-400 block font-['Bricolage_Grotesque',sans-serif]">
+                      <span className="text-xs text-zinc-400 block font-sans">
                         Brak zamówień. Kiedy klienci zakupią produkty w Twoim sklepie, pojawią się tutaj.
                       </span>
                     </div>
@@ -4390,7 +4390,7 @@ export default function AeuxDashboard({
 
                 {/* SZYBKIE SKRÓTY DO FUNKCJI SKLEPU */}
                 <div className="space-y-4">
-                  <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                  <h3 className="text-base font-bold text-white font-sans">
                     Szybkie zarządzanie
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4405,10 +4405,10 @@ export default function AeuxDashboard({
                         <Plus className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-white block font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-sm font-semibold text-white block font-sans">
                           Dodaj produkt
                         </span>
-                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-sans">
                           Odzież lub plik cyfrowy
                         </span>
                       </div>
@@ -4422,10 +4422,10 @@ export default function AeuxDashboard({
                         <Palette className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-white block font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-sm font-semibold text-white block font-sans">
                           Edytor wyglądu
                         </span>
-                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-sans">
                           Logo, kolory i social media
                         </span>
                       </div>
@@ -4439,10 +4439,10 @@ export default function AeuxDashboard({
                         <Flame className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-white block font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-sm font-semibold text-white block font-sans">
                           Tryb Dropu
                         </span>
-                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-sans">
                           Zegar odliczający i hasło VIP
                         </span>
                       </div>
@@ -4456,10 +4456,10 @@ export default function AeuxDashboard({
                         <Globe className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-white block font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-sm font-semibold text-white block font-sans">
                           Własna domena
                         </span>
-                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-['Bricolage_Grotesque',sans-serif]">
+                        <span className="text-[11px] text-zinc-500 block mt-0.5 font-sans">
                           Podepnij .pl / .com z SSL
                         </span>
                       </div>
@@ -4474,10 +4474,10 @@ export default function AeuxDashboard({
                 <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                      <h3 className="text-base font-bold text-white font-sans">
                         Produkty ({localProducts.length})
                       </h3>
-                      <p className="text-xs text-zinc-500 font-['Bricolage_Grotesque',sans-serif]">
+                      <p className="text-xs text-zinc-500 font-sans">
                         Aktywny asortyment Twojej marki
                       </p>
                     </div>
@@ -4486,7 +4486,7 @@ export default function AeuxDashboard({
                         setProductSubTab("add");
                         setActiveTab("sklep-produkty");
                       }}
-                      className="px-2.5 py-1 bg-[#D0FF00]/10 hover:bg-[#D0FF00]/20 text-[#D0FF00] border border-[#D0FF00]/30 rounded-lg text-xs font-semibold font-['Bricolage_Grotesque',sans-serif] transition-colors cursor-pointer"
+                      className="px-2.5 py-1 bg-[#D0FF00]/10 hover:bg-[#D0FF00]/20 text-[#D0FF00] border border-[#D0FF00]/30 rounded-lg text-xs font-semibold font-sans transition-colors cursor-pointer"
                     >
                       + Dodaj
                     </button>
@@ -4496,7 +4496,7 @@ export default function AeuxDashboard({
                       {localProducts.map((prod) => (
                         <div
                           key={prod.id}
-                          className="p-3 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center gap-3 text-xs font-['Bricolage_Grotesque',sans-serif]"
+                          className="p-3 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center gap-3 text-xs font-sans"
                         >
                           <div className="w-12 h-12 rounded-xl bg-[#0D0E12] border border-[#1C1E26] overflow-hidden shrink-0">
                             <img
@@ -4522,7 +4522,7 @@ export default function AeuxDashboard({
                   ) : (
                     <div className="p-6 text-center bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-3">
                       <ShoppingBag className="w-8 h-8 text-zinc-600 mx-auto" />
-                      <span className="text-xs text-zinc-400 block font-['Bricolage_Grotesque',sans-serif]">
+                      <span className="text-xs text-zinc-400 block font-sans">
                         Twój sklep nie posiada jeszcze dodanych produktów.
                       </span>
                       <button
@@ -4530,7 +4530,7 @@ export default function AeuxDashboard({
                           setProductSubTab("add");
                           setActiveTab("sklep-produkty");
                         }}
-                        className="px-3 py-1.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-sans rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Dodaj pierwszy produkt</span>
@@ -4541,11 +4541,11 @@ export default function AeuxDashboard({
 
                 {/* STAN I KONFIGURACJA SKLEPU */}
                 <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-3.5">
-                  <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                  <h3 className="text-base font-bold text-white font-sans">
                     Stan i integracje sklepu
                   </h3>
 
-                  <div className="space-y-2 text-xs font-['Bricolage_Grotesque',sans-serif]">
+                  <div className="space-y-2 text-xs font-sans">
                     {/* Tryb Dropu status */}
                     <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
@@ -4603,15 +4603,15 @@ export default function AeuxDashboard({
           <div className="space-y-6 max-w-4xl">
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl sm:text-2xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                <h2 className="text-xl sm:text-2xl font-bold text-white font-sans">
                   Edytor wyglądu i ustawień sklepu
                 </h2>
-                <p className="text-xs text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                <p className="text-xs text-zinc-400 mt-1 font-sans">
                   Zmieniaj logo, subdomenę, motyw, kolory, kształt przycisków i linki społecznościowe w navbarze.
                 </p>
               </div>
 
-              <form onSubmit={handleSaveStoreEditor} className="space-y-6 font-['Bricolage_Grotesque',sans-serif]">
+              <form onSubmit={handleSaveStoreEditor} className="space-y-6 font-sans">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {/* NAZWA SKLEPU */}
                   <div>
@@ -4731,7 +4731,7 @@ export default function AeuxDashboard({
                       href={`https://${activeStorePackage?.subdomain || activeSubdomain || editorSubdomain}.iskral.pl`}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white text-xs font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#2A2E3D] transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                      className="px-4 py-2 bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white text-xs font-medium font-sans rounded-xl border border-[#2A2E3D] transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                     >
                       <span>Podgląd wersji demo</span>
                       <ExternalLink className="w-3.5 h-3.5 text-[#D0FF00]" />
@@ -4883,7 +4883,7 @@ export default function AeuxDashboard({
                 <div className="pt-4 border-t border-[#17181F] flex justify-end">
                   <button
                     type="submit"
-                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>Zapisz zmiany w sklepie</span>
                     <Check className="w-4 h-4" />
@@ -4901,7 +4901,7 @@ export default function AeuxDashboard({
           <div className="space-y-6 max-w-5xl">
             {/* PRZEŁĄCZNIK ZAKŁADEK: LISTA VS DODAJ NOWY */}
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="bg-[#0D0E12] border border-[#17181F] p-1.5 rounded-full inline-flex items-center gap-1.5 font-['Bricolage_Grotesque',sans-serif]">
+              <div className="bg-[#0D0E12] border border-[#17181F] p-1.5 rounded-full inline-flex items-center gap-1.5 font-sans">
                 <button
                   type="button"
                   onClick={() => setProductSubTab("list")}
@@ -4948,15 +4948,15 @@ export default function AeuxDashboard({
               /* FORMULARZ DODAWANIA / EDYCJI PRODUKTU */
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
                 <div className="border-b border-[#17181F] pb-4">
-                  <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                  <h2 className="text-xl font-bold text-white font-sans">
                     {editingProductId ? "Edycja produktu" : "Nowy produkt w sklepie"}
                   </h2>
-                  <p className="text-xs text-zinc-400 mt-1 font-['Bricolage_Grotesque',sans-serif]">
+                  <p className="text-xs text-zinc-400 mt-1 font-sans">
                     Uzupełnij parametry, warianty rozmiarów odzieży lub pliki cyfrowe.
                   </p>
                 </div>
 
-                <form onSubmit={handleCreateOrUpdateProduct} className="space-y-6 font-['Bricolage_Grotesque',sans-serif]">
+                <form onSubmit={handleCreateOrUpdateProduct} className="space-y-6 font-sans">
                   {/* NAZWA PRODUKTU */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-300 block mb-2">Nazwa produktu *</label>
@@ -5258,13 +5258,13 @@ export default function AeuxDashboard({
                     <button
                       type="button"
                       onClick={() => setProductSubTab("list")}
-                      className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl border border-[#1C1E26] cursor-pointer transition-colors"
+                      className="px-[24px] py-[12px] bg-[#111319] hover:bg-[#181B24] text-zinc-300 text-[14px] font-medium font-sans rounded-xl border border-[#1C1E26] cursor-pointer transition-colors"
                     >
                       Anuluj
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <span>{editingProductId ? "Zapisz zmiany" : "Zapisz i opublikuj produkt"}</span>
                       <Check className="w-4 h-4" />
@@ -5277,7 +5277,7 @@ export default function AeuxDashboard({
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] overflow-hidden">
                 {localProducts.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs font-['Bricolage_Grotesque',sans-serif]">
+                    <table className="w-full text-left text-xs font-sans">
                       <thead className="bg-[#08090C] text-zinc-400 uppercase text-[10px] tracking-wider border-b border-[#17181F]">
                         <tr>
                           <th className="p-4">Produkt</th>
@@ -5387,7 +5387,7 @@ export default function AeuxDashboard({
                         setIsScheduledLaunch(false);
                         setProductSubTab("add");
                       }}
-                      className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-['Bricolage_Grotesque',sans-serif] rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
+                      className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold font-sans rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Dodaj pierwszy produkt</span>
@@ -5415,10 +5415,10 @@ export default function AeuxDashboard({
 
           return (
             <div className="space-y-6 max-w-5xl">
-              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4 font-['Bricolage_Grotesque',sans-serif]">
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4 font-sans">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                    <h2 className="text-xl font-bold text-white font-sans">
                       Zamówienia klientów
                     </h2>
                     <p className="text-xs text-zinc-400 mt-0.5">
@@ -5554,10 +5554,10 @@ export default function AeuxDashboard({
               {/* MODAL SZCZEGÓŁÓW ZAMÓWIENIA & ZMIANY STATUSU */}
               {selectedOrderModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                  <div className="bg-[#111319] border border-[#22283A] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl font-['Bricolage_Grotesque',sans-serif] text-xs">
+                  <div className="bg-[#111319] border border-[#22283A] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl font-sans text-xs">
                     <div className="flex items-center justify-between border-b border-[#1E2333] pb-4">
                       <div>
-                        <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                        <h3 className="text-base font-bold text-white font-sans">
                           Szczegóły zamówienia #{selectedOrderModal.id.slice(-8)}
                         </h3>
                         <span className="text-[11px] text-zinc-400">
@@ -5734,9 +5734,9 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {activeTab === "sklep-domena" && (
           <div className="space-y-6 max-w-3xl">
-            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6 font-['Bricolage_Grotesque',sans-serif]">
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6 font-sans">
               <div>
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                <h2 className="text-xl font-bold text-white font-sans">
                   Podepnij własną domenę
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
@@ -5821,7 +5821,7 @@ export default function AeuxDashboard({
         {/* WIDOK: PŁATNOŚCI & WYPŁATY (sklep-platnosci) */}
         {/* ========================================================================= */}
         {activeTab === "sklep-platnosci" && (
-          <div className="space-y-6 max-w-4xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-4xl font-sans">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* STATUS PŁATNOŚCI STRIPE */}
               <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 space-y-4">
@@ -5854,7 +5854,7 @@ export default function AeuxDashboard({
 
             {/* FORMULARZ ZLECENIA WYPŁATY NA IBAN */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-4">
-              <h3 className="text-base font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Zlecenie wypłaty na konto bankowe</h3>
+              <h3 className="text-base font-bold text-white font-sans">Zlecenie wypłaty na konto bankowe</h3>
               <div>
                 <label className="text-xs font-semibold text-zinc-300 block mb-2">Numer konta bankowego w Polsce (IBAN)</label>
                 <input
@@ -5879,11 +5879,11 @@ export default function AeuxDashboard({
         {/* WIDOK: NEWSLETTER & MARKETING (sklep-newsletter) */}
         {/* ========================================================================= */}
         {activeTab === "sklep-newsletter" && (
-          <div className="space-y-6 max-w-4xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-4xl font-sans">
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-4 border-b border-[#17181F] pb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Newsletter i Kampanie E-mail</h2>
+                  <h2 className="text-xl font-bold text-white font-sans">Newsletter i Kampanie E-mail</h2>
                   <p className="text-xs text-zinc-400 mt-1">
                     Baza osób zapisanych na powiadomienia o nowym dropie i wysyłka kampanii.
                   </p>
@@ -5950,10 +5950,10 @@ export default function AeuxDashboard({
         {/* WIDOK: WSPÓŁPRACA & ZESPÓŁ (sklep-zespol) */}
         {/* ========================================================================= */}
         {activeTab === "sklep-zespol" && (
-          <div className="space-y-6 max-w-4xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-4xl font-sans">
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Współpraca i Uprawnienia Zespołu</h2>
+                <h2 className="text-xl font-bold text-white font-sans">Współpraca i Uprawnienia Zespołu</h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Zaproś współpracowników do zarządzania sklepem, produktami lub obsługą zamówień.
                 </p>
@@ -6029,10 +6029,10 @@ export default function AeuxDashboard({
         {/* WIDOK: TRYB DROPU (sklep-drop / drop) */}
         {/* ========================================================================= */}
         {(activeTab === "sklep-drop" || activeTab === "drop") && (
-          <div className="space-y-6 max-w-3xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-3xl font-sans">
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Tryb Dropu i Odliczanie do Premiery</h2>
+                <h2 className="text-xl font-bold text-white font-sans">Tryb Dropu i Odliczanie do Premiery</h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Zablokuj standardowy sklep i wyświetl odliczanie do premiery kolekcji z hasłem VIP.
                 </p>
@@ -6094,10 +6094,10 @@ export default function AeuxDashboard({
         {/* WIDOK: SEO & POZYCJONOWANIE (sklep-seo) */}
         {/* ========================================================================= */}
         {activeTab === "sklep-seo" && (
-          <div className="space-y-6 max-w-4xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="space-y-6 max-w-4xl font-sans">
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
-                <h2 className="text-xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">SEO i Optymalizacja Google</h2>
+                <h2 className="text-xl font-bold text-white font-sans">SEO i Optymalizacja Google</h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Ustaw tytuł, opis i słowa kluczowe, aby Twój sklep zajmował wysokie pozycje w wyszukiwarce.
                 </p>
@@ -6172,7 +6172,7 @@ export default function AeuxDashboard({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-7 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+              <h3 className="text-lg font-bold text-white font-sans">
                 Ulepsz pakiet
               </h3>
               <button
@@ -6183,11 +6183,11 @@ export default function AeuxDashboard({
               </button>
             </div>
 
-            <p className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+            <p className="text-xs text-zinc-400 font-sans">
               Aktualny pakiet: <strong className="text-white">{upgradingPackage.name} ({upgradingPackage.planType})</strong>. Wybierz pakiet wyższy, aby odblokować dodatkowe możliwości:
             </p>
 
-            <div className="space-y-3 font-['Bricolage_Grotesque',sans-serif]">
+            <div className="space-y-3 font-sans">
               {upgradingPackage.planType !== "Creator" && (
                 <button
                   onClick={() => handleUpgradePackage("Creator")}

@@ -153,7 +153,7 @@ function ProductCardItem({
 
         <h3
           onClick={() => onOpenModal(prod)}
-          className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-['Bricolage_Grotesque',sans-serif]"
+          className="mt-4 font-bold text-base text-white group-hover:text-[#D0FF00] transition-colors cursor-pointer font-sans"
         >
           {prod.name || "Produkt"}
         </h3>
@@ -825,10 +825,10 @@ export function TenantStoreFront({
           <h1 className="text-2xl font-bold text-white tracking-tight">
             Ten sklep jest chwilowo niedostępny
           </h1>
-          <p className="text-zinc-400 text-sm leading-relaxed font-['Bricolage_Grotesque',sans-serif]">
+          <p className="text-zinc-400 text-sm leading-relaxed font-sans">
             Okres rozliczeniowy lub darmowy trial tego sklepu dobiegł końca. Subdomena oraz zasoby sklepu pozostają zarezerwowane dla właściciela.
           </p>
-          <div className="pt-2 flex flex-col gap-3 font-['Bricolage_Grotesque',sans-serif]">
+          <div className="pt-2 flex flex-col gap-3 font-sans">
             <a
               href="https://iskral.pl/logowanie"
               className="w-full py-3.5 px-6 rounded-xl bg-[#D0FF00] hover:bg-[#bce600] text-black font-semibold text-sm transition shadow-lg flex items-center justify-center gap-2 text-center"
@@ -854,11 +854,11 @@ export function TenantStoreFront({
         <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-2xl mb-4">
           🏪
         </div>
-        <h1 className="text-2xl font-bold font-['Bricolage_Grotesque',sans-serif]">Sklep nie został jeszcze aktywowany</h1>
-        <p className="text-sm text-zinc-400 mt-2 max-w-md font-['Bricolage_Grotesque',sans-serif]">
+        <h1 className="text-2xl font-bold font-sans">Sklep nie został jeszcze aktywowany</h1>
+        <p className="text-sm text-zinc-400 mt-2 max-w-md font-sans">
           Subdomena <strong className="text-[#D0FF00] font-mono">{subdomain}</strong> oczekuje na dokończenie konfiguracji w panelu użytkownika.
         </p>
-        <div className="mt-6 flex items-center gap-3 font-['Bricolage_Grotesque',sans-serif]">
+        <div className="mt-6 flex items-center gap-3 font-sans">
           <Link
             href="https://iskral.pl/dashboard"
             className="px-6 py-3 bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-medium rounded-xl transition shadow-sm"
@@ -898,10 +898,10 @@ export function TenantStoreFront({
             <span>Nadchodzący Drop • Premiera wkrótce</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white mb-4 font-['Bricolage_Grotesque',sans-serif]">
+          <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white mb-4 font-sans">
             {storeName}
           </h1>
-          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-10 leading-relaxed font-['Bricolage_Grotesque',sans-serif]">
+          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-10 leading-relaxed font-sans">
             {store?.description || "Przygotuj się na unikalny drop. Zapisz się do powiadomień lub bądź gotowy przed wyprzedaniem asortymentu."}
           </p>
 
@@ -943,7 +943,7 @@ export function TenantStoreFront({
       {/* Announcement Top Bar */}
       {announcement && (
         <div
-          className="relative z-20 w-full py-2.5 text-center text-xs font-black tracking-wide shadow-md font-['Bricolage_Grotesque',sans-serif]"
+          className="relative z-20 w-full py-2.5 text-center text-xs font-black tracking-wide shadow-md font-sans"
           style={{ backgroundColor: accentColor, color: accentColor === "#D0FF00" ? "#000" : "#FFF" }}
         >
           {announcement}
@@ -974,15 +974,15 @@ export function TenantStoreFront({
             </div>
           )}
           <div>
-            <h1 className="text-xl font-bold tracking-tight font-['Bricolage_Grotesque',sans-serif]">{storeName}</h1>
-            <span className="text-xs text-zinc-400 font-['Bricolage_Grotesque',sans-serif]">
+            <h1 className="text-xl font-bold tracking-tight font-sans">{storeName}</h1>
+            <span className="text-xs text-zinc-400 font-sans">
               {niche ? `${niche} • Oficjalny Sklep` : "Oficjalny Sklep Internetowy"}
             </span>
           </div>
         </div>
 
         {/* Social Media & Cart */}
-        <div className="flex items-center gap-3 font-['Bricolage_Grotesque',sans-serif]">
+        <div className="flex items-center gap-3 font-sans">
           {/* Social Media Icons */}
           {socials.instagram && (
             <a
@@ -1051,7 +1051,7 @@ export function TenantStoreFront({
       <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 xl:px-[140px] pt-8 flex flex-col gap-8">
         {/* Category Filter Pills */}
         {categories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 font-['Bricolage_Grotesque',sans-serif]">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 font-sans">
             <button
               type="button"
               onClick={() => setSelectedCategoryId("all")}
@@ -1090,13 +1090,13 @@ export function TenantStoreFront({
 
         {/* Product Grid with Error Boundaries */}
         {filteredProducts.length === 0 ? (
-          <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="p-16 text-center bg-[#18181B] border border-white/10 rounded-3xl font-sans">
             <span className="text-4xl block mb-3">📦</span>
             <h3 className="text-lg font-bold text-white">Brak produktów w tej kategorii</h3>
             <p className="text-xs text-zinc-400 mt-1">Wkrótce pojawią się tutaj nowe przedmioty.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-['Bricolage_Grotesque',sans-serif]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
             {filteredProducts.map((prod) => {
               if (!prod) return null;
               return (
@@ -1131,7 +1131,7 @@ export function TenantStoreFront({
               ✕
             </button>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 font-['Bricolage_Grotesque',sans-serif]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 font-sans">
               {/* Lewa kolumna: Galeria zdjęć */}
               <div className="space-y-3">
                 {(() => {
@@ -1183,7 +1183,7 @@ export function TenantStoreFront({
               <div className="flex flex-col justify-between space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-['Bricolage_Grotesque',sans-serif]">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white font-sans">
                       {selectedProductModal.name || "Produkt"}
                     </h2>
                     <div className="mt-2 flex items-center gap-3">
@@ -1305,10 +1305,10 @@ export function TenantStoreFront({
       {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-['Bricolage_Grotesque',sans-serif]">
+          <div className="w-full max-w-md h-full bg-[#18181B] border-l border-white/10 p-6 flex flex-col justify-between shadow-2xl font-sans">
             <div className="overflow-y-auto pr-1 flex-1">
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <h3 className="font-bold text-base text-white font-['Bricolage_Grotesque',sans-serif]">
+                <h3 className="font-bold text-base text-white font-sans">
                   Twój Koszyk ({cart.reduce((s, i) => s + (i.quantity || 1), 0)})
                 </h3>
                 <button
@@ -1344,7 +1344,7 @@ export function TenantStoreFront({
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate font-['Bricolage_Grotesque',sans-serif]">
+                          <h4 className="text-xs font-bold text-white truncate font-sans">
                             {item?.product?.name || "Produkt"}
                           </h4>
                           {item?.selectedVariant && (
@@ -1534,7 +1534,7 @@ export function TenantStoreFront({
             <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl">
               ✓
             </div>
-            <h3 className="text-lg font-bold text-white font-['Bricolage_Grotesque',sans-serif]">Dziękujemy za zamówienie!</h3>
+            <h3 className="text-lg font-bold text-white font-sans">Dziękujemy za zamówienie!</h3>
             <p className="text-xs text-zinc-400">
               Płatność została zaksięgowana. Potwierdzenie wysłaliśmy na podany adres e-mail.
             </p>

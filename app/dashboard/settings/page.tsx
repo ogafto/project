@@ -74,7 +74,7 @@ export default function DashboardSettingsPage() {
       {message && (
         <div className="fixed top-6 right-6 z-50 transition-all ease-out duration-500 animate-in slide-in-from-right-8 fade-in">
           <div
-            className={`px-4 py-3.5 rounded-2xl text-[14px] font-medium font-['Bricolage_Grotesque',sans-serif] flex items-center gap-3 border backdrop-blur-xl bg-[#0E1015]/95 ${
+            className={`px-4 py-3.5 rounded-2xl text-[14px] font-medium font-sans flex items-center gap-3 border backdrop-blur-xl bg-[#0E1015]/95 ${
               message.type === "success"
                 ? "text-white border-[#D0FF00]/30"
                 : message.type === "warning"

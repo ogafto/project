@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#0A0B0D] text-white flex flex-col items-center justify-center px-4 relative overflow-hidden font-['Bricolage_Grotesque',sans-serif]">
+    <div className="min-h-screen bg-[#0A0B0D] text-white flex flex-col items-center justify-center px-4 relative overflow-hidden font-sans">
       {/* Subtle Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#D0FF00]/5 rounded-full blur-[140px] pointer-events-none" />
 
@@ -11,7 +11,7 @@ export default function NotFound() {
           404
         </div>
 
-        <h1 className="text-2xl font-bold tracking-tight text-white font-['Bricolage_Grotesque',sans-serif]">
+        <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
           Strona lub sklep nie istnieje
         </h1>
 
