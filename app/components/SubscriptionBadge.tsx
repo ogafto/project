@@ -2,96 +2,61 @@
 
 import { useEffect, useState } from 'react';
 
-export function SubscriptionBadge({
-  expiresAt,
-  className,
-  onExpireChange,
-}: {
-  expiresAt?: string | Date | null;
-  className?: string;
-  onExpireChange?: (isExpired: boolean) => void;
-}) {
-  const [mounted, setMounted] = useState(false);
+export function SubscriptionBadge({ expiresAt, className }: { expiresAt?: string | null; className?: string }) {
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [isExpired, setIsExpired] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (!expiresAt) return;
 
-  useEffect(() => {
-    if (!mounted) return;
+    const targetTime = new Date(expiresAt).getTime();
+    if (isNaN(targetTime)) return;
 
-    if (!expiresAt) {
-      setTimeLeft('Ładowanie...');
-      setIsExpired(false);
-      if (onExpireChange) onExpireChange(false);
-      return;
-    }
+    const tick = () => {
+      const diff = targetTime - Date.now();
 
-    const targetDate = new Date(expiresAt).getTime();
-    if (isNaN(targetDate) || targetDate <= 0) {
-      setTimeLeft('Ładowanie...');
-      setIsExpired(false);
-      if (onExpireChange) onExpireChange(false);
-      return;
-    }
-
-    const updateCounter = () => {
-      const now = Date.now();
-      const diff = targetDate - now;
-
-      // Stan "Wygasł" aktywuje się TYLKO gdy data z bazy faktycznie upłynęła (diff <= 0)
       if (diff <= 0) {
         setTimeLeft('Wygasł');
         setIsExpired(true);
-        if (onExpireChange) onExpireChange(true);
         return;
       }
 
       setIsExpired(false);
-      if (onExpireChange) onExpireChange(false);
-
-      const totalSec = Math.floor(diff / 1000);
-      const days = Math.floor(totalSec / 86400);
-      const hours = Math.floor((totalSec % 86400) / 3600);
-      const minutes = Math.floor((totalSec % 3600) / 60);
-      const seconds = totalSec % 60;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       if (days > 0) {
-        const dayLabel = days === 1 ? 'dzień' : 'dni';
-        setTimeLeft(`${days} ${dayLabel}, ${hours} godz. ${minutes} min. ${seconds} sek.`);
+        setTimeLeft(`${days} dni, ${hours} godz. ${minutes} min. ${seconds}s`);
       } else {
-        setTimeLeft(`${hours} godz. ${minutes} min. ${seconds} sek.`);
+        setTimeLeft(`${hours} godz. ${minutes} min. ${seconds}s`);
       }
     };
 
-    updateCounter();
-    const interval = setInterval(updateCounter, 1000);
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [mounted, expiresAt, onExpireChange]);
+  }, [expiresAt]);
 
-  if (!mounted) {
-    return (
-      <span className={`text-xs font-semibold font-mono tracking-tight text-zinc-400 ${className || ''}`} suppressHydrationWarning>
-        Ładowanie...
-      </span>
-    );
+  if (!mounted || !expiresAt) {
+    return <span className="text-xs text-zinc-500">Ładowanie ważności...</span>;
   }
 
   return (
     <span
-      className={`text-xs font-semibold font-mono tracking-tight transition-colors ${
+      className={`text-xs font-medium px-2 py-0.5 rounded-md ${
         isExpired
-          ? 'px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold'
-          : 'text-white'
+          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+          : 'text-zinc-300'
       } ${className || ''}`}
-      suppressHydrationWarning
     >
-      {timeLeft || 'Ładowanie...'}
+      {isExpired ? 'Ważność: Wygasł' : `Ważność: Pozostało: ${timeLeft}`}
     </span>
   );
 }
 
-export { SubscriptionTimer } from './SubscriptionTimer';
+export { SubscriptionBadge as SubscriptionTimer };
 export default SubscriptionBadge;

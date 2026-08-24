@@ -4255,9 +4255,7 @@ export default function AeuxDashboard({
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-sans">
                       Pakiet {activeStorePackage?.planType || "Creator"}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-medium text-zinc-300 font-sans">
-                      Ważność: <strong className="text-white"><SubscriptionBadge expiresAt={activeStorePackage?.expiresAt} /></strong>
-                    </span>
+                    <SubscriptionBadge expiresAt={activeStorePackage?.expiresAt || currentStore?.planExpiresAt} />
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-zinc-400 font-sans flex-wrap">
