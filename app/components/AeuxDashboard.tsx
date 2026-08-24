@@ -382,36 +382,7 @@ export default function AeuxDashboard({
   const getUserPackages = (currentUser: User | null, currentStores: StoreConfig[]): UserPackage[] => {
     if (!currentUser) return [];
 
-    const key = getUserKey(currentUser);
-
-    // 1. Check user-scoped localStorage
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`iskra_user_packages_${key}`);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) return parsed;
-        } catch {}
-      }
-    }
-
-    // 2. Check currentUser.services (from AuthContext / backend)
-    if (currentUser.services && currentUser.services.length > 0) {
-      return currentUser.services.map((s) => ({
-        id: s.id || `pkg_${s.number}`,
-        number: s.number || 5191,
-        name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
-        planType: (s.planType as any) || "Start",
-        price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
-        expiresAt: s.expiresAt || new Date(Date.now() + 14 * 86400000).toISOString(),
-        storeName: s.assignedStoreName || "",
-        subdomain: s.assignedSubdomain || "",
-        logoUrl: "",
-        isConfigured: Boolean(s.assignedSubdomain),
-      }));
-    }
-
-    // 3. Check currentUser's stores
+    // 1. Sprawdź najpierw sklepy użytkownika z bazy Supabase
     if (currentStores && currentStores.length > 0) {
       return currentStores.map((st, idx) => {
         const storeExp = st.planExpiresAt || (st as any).expires_at || (st as any).expiresAt || st.trialEndsAt || (st as any).trial_ends_at;
@@ -430,7 +401,34 @@ export default function AeuxDashboard({
       });
     }
 
-    // 4. Return empty array for a brand new user who has not bought or activated any package yet
+    // 2. Sprawdź zakupione usługi (services)
+    if (currentUser.services && currentUser.services.length > 0) {
+      return currentUser.services.map((s) => ({
+        id: s.id || `pkg_${s.number}`,
+        number: s.number || 5191,
+        name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
+        planType: (s.planType as any) || "Start",
+        price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+        expiresAt: s.expiresAt || new Date(Date.now() + 14 * 86400000).toISOString(),
+        storeName: s.assignedStoreName || "",
+        subdomain: s.assignedSubdomain || "",
+        logoUrl: "",
+        isConfigured: Boolean(s.assignedSubdomain),
+      }));
+    }
+
+    // 3. Fallback do localStorage użytkownika
+    const key = getUserKey(currentUser);
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`iskra_user_packages_${key}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+
     return [];
   };
 
@@ -1071,7 +1069,7 @@ export default function AeuxDashboard({
 
     if (days >= 1) {
       return {
-        text: `Pozostało: ${days} ${days === 1 ? "dzień" : "dni"}, ${hours} godz.`,
+        text: `${days} ${days === 1 ? "dzień" : "dni"}, ${hours} godz.`,
         isExpired: false,
         days,
         hours,
@@ -1079,7 +1077,7 @@ export default function AeuxDashboard({
       };
     } else {
       return {
-        text: `Pozostało: ${hours} godz. ${minutes} min.`,
+        text: `${hours} godz. ${minutes} min.`,
         isExpired: false,
         days,
         hours,

@@ -1679,7 +1679,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isTrial = params.plan === "Start" || params.plan === "trial_14d";
     const durationDays = isTrial ? 14 : params.billingCycle === "rok" ? 365 : 30;
-    const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+    const matchingService = (user.services || []).find(
+      (s) => (params.serviceId && s.id === params.serviceId) || (!params.serviceId && s.status === "Nieprzypisany")
+    );
+    const expiresAt = matchingService?.expiresAt || user.planExpiresAt || new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
     const cleanSub = params.subdomain.toLowerCase().replace(/[^a-z0-9]/g, "") || "sklep";
     let finalSub = cleanSub;

@@ -59,9 +59,9 @@ export function SubscriptionTimer({
 
       if (days > 0) {
         const dayLabel = days === 1 ? 'dzień' : 'dni';
-        setTimeLeft(`Pozostało: ${days} ${dayLabel}, ${hours} godz. ${minutes} min. ${seconds} sek.`);
+        setTimeLeft(`${days} ${dayLabel}, ${hours} godz. ${minutes} min. ${seconds} sek.`);
       } else {
-        setTimeLeft(`Pozostało: ${hours} godz. ${minutes} min. ${seconds} sek.`);
+        setTimeLeft(`${hours} godz. ${minutes} min. ${seconds} sek.`);
       }
     };
 
