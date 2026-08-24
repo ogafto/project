@@ -359,8 +359,15 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
 
     const resolvedOwnerId = ownerId || storeData.owner_id || storeData.ownerId || null;
 
+    // Pobierz istniejący rekord sklepu, aby NIGDY nie nadpisać expires_at przy logowaniu lub odświeżaniu
+    const { data: existingStore } = await client
+      .from("stores")
+      .select("id, expires_at, trial_ends_at")
+      .eq("subdomain", subdomain)
+      .maybeSingle();
+
     const dbPayload: any = {
-      id: storeData.id || `t_${Date.now()}`,
+      id: existingStore?.id || storeData.id || `t_${Date.now()}`,
       owner_id: resolvedOwnerId,
       name: storeData.name || "Mój Sklep",
       subdomain: subdomain,
@@ -377,12 +384,23 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
       plan_status: storeData.planStatus || "active",
       status: storeData.status || "active",
       is_active: storeData.is_active !== false && storeData.status !== "deleted",
-      expires_at: storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at || undefined,
-      trial_ends_at: storeData.trialEndsAt || storeData.trial_ends_at || undefined,
       social_links: storeData.socials || {},
       theme_config: { template: storeData.template, accentColor: storeData.accentColor, ownerEmail: storeData.ownerEmail },
       drop_config: storeData.dropConfig || { enabled: false },
     };
+
+    // ZASADA BEZWZGLĘDNA: Zachowaj istniejącą datę ważności z bazy
+    if (existingStore?.expires_at) {
+      dbPayload.expires_at = existingStore.expires_at;
+    } else if (storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at) {
+      dbPayload.expires_at = storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at;
+    }
+
+    if (existingStore?.trial_ends_at) {
+      dbPayload.trial_ends_at = existingStore.trial_ends_at;
+    } else if (storeData.trialEndsAt || storeData.trial_ends_at) {
+      dbPayload.trial_ends_at = storeData.trialEndsAt || storeData.trial_ends_at;
+    }
 
     console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id}, owner=${resolvedOwnerId})...`);
     const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });

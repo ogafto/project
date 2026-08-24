@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
           title: `Pakiet ${sub.plan_name || "Start"}`,
           planType: sub.plan_name || "Start",
           status: "Aktywny",
-          expiresAt: sub.current_period_end || new Date(Date.now() + 30 * 86400000).toISOString(),
+          expiresAt: sub.current_period_end || null,
           createdAt: sub.created_at,
         }));
       }
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
             user_email: cleanEmail,
             plan_name: s.planType || s.title?.replace("Pakiet ", "") || "Start",
             status: "active",
-            current_period_end: s.expiresAt || new Date(Date.now() + 30 * 86400000).toISOString(),
+            current_period_end: s.expiresAt || undefined,
           });
         } catch {}
       }
@@ -288,8 +288,15 @@ export async function POST(req: NextRequest) {
         const cleanSub = st.subdomain.toLowerCase().replace(/[^a-z0-9]/g, "");
         if (!cleanSub) continue;
 
+        // Pobierz istniejący sklep z bazy, aby NIGDY nie nadpisać expires_at przy logowaniu/syncu użytkownika
+        const { data: existingStore } = await dbClient
+          .from("stores")
+          .select("id, expires_at, trial_ends_at")
+          .eq("subdomain", cleanSub)
+          .maybeSingle();
+
         const storePayload: any = {
-          id: st.id || `store_${cleanSub}`,
+          id: existingStore?.id || st.id || `store_${cleanSub}`,
           owner_id: resolvedOwnerId,
           name: st.name || "Mój Sklep",
           subdomain: cleanSub,
@@ -313,10 +320,15 @@ export async function POST(req: NextRequest) {
           drop_config: st.dropConfig || { enabled: false },
         };
 
-        if (st.expiresAt || st.planExpiresAt || st.expires_at) {
+        if (existingStore?.expires_at) {
+          storePayload.expires_at = existingStore.expires_at;
+        } else if (st.expiresAt || st.planExpiresAt || st.expires_at) {
           storePayload.expires_at = st.expiresAt || st.planExpiresAt || st.expires_at;
         }
-        if (st.trialEndsAt || st.trial_ends_at) {
+
+        if (existingStore?.trial_ends_at) {
+          storePayload.trial_ends_at = existingStore.trial_ends_at;
+        } else if (st.trialEndsAt || st.trial_ends_at) {
           storePayload.trial_ends_at = st.trialEndsAt || st.trial_ends_at;
         }
 

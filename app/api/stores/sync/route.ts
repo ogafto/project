@@ -187,8 +187,15 @@ export async function POST(req: NextRequest) {
     const storeId = store.id || `store_${cleanSubdomain}`;
     const resolvedOwnerId = owner_id || store.owner_id || store.ownerId || null;
 
-    const dbPayload = {
-      id: storeId,
+    // Pobierz istniejący sklep z bazy, aby NIGDY nie nadpisać expires_at przy zwykłej synchronizacji
+    const { data: existingDbStore } = await dbClient
+      .from("stores")
+      .select("id, expires_at, trial_ends_at")
+      .eq("subdomain", cleanSubdomain)
+      .maybeSingle();
+
+    const dbPayload: any = {
+      id: existingDbStore?.id || storeId,
       owner_id: resolvedOwnerId,
       name: store.name || "Mój Sklep",
       subdomain: cleanSubdomain,
@@ -214,7 +221,19 @@ export async function POST(req: NextRequest) {
       drop_config: store.dropConfig || { enabled: false },
     };
 
-    console.log(`[API /api/stores/sync] Synchronizowanie sklepu '${cleanSubdomain}' (id: ${storeId}, owner: ${resolvedOwnerId})...`);
+    if (existingDbStore?.expires_at) {
+      dbPayload.expires_at = existingDbStore.expires_at;
+    } else if (store.expiresAt || store.planExpiresAt || store.expires_at) {
+      dbPayload.expires_at = store.expiresAt || store.planExpiresAt || store.expires_at;
+    }
+
+    if (existingDbStore?.trial_ends_at) {
+      dbPayload.trial_ends_at = existingDbStore.trial_ends_at;
+    } else if (store.trialEndsAt || store.trial_ends_at) {
+      dbPayload.trial_ends_at = store.trialEndsAt || store.trial_ends_at;
+    }
+
+    console.log(`[API /api/stores/sync] Synchronizowanie sklepu '${cleanSubdomain}' (id: ${dbPayload.id}, owner: ${resolvedOwnerId})...`);
     const { error: storeErr } = await dbClient.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
 
     if (storeErr) {
