@@ -38,10 +38,12 @@ export function SubscriptionTimer({
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
+      const pad = (n: number) => String(n).padStart(2, '0');
+
       if (days > 0) {
-        setTimeLeft(`Pozostało: ${days} dni, ${hours} godz. ${minutes} min. ${seconds}s`);
+        setTimeLeft(`${days} ${days === 1 ? 'dzień' : 'dni'}, ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
       } else {
-        setTimeLeft(`Pozostało: ${hours} godz. ${minutes} min. ${seconds}s`);
+        setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
       }
     };
 
@@ -52,8 +54,8 @@ export function SubscriptionTimer({
 
   return (
     <span
-      className={`text-xs font-medium font-['Poppins',sans-serif] ${
-        isExpired ? 'text-rose-400 font-bold' : 'text-zinc-300'
+      className={`text-xs font-semibold font-mono tracking-tight ${
+        isExpired ? 'px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold' : 'text-white'
       } ${className || ''}`}
     >
       {timeLeft}

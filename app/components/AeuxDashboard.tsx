@@ -2835,12 +2835,12 @@ export default function AeuxDashboard({
                       </div>
 
                       {/* WAŻNOŚĆ SKLEPU + PRZYCISK PRZEDŁUŻ (+30 DNI) */}
-                      <div className={`p-3.5 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-3`}>
-                        <div className="min-w-0 flex-1">
+                      <div className={`p-4 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-3`}>
+                        <div className="min-w-0 flex-1 space-y-1">
                           <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-['Poppins',sans-serif]">
                             Ważność sklepu
                           </span>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center">
                             <SubscriptionBadge expiresAt={pkg.expiresAt} />
                           </div>
                         </div>
@@ -2849,7 +2849,7 @@ export default function AeuxDashboard({
                           <button
                             type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer shadow-sm ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold font-['Poppins',sans-serif] transition-all cursor-pointer shadow-sm ${
                               isExp
                                 ? "bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold"
                                 : "bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500"
