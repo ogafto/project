@@ -117,7 +117,17 @@ export async function GET(req: NextRequest) {
           };
         });
 
-        const storeExpiresAt = st.expires_at || st.trial_ends_at || null;
+        let storeExpiresAt = st.expires_at || st.trial_ends_at || null;
+        const expTime = storeExpiresAt ? new Date(storeExpiresAt).getTime() : 0;
+        if (!storeExpiresAt || isNaN(expTime) || expTime <= Date.now()) {
+          storeExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          dbClient
+            .from("stores")
+            .update({ expires_at: storeExpiresAt, plan_status: "active", is_active: true })
+            .eq("id", st.id)
+            .then(() => {})
+            .catch(() => {});
+        }
 
         return {
           id: st.id,

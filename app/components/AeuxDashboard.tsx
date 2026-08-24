@@ -1054,9 +1054,9 @@ export default function AeuxDashboard({
     if (!isMounted) {
       return { text: "Sprawdzanie ważności...", isExpired: false, days: 0, hours: 0, minutes: 0 };
     }
-    if (!expiresAt) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
+    if (!expiresAt) return { text: "Ładowanie...", isExpired: false, days: 0, hours: 0, minutes: 0 };
     const expTime = new Date(expiresAt).getTime();
-    if (isNaN(expTime)) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
+    if (isNaN(expTime) || expTime <= 0) return { text: "Ładowanie...", isExpired: false, days: 0, hours: 0, minutes: 0 };
     const now = currentTime || Date.now();
     const diff = expTime - now;
     if (diff <= 0) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };

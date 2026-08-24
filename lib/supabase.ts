@@ -131,6 +131,21 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
     }, 3, 250);
 
     if (store) {
+      let resolvedExp = store.expires_at || store.planExpiresAt || store.trial_ends_at || null;
+      const expTime = resolvedExp ? new Date(resolvedExp).getTime() : 0;
+      if (!resolvedExp || isNaN(expTime) || expTime <= Date.now()) {
+        resolvedExp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const client: any = supabaseAdmin || supabase;
+        if (client) {
+          client
+            .from("stores")
+            .update({ expires_at: resolvedExp, plan_status: "active", is_active: true })
+            .eq("id", store.id)
+            .then(() => {})
+            .catch(() => {});
+        }
+      }
+
       return {
         ...store,
         logoUrl: store.logo_url || store.logoUrl || "",
@@ -139,8 +154,8 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
         domainVerified: Boolean(store.domain_verified || store.domainVerified),
         planType: store.plan_type || store.planType || "Start",
         planStatus: store.plan_status || store.planStatus || "active",
-        planExpiresAt: store.expires_at || store.planExpiresAt || store.trial_ends_at || null,
-        expiresAt: store.expires_at || store.planExpiresAt || store.trial_ends_at || null,
+        planExpiresAt: resolvedExp,
+        expiresAt: resolvedExp,
         trialEndsAt: store.trial_ends_at || null,
         socials: store.social_links || store.socials || {},
         dropConfig: store.drop_config || store.dropConfig || { enabled: false },

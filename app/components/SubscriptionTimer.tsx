@@ -23,17 +23,17 @@ export function SubscriptionTimer({
     if (!mounted) return;
 
     if (!expiresAt) {
-      setTimeLeft('Wygasł');
-      setIsExpired(true);
-      if (onExpireChange) onExpireChange(true);
+      setTimeLeft('Ładowanie...');
+      setIsExpired(false);
+      if (onExpireChange) onExpireChange(false);
       return;
     }
 
     const targetDate = new Date(expiresAt).getTime();
     if (isNaN(targetDate) || targetDate <= 0) {
-      setTimeLeft('Wygasł');
-      setIsExpired(true);
-      if (onExpireChange) onExpireChange(true);
+      setTimeLeft('Ładowanie...');
+      setIsExpired(false);
+      if (onExpireChange) onExpireChange(false);
       return;
     }
 
@@ -41,6 +41,7 @@ export function SubscriptionTimer({
       const now = Date.now();
       const diff = targetDate - now;
 
+      // Stan "Wygasł" aktywuje się TYLKO gdy data z bazy faktycznie upłynęła (diff <= 0)
       if (diff <= 0) {
         setTimeLeft('Wygasł');
         setIsExpired(true);

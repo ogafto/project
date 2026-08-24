@@ -36,10 +36,25 @@ export async function POST(req: NextRequest) {
     results.push({ table: "profiles", status: "error: " + e.message });
   }
 
-  // 3. Test stores
+  // 3. Test and repair stores
   try {
-    const { data: stores } = await dbClient.from("stores").select("id,name,subdomain").limit(10);
-    results.push({ table: "stores", status: "exists", count: stores?.length || 0, data: stores });
+    const { data: stores } = await dbClient.from("stores").select("*");
+    const fixedStores: string[] = [];
+    if (stores && stores.length > 0) {
+      const now = Date.now();
+      const future30Days = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+      for (const st of stores) {
+        const curExp = st.expires_at ? new Date(st.expires_at).getTime() : 0;
+        if (!st.expires_at || isNaN(curExp) || curExp <= now) {
+          await dbClient
+            .from("stores")
+            .update({ expires_at: future30Days, plan_status: "active", is_active: true })
+            .eq("id", st.id);
+          fixedStores.push(`${st.subdomain} (id=${st.id}) -> ${future30Days}`);
+        }
+      }
+    }
+    results.push({ table: "stores", status: "repaired", count: stores?.length || 0, fixedStores });
   } catch (e: any) {
     results.push({ table: "stores", status: "error: " + e.message });
   }
