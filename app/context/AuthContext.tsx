@@ -1463,6 +1463,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(updated);
       setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
       setMessage({ type: "success", text: updated.is2FAEnabled ? "Włączono autoryzację 2FA!" : "Wyłączono 2FA." });
+
+      fetch("/api/auth/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: updated }),
+      }).catch((err) => console.warn("[Auth] 2FA sync error:", err));
     }
   };
 

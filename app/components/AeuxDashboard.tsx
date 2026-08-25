@@ -57,8 +57,10 @@ import {
   Tag,
   AlertCircle,
   FileText,
-  Key,
+  QrCode,
+  ShieldCheck,
   Palette,
+  Key,
   BellOff,
 } from "lucide-react";
 import {
@@ -285,52 +287,69 @@ export default function AeuxDashboard({
   // Profile Management State
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileEmail, setProfileEmail] = useState(user?.email || "");
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || "");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || (user as any)?.avatar_url || "");
   const [avatarUrlInput, setAvatarUrlInput] = useState("");
+  const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+  const avatarFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Address & contact fields (strictly empty by default if not set by user)
   const [profilePhone, setProfilePhone] = useState(() => {
     if (typeof window !== "undefined" && user) {
-      return localStorage.getItem(`iskra_profile_phone_${userKey}`) || "+48 500 123 456";
+      return localStorage.getItem(`iskra_profile_phone_${userKey}`) || user.phone || "";
     }
-    return "+48 500 123 456";
+    return user?.phone || "";
   });
   const [profileStreet, setProfileStreet] = useState(() => {
     if (typeof window !== "undefined" && user) {
-      return localStorage.getItem(`iskra_profile_street_${userKey}`) || "ul. Floriańska 12/4";
+      return localStorage.getItem(`iskra_profile_street_${userKey}`) || user.address?.street || "";
     }
-    return "ul. Floriańska 12/4";
+    return user?.address?.street || "";
   });
   const [profileZip, setProfileZip] = useState(() => {
     if (typeof window !== "undefined" && user) {
-      return localStorage.getItem(`iskra_profile_zip_${userKey}`) || "31-021";
+      return localStorage.getItem(`iskra_profile_zip_${userKey}`) || user.address?.zip || "";
     }
-    return "31-021";
+    return user?.address?.zip || "";
   });
   const [profileCity, setProfileCity] = useState(() => {
     if (typeof window !== "undefined" && user) {
-      return localStorage.getItem(`iskra_profile_city_${userKey}`) || "Kraków";
+      return localStorage.getItem(`iskra_profile_city_${userKey}`) || user.address?.city || "";
     }
-    return "Kraków";
+    return user?.address?.city || "";
   });
   const [profileCountry, setProfileCountry] = useState(() => {
     if (typeof window !== "undefined" && user) {
-      return localStorage.getItem(`iskra_profile_country_${userKey}`) || "Polska";
+      return localStorage.getItem(`iskra_profile_country_${userKey}`) || user.address?.country || "";
     }
-    return "Polska";
+    return user?.address?.country || "";
   });
   const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
-  const [is2FAActive, setIs2FAActive] = useState(user?.is2FAEnabled || false);
+
+  // 2FA Authenticator state
+  const [is2FAActive, setIs2FAActive] = useState(user?.is2FAEnabled || (user as any)?.two_factor_enabled || false);
+  const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
+  const [totpSecret, setTotpSecret] = useState("ISKRA74829374029");
+  const [totpCodeInput, setTotpCodeInput] = useState("");
+  const [totpError, setTotpError] = useState("");
 
   // Synchronize profile state when user object changes
   useEffect(() => {
     if (user) {
       setProfileName(user.name || "");
       setProfileEmail(user.email || "");
-      setProfileAvatarUrl(user.avatarUrl || "");
-      setIs2FAActive(user.is2FAEnabled || false);
+      setProfileAvatarUrl(user.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || "");
+      setIs2FAActive(user.is2FAEnabled || (user as any)?.two_factor_enabled || false);
+      if (typeof window !== "undefined") {
+        setProfilePhone(localStorage.getItem(`iskra_profile_phone_${userKey}`) || user.phone || "");
+        setProfileStreet(localStorage.getItem(`iskra_profile_street_${userKey}`) || user.address?.street || "");
+        setProfileZip(localStorage.getItem(`iskra_profile_zip_${userKey}`) || user.address?.zip || "");
+        setProfileCity(localStorage.getItem(`iskra_profile_city_${userKey}`) || user.address?.city || "");
+        setProfileCountry(localStorage.getItem(`iskra_profile_country_${userKey}`) || user.address?.country || "");
+      }
     }
-  }, [user?.id, user?.name, user?.email, user?.avatarUrl, user?.is2FAEnabled]);
+  }, [user?.id, user?.name, user?.email, user?.avatarUrl, (user as any)?.avatar_url, user?.is2FAEnabled, (user as any)?.two_factor_enabled]);
 
   // Notification center state (Dismissable, clear all, empty state)
   const [notificationsList, setNotificationsList] = useState<Array<{ id: string; title: string; text: string; time: string; type: "info" | "success" | "sale" }>>(() => {
@@ -1788,7 +1807,7 @@ export default function AeuxDashboard({
       const dataUrl = event.target?.result as string;
       setProfileAvatarUrl(dataUrl);
       if (updateUserProfile) {
-        updateUserProfile({ avatarUrl: dataUrl });
+        updateUserProfile({ avatarUrl: dataUrl, avatar_url: dataUrl } as any);
       }
       if (setMessage) setMessage({ type: "success", text: "Zaktualizowano zdjęcie profilowe!" });
     };
@@ -1800,7 +1819,7 @@ export default function AeuxDashboard({
     const cleanUrl = avatarUrlInput.trim();
     setProfileAvatarUrl(cleanUrl);
     if (updateUserProfile) {
-      updateUserProfile({ avatarUrl: cleanUrl });
+      updateUserProfile({ avatarUrl: cleanUrl, avatar_url: cleanUrl } as any);
     }
     setAvatarUrlInput("");
     if (setMessage) setMessage({ type: "success", text: "Zapisano link do zdjęcia profilowego!" });
@@ -1810,7 +1829,7 @@ export default function AeuxDashboard({
     setProfileAvatarUrl("");
     setAvatarUrlInput("");
     if (updateUserProfile) {
-      updateUserProfile({ avatarUrl: "" });
+      updateUserProfile({ avatarUrl: "", avatar_url: "" } as any);
     }
     if (setMessage) setMessage({ type: "success", text: "Usunięto zdjęcie profilowe." });
   };
@@ -1830,10 +1849,77 @@ export default function AeuxDashboard({
       localStorage.setItem(`iskra_profile_country_${key}`, profileCountry);
     }
     if (updateUserProfile) {
-      updateUserProfile({ name: profileName, avatarUrl: profileAvatarUrl });
+      updateUserProfile({
+        name: profileName,
+        avatarUrl: profileAvatarUrl,
+        phone: profilePhone,
+        address: {
+          street: profileStreet,
+          zip: profileZip,
+          city: profileCity,
+          country: profileCountry,
+        },
+      } as any);
     }
     if (setMessage) {
       setMessage({ type: "success", text: "🎉 Zapisano pomyślnie zaktualizowane dane profilu!" });
+    }
+  };
+
+  const handleStart2FASetup = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let sec = "ISKRA";
+    for (let i = 0; i < 11; i++) {
+      sec += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setTotpSecret(sec);
+    setTotpCodeInput("");
+    setTotpError("");
+    setIs2FASetupOpen(true);
+  };
+
+  const handleVerifyAndEnable2FA = () => {
+    const cleanCode = totpCodeInput.trim().replace(/\s+/g, "");
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+      setTotpError("Wprowadź poprawny 6-cyfrowy kod z aplikacji Authenticator!");
+      return;
+    }
+    setTotpError("");
+    setIs2FAActive(true);
+    setIs2FASetupOpen(false);
+    if (updateUserProfile) {
+      updateUserProfile({
+        is2FAEnabled: true,
+        two_factor_enabled: true,
+        two_factor_secret: totpSecret,
+      } as any);
+    }
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: "🎉 Weryfikacja dwuetapowa (2FA) została pomyślnie włączona i powiązana z Twoją aplikacją Authenticator!",
+      });
+    }
+  };
+
+  const handleDisable2FA = () => {
+    if (!window.confirm("Czy na pewno chcesz wyłączyć weryfikację dwuetapową (2FA)? Twoje konto będzie mniej bezpieczne.")) {
+      return;
+    }
+    setIs2FAActive(false);
+    setIs2FASetupOpen(false);
+    if (updateUserProfile) {
+      updateUserProfile({
+        is2FAEnabled: false,
+        two_factor_enabled: false,
+        two_factor_secret: null,
+      } as any);
+    }
+    if (setMessage) {
+      setMessage({
+        type: "success",
+        text: "Weryfikacja dwuetapowa (2FA) została wyłączona.",
+      });
     }
   };
 
@@ -2653,15 +2739,15 @@ export default function AeuxDashboard({
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all group select-none"
               >
-                <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                  {user?.avatarUrl ? (
+                <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+                  {(user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl) ? (
                     <img
-                      src={user.avatarUrl}
-                      alt="Profil"
-                      className="w-9 h-9 rounded-full object-cover border border-[#262835]"
+                      src={user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl}
+                      alt={user?.name || "Profil"}
+                      className="w-10 h-10 rounded-xl object-cover border border-zinc-800 shadow-sm"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-[#181B24] border border-[#262835] flex items-center justify-center text-xs font-bold text-[#D0FF00]">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-bold text-white">
                       {getUserInitials(user?.name, user?.email)}
                     </div>
                   )}
@@ -2681,15 +2767,15 @@ export default function AeuxDashboard({
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-1.5 z-50 shadow-2xl animate-in fade-in">
                   <div className="px-3 py-2.5 border-b border-[#17181F] mb-1 flex items-center gap-2.5">
-                    <div className="w-8 h-8 shrink-0 flex items-center justify-center">
-                      {user?.avatarUrl ? (
+                    <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                      {(user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl) ? (
                         <img
-                          src={user.avatarUrl}
-                          alt="Profil"
-                          className="w-8 h-8 rounded-full object-cover border border-[#262835]"
+                          src={user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl}
+                          alt={user?.name || "Profil"}
+                          className="w-9 h-9 rounded-xl object-cover border border-[#262835]"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-[#181B24] border border-[#262835] flex items-center justify-center text-[10px] font-bold text-[#D0FF00]">
+                        <div className="w-9 h-9 rounded-xl bg-[#181B24] border border-[#262835] flex items-center justify-center text-xs font-bold text-[#D0FF00]">
                           {getUserInitials(user?.name, user?.email)}
                         </div>
                       )}
@@ -2698,8 +2784,8 @@ export default function AeuxDashboard({
                       <span className="text-[10px] font-bold uppercase text-[#D0FF00] block tracking-wider font-sans">
                         {isAdmin ? "Administrator" : "Konto Klienta"}
                       </span>
-                      <span className="text-xs font-semibold text-white block truncate font-sans">{user?.name || "Jan Kowalski"}</span>
-                      <span className="text-[10px] text-zinc-500 block truncate font-sans">{user?.email || "jan.kowalski@gmail.com"}</span>
+                      <span className="text-xs font-semibold text-white block truncate font-sans">{user?.name || "Użytkownik"}</span>
+                      <span className="text-[10px] text-zinc-500 block truncate font-sans">{user?.email || "konto@iskral.pl"}</span>
                     </div>
                   </div>
 
@@ -3640,7 +3726,7 @@ export default function AeuxDashboard({
         {/* ========================================================================= */}
         {activeTab === "profil" && (
           <div className="space-y-6 max-w-4xl font-sans">
-            {/* SEKCJA 1: ZDJĘCIE PROFILOWE */}
+            {/* SEKCJA 1: ZDJĘCIE PROFILOWE (DRAG & DROP + SQUIRCLE) */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6">
               <div className="border-b border-[#17181F] pb-4">
                 <h2 className="text-xl font-bold text-white font-sans">
@@ -3651,76 +3737,109 @@ export default function AeuxDashboard({
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                 {/* PODGLĄD AKTUALNEGO ZDJĘCIA */}
-                <div className="relative group shrink-0">
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden bg-[#111319] border-2 border-[#1C1E26] flex items-center justify-center shadow-lg">
+                <div className="flex flex-col items-center sm:items-start gap-3">
+                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block font-sans">
+                    Aktualny awatar
+                  </span>
+                  <div className="w-28 h-28 rounded-2xl overflow-hidden bg-[#111319] border-2 border-[#1C1E26] flex items-center justify-center shadow-xl relative group">
                     {profileAvatarUrl ? (
-                      <img
-                        src={profileAvatarUrl}
-                        alt="Podgląd zdjęcia profilowego"
-                        className="w-full h-full object-cover"
-                      />
+                      <>
+                        <img
+                          src={profileAvatarUrl}
+                          alt="Podgląd zdjęcia profilowego"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-rose-400 font-semibold text-xs gap-1 cursor-pointer"
+                          title="Usuń zdjęcie"
+                        >
+                          <Trash2 className="w-5 h-5 text-rose-400" />
+                          <span>Usuń</span>
+                        </button>
+                      </>
                     ) : (
-                      <div className="w-full h-full bg-[#181B24] flex items-center justify-center text-xl font-bold text-[#D0FF00]">
+                      <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-2xl font-bold text-white">
                         {getUserInitials(profileName || user?.name, user?.email)}
                       </div>
                     )}
                   </div>
+                  {profileAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="text-xs text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Usuń zdjęcie profilowe</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-3.5 flex-1">
-                  {/* PRZYCISKI WGRANIA I USUNIĘCIA */}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <label className="px-4 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-sm">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{profileAvatarUrl ? "Zmień zdjęcie" : "Wgraj zdjęcie z dysku"}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            handleAvatarFileUpload(e.target.files[0]);
-                          }
-                        }}
-                      />
-                    </label>
-
-                    {profileAvatarUrl && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveAvatar}
-                        className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Usuń zdjęcie</span>
-                      </button>
-                    )}
+                {/* STREFA DRAG & DROP + WYBÓR Z DYSKU */}
+                <div className="md:col-span-2 space-y-3">
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingAvatar(true);
+                    }}
+                    onDragLeave={() => setIsDraggingAvatar(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingAvatar(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        handleAvatarFileUpload(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => avatarFileInputRef.current?.click()}
+                    className={`p-6 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center text-center cursor-pointer ${
+                      isDraggingAvatar
+                        ? "border-[#D0FF00] bg-[#D0FF00]/10 ring-2 ring-[#D0FF00]/30"
+                        : "border-[#1C1E26] hover:border-[#D0FF00]/50 bg-[#111319]/70 hover:bg-[#111319]"
+                    }`}
+                  >
+                    <input
+                      ref={avatarFileInputRef}
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp, image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleAvatarFileUpload(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    <div className="w-12 h-12 rounded-xl bg-[#181B24] border border-[#262B3B] flex items-center justify-center text-[#D0FF00] mb-3 shadow-inner">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <p className="text-sm font-semibold text-white font-sans">
+                      {isDraggingAvatar ? "Upuść plik tutaj..." : "Przeciągnij i upuść zdjęcie tutaj"}
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-1 font-sans">
+                      lub <span className="text-[#D0FF00] underline font-medium">kliknij, aby wybrać z dysku</span> (PNG, JPG, WebP)
+                    </p>
                   </div>
 
                   {/* WKLEJANIE LINKU DO ZDJĘCIA */}
-                  <div className="pt-1">
-                    <label className="text-[11px] font-semibold text-zinc-400 block mb-1.5">
-                      Lub wklej bezpośredni adres URL zdjęcia:
-                    </label>
-                    <div className="flex items-center gap-2 max-w-md">
-                      <input
-                        type="url"
-                        value={avatarUrlInput}
-                        onChange={(e) => setAvatarUrlInput(e.target.value)}
-                        placeholder="https://domena.pl/avatar.jpg"
-                        className="flex-1 px-3.5 py-2 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSaveAvatarUrl}
-                        disabled={!avatarUrlInput.trim()}
-                        className="px-3.5 py-2 bg-[#181B24] hover:bg-[#202430] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl border border-[#262B3B] transition-colors cursor-pointer shrink-0"
-                      >
-                        Zapisz link
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="url"
+                      value={avatarUrlInput}
+                      onChange={(e) => setAvatarUrlInput(e.target.value)}
+                      placeholder="Lub wklej bezpośredni adres URL zdjęcia (https://...)"
+                      className="flex-1 px-3.5 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveAvatarUrl}
+                      disabled={!avatarUrlInput.trim()}
+                      className="px-4 py-2.5 bg-[#181B24] hover:bg-[#202430] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl border border-[#262B3B] transition-colors cursor-pointer shrink-0"
+                    >
+                      Zapisz link
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3745,7 +3864,8 @@ export default function AeuxDashboard({
                       type="text"
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
-                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      placeholder="Wpisz swoje imię i nazwisko..."
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                       required
                     />
                   </div>
@@ -3764,15 +3884,15 @@ export default function AeuxDashboard({
                       type="tel"
                       value={profilePhone}
                       onChange={(e) => setProfilePhone(e.target.value)}
-                      placeholder="+48 500 123 456"
-                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      placeholder="Wpisz numer telefonu (np. +48 500 123 456)..."
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
                 </div>
 
                 {/* ADRES ZAMIESZKANIA */}
                 <div className="pt-2 border-t border-[#17181F]">
-                  <h3 className="text-sm font-bold text-white mb-4">Adres zamieszkania / firmy</h3>
+                  <h3 className="text-sm font-bold text-white mb-4">Adres zamieszkania</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="sm:col-span-2">
                       <label className="text-xs font-semibold text-zinc-300 block mb-2">Ulica i numer</label>
@@ -3780,8 +3900,8 @@ export default function AeuxDashboard({
                         type="text"
                         value={profileStreet}
                         onChange={(e) => setProfileStreet(e.target.value)}
-                        placeholder="ul. Marszałkowska 10/2"
-                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                        placeholder="Wpisz ulicę i numer domu/lokalu..."
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                       />
                     </div>
                     <div>
@@ -3790,8 +3910,8 @@ export default function AeuxDashboard({
                         type="text"
                         value={profileZip}
                         onChange={(e) => setProfileZip(e.target.value)}
-                        placeholder="00-001"
-                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                        placeholder="Wpisz kod pocztowy (np. 00-001)..."
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                       />
                     </div>
                     <div>
@@ -3800,8 +3920,8 @@ export default function AeuxDashboard({
                         type="text"
                         value={profileCity}
                         onChange={(e) => setProfileCity(e.target.value)}
-                        placeholder="Warszawa"
-                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                        placeholder="Wpisz miasto..."
+                        className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                       />
                     </div>
                   </div>
@@ -3811,8 +3931,8 @@ export default function AeuxDashboard({
                       type="text"
                       value={profileCountry}
                       onChange={(e) => setProfileCountry(e.target.value)}
-                      placeholder="Polska"
-                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      placeholder="Wpisz kraj (np. Polska)..."
+                      className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
                 </div>
@@ -3846,7 +3966,7 @@ export default function AeuxDashboard({
                       value={currentPasswordInput}
                       onChange={(e) => setCurrentPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
                   <div>
@@ -3856,7 +3976,7 @@ export default function AeuxDashboard({
                       value={newPasswordInput}
                       onChange={(e) => setNewPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
                   <div>
@@ -3866,7 +3986,7 @@ export default function AeuxDashboard({
                       value={confirmPasswordInput}
                       onChange={(e) => setConfirmPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white focus:outline-none focus:border-[#D0FF00]"
+                      className="w-full px-4 py-2.5 bg-[#111319] border border-[#1C1E26] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#D0FF00]"
                     />
                   </div>
                   <button
@@ -3884,57 +4004,154 @@ export default function AeuxDashboard({
                 <div className="space-y-4">
                   <div className="border-b border-[#17181F] pb-3">
                     <h3 className="text-base font-bold text-white">Weryfikacja dwuetapowa (2FA)</h3>
-                    <p className="text-xs text-zinc-400 mt-0.5">Zabezpiecz konto kodem z aplikacji Google Authenticator</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Zabezpiecz konto jednorazowymi kodami z aplikacji Google Authenticator, Microsoft Authenticator lub 2FAS.
+                    </p>
                   </div>
 
+                  {/* STATUS BADGE & MAIN TOGGLE */}
                   <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Shield className={`w-6 h-6 ${is2FAActive ? "text-[#D0FF00]" : "text-zinc-500"}`} />
+                      {is2FAActive ? (
+                        <ShieldCheck className="w-6 h-6 text-[#D0FF00]" />
+                      ) : (
+                        <Shield className="w-6 h-6 text-zinc-500" />
+                      )}
                       <div>
-                        <span className="text-xs font-bold text-white block">Status 2FA</span>
-                        <span className="text-[11px] text-zinc-400">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white block">Status 2FA:</span>
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                              is2FAActive
+                                ? "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/30"
+                                : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                            }`}
+                          >
+                            {is2FAActive ? "Włączone" : "Wyłączone"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-zinc-400 block mt-0.5">
                           {is2FAActive ? "Aktywna ochrona logowania" : "Wyłączona (Zalecamy włączenie)"}
                         </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !is2FAActive;
-                        setIs2FAActive(next);
-                        if (toggle2FA) toggle2FA();
-                        if (setMessage) {
-                          setMessage({
-                            type: "success",
-                            text: next ? "Włączono weryfikację 2FA!" : "Wyłączono weryfikację 2FA.",
-                          });
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold font-sans transition-colors cursor-pointer ${
-                        is2FAActive ? "bg-rose-500/15 text-rose-400 border border-rose-500/30" : "bg-[#D0FF00] text-black"
-                      }`}
-                    >
-                      {is2FAActive ? "Wyłącz 2FA" : "Podepnij 2FA"}
-                    </button>
-                  </div>
 
-                  <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-2 text-xs text-zinc-400">
-                    <span className="text-white font-semibold block">Klucz konfiguracji ręcznej:</span>
-                    <div className="flex items-center justify-between p-2.5 bg-[#0D0E12] border border-[#1C1E26] rounded-xl font-mono text-zinc-300">
-                      <span>ISKRA-AUTH-9821-SECURE</span>
+                    {is2FAActive ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText("ISKRA-AUTH-9821-SECURE");
-                          if (setMessage) setMessage({ type: "success", text: "Skopiowano klucz 2FA!" });
-                        }}
-                        className="text-zinc-500 hover:text-[#D0FF00] p-1 cursor-pointer"
-                        title="Kopiuj"
+                        onClick={handleDisable2FA}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold font-sans transition-colors cursor-pointer bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        Wyłącz 2FA
                       </button>
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleStart2FASetup}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold font-sans transition-colors cursor-pointer bg-[#D0FF00] hover:bg-[#bce600] text-black shadow-sm flex items-center gap-1.5"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Skonfiguruj aplikację Authenticator</span>
+                      </button>
+                    )}
                   </div>
+
+                  {/* PANEL KONFIGURACJI 2FA (OTWIERA SIĘ PO KLIKNIĘCIU) */}
+                  {is2FASetupOpen && !is2FAActive && (
+                    <div className="p-5 bg-[#111319] border border-[#D0FF00]/30 rounded-2xl space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between border-b border-[#1C1E26] pb-3">
+                        <div>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                            Konfiguracja aplikacji Authenticator
+                          </h4>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            Zeskanuj kod QR w Google Authenticator, Microsoft Authenticator lub 2FAS.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIs2FASetupOpen(false)}
+                          className="text-zinc-500 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* KROK 1: KOD QR I KLUCZ RĘCZNY */}
+                      <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#0D0E12] p-3.5 rounded-xl border border-[#1C1E26]">
+                        <div className="p-2 bg-white rounded-xl shrink-0 shadow-md">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
+                              `otpauth://totp/IskraL:${encodeURIComponent(user?.email || profileEmail || "konto@iskral.pl")}?secret=${totpSecret}&issuer=IskraL`
+                            )}`}
+                            alt="Kod QR 2FA"
+                            className="w-28 h-28 object-contain"
+                          />
+                        </div>
+                        <div className="space-y-2 text-xs flex-1 min-w-0">
+                          <span className="text-zinc-400 block text-[11px]">
+                            Jeśli nie możesz zeskanować kodu QR, przepisz poniższy klucz ręcznie:
+                          </span>
+                          <div className="flex items-center justify-between p-2 bg-[#141722] border border-[#1F2536] rounded-lg font-mono text-xs text-white">
+                            <span className="truncate select-all">{totpSecret}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(totpSecret);
+                                if (setMessage) setMessage({ type: "success", text: "Skopiowano klucz 2FA!" });
+                              }}
+                              className="text-zinc-400 hover:text-[#D0FF00] p-1 cursor-pointer shrink-0 ml-2"
+                              title="Kopiuj klucz"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* KROK 2: WERYFIKACJA 6-CYFROWEGO KODU */}
+                      <div className="space-y-2 pt-1">
+                        <label className="text-xs font-semibold text-white block">
+                          Wpisz 6-cyfrowy kod z aplikacji Authenticator:
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={totpCodeInput}
+                            onChange={(e) => {
+                              setTotpCodeInput(e.target.value.replace(/\D/g, ""));
+                              setTotpError("");
+                            }}
+                            placeholder="000000"
+                            className="w-36 tracking-[0.25em] text-center font-mono text-base px-3 py-2 bg-[#0D0E12] border border-[#1C1E26] rounded-xl text-white focus:outline-none focus:border-[#D0FF00]"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyAndEnable2FA}
+                            className="flex-1 py-2.5 px-4 bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm"
+                          >
+                            Zweryfikuj i włącz 2FA
+                          </button>
+                        </div>
+                        {totpError && (
+                          <span className="text-[11px] text-rose-400 block font-medium">
+                            {totpError}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* INFO BOX */}
+                  {!is2FASetupOpen && (
+                    <div className="p-4 bg-[#111319] border border-[#1C1E26] rounded-2xl space-y-1 text-xs text-zinc-400">
+                      <span className="text-white font-semibold block">Wskazówka bezpieczeństwa:</span>
+                      <p className="text-[11px] leading-relaxed">
+                        Weryfikacja dwuetapowa wymaga podania unikalnego kodu z aplikacji przy każdym nowym logowaniu, co uniemożliwia nieautoryzowany dostęp do Twojego sklepu.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

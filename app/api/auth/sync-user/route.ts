@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
     const profilePayload: any = {
       email: cleanEmail,
       name: incomingUser.name || cleanEmail.split("@")[0],
-      avatar_url: incomingUser.avatarUrl !== undefined ? incomingUser.avatarUrl : incomingUser.image || null,
+      avatar_url: incomingUser.avatarUrl !== undefined ? incomingUser.avatarUrl : (incomingUser.avatar_url || incomingUser.image || null),
       role: isSuperadmin ? "superadmin" : (incomingUser.role || "user"),
       plan: incomingUser.plan || "Start",
       account_status: incomingUser.accountStatus || "Active",
