@@ -259,6 +259,7 @@ export interface User {
   isEmailVerified: boolean;
   createdAt: string;
   avatarUrl?: string;
+  avatar_url?: string;
   phone?: string;
   address?: {
     street?: string;
@@ -495,6 +496,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (loadedUser) {
+        const uKey = loadedUser.id || loadedUser.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        const cachedAvatar = safeGetItem(`iskra_user_avatar_${uKey}`);
+        if (cachedAvatar && !loadedUser.avatarUrl && !loadedUser.avatar_url) {
+          loadedUser.avatarUrl = cachedAvatar;
+          loadedUser.avatar_url = cachedAvatar;
+        }
         setUser(loadedUser);
       }
     } catch (err) {
@@ -1314,10 +1321,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUserProfile = (data: Partial<User>) => {
     if (!user) return;
-    const updatedUser = { ...user, ...data };
+    const resolvedAvatar = data.avatarUrl !== undefined ? data.avatarUrl : (data as any)?.avatar_url !== undefined ? (data as any).avatar_url : (user.avatarUrl || user.avatar_url || "");
+    const updatedUser: User = {
+      ...user,
+      ...data,
+      avatarUrl: resolvedAvatar || undefined,
+      avatar_url: resolvedAvatar || undefined,
+    };
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
     setMessage({ type: "success", text: "Zaktualizowano profil i dane konta!" });
+
+    const uKey = user.id || user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    if (resolvedAvatar) {
+      safeSetItem(`iskra_user_avatar_${uKey}`, resolvedAvatar);
+    } else {
+      safeRemoveItem(`iskra_user_avatar_${uKey}`);
+    }
+
+    // Wywołaj dedykowany endpoint zapisu avatara
+    if (data.avatarUrl !== undefined || (data as any)?.avatar_url !== undefined) {
+      if (resolvedAvatar) {
+        fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, userId: user.id, avatarUrl: resolvedAvatar, imageBase64: resolvedAvatar }),
+        }).catch((err) => console.warn("[avatar sync error]:", err));
+      } else {
+        fetch("/api/profile/avatar", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, userId: user.id }),
+        }).catch((err) => console.warn("[avatar delete error]:", err));
+      }
+    }
 
     // Trwały zapis do bazy Supabase przez API
     fetch("/api/auth/sync-user", {
@@ -1329,7 +1366,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (supabase) {
       const dbPayload: any = {};
       if (data.name !== undefined) dbPayload.name = data.name;
-      if (data.avatarUrl !== undefined) dbPayload.avatar_url = data.avatarUrl;
+      if (data.avatarUrl !== undefined || (data as any)?.avatar_url !== undefined) dbPayload.avatar_url = resolvedAvatar || null;
       if (data.role !== undefined) dbPayload.role = data.role;
       if (data.plan !== undefined) dbPayload.plan = data.plan;
       if (Object.keys(dbPayload).length > 0) {

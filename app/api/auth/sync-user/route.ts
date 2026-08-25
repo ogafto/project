@@ -190,6 +190,7 @@ export async function GET(req: NextRequest) {
       email: email,
       name: profile?.name || email.split("@")[0],
       avatarUrl: profile?.avatar_url || profile?.avatarUrl || "",
+      avatar_url: profile?.avatar_url || profile?.avatarUrl || "",
       role: isSuperadmin ? "superadmin" : (profile?.role || "user"),
       plan: profile?.plan || (isSuperadmin ? "Brand" : "Start"),
       hasStore: storesWithDetails.length > 0 || Boolean(profile?.has_store),

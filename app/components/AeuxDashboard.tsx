@@ -1797,41 +1797,108 @@ export default function AeuxDashboard({
     }
   };
 
-  const handleAvatarFileUpload = (file: File) => {
+  const handleAvatarFileUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       if (setMessage) setMessage({ type: "error", text: "Proszę wybrać plik graficzny (PNG, JPG, WebP)!" });
       return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      if (setMessage) setMessage({ type: "error", text: "Rozmiar pliku nie może przekraczać 5 MB!" });
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
       setProfileAvatarUrl(dataUrl);
+
+      if (typeof window !== "undefined" && user) {
+        const key = getUserKey(user);
+        localStorage.setItem(`iskra_user_avatar_${key}`, dataUrl);
+      }
+
       if (updateUserProfile) {
         updateUserProfile({ avatarUrl: dataUrl, avatar_url: dataUrl } as any);
       }
-      if (setMessage) setMessage({ type: "success", text: "Zaktualizowano zdjęcie profilowe!" });
+
+      try {
+        await fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user?.email || profileEmail,
+            userId: user?.id,
+            avatarUrl: dataUrl,
+            imageBase64: dataUrl,
+          }),
+        });
+      } catch (e) {
+        console.warn("[Avatar Upload] API error:", e);
+      }
+
+      if (setMessage) setMessage({ type: "success", text: "Zaktualizowano i zapisano zdjęcie profilowe!" });
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveAvatarUrl = () => {
+  const handleSaveAvatarUrl = async () => {
     if (!avatarUrlInput.trim()) return;
     const cleanUrl = avatarUrlInput.trim();
     setProfileAvatarUrl(cleanUrl);
+
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.setItem(`iskra_user_avatar_${key}`, cleanUrl);
+    }
+
     if (updateUserProfile) {
       updateUserProfile({ avatarUrl: cleanUrl, avatar_url: cleanUrl } as any);
     }
+
+    try {
+      await fetch("/api/profile/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user?.email || profileEmail,
+          userId: user?.id,
+          avatarUrl: cleanUrl,
+        }),
+      });
+    } catch (e) {
+      console.warn("[Avatar URL] API error:", e);
+    }
+
     setAvatarUrlInput("");
     if (setMessage) setMessage({ type: "success", text: "Zapisano link do zdjęcia profilowego!" });
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
     setProfileAvatarUrl("");
     setAvatarUrlInput("");
+
+    if (typeof window !== "undefined" && user) {
+      const key = getUserKey(user);
+      localStorage.removeItem(`iskra_user_avatar_${key}`);
+    }
+
     if (updateUserProfile) {
       updateUserProfile({ avatarUrl: "", avatar_url: "" } as any);
     }
-    if (setMessage) setMessage({ type: "success", text: "Usunięto zdjęcie profilowe." });
+
+    try {
+      await fetch("/api/profile/avatar", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user?.email || profileEmail,
+          userId: user?.id,
+        }),
+      });
+    } catch (e) {
+      console.warn("[Avatar Delete] API error:", e);
+    }
+
+    if (setMessage) setMessage({ type: "success", text: "Usunięto zdjęcie profilowe z profilu i bazy." });
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -2740,15 +2807,15 @@ export default function AeuxDashboard({
                 className="h-[54px] flex items-center gap-3 bg-[#0D0E12] hover:bg-[#13151D] border border-[#17181F] hover:border-[#262835] rounded-[18px] p-1.5 pr-4 cursor-pointer transition-all group select-none"
               >
                 <div className="w-10 h-10 shrink-0 flex items-center justify-center">
-                  {(user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl) ? (
+                  {(user?.avatar_url || user?.avatarUrl || profileAvatarUrl) ? (
                     <img
-                      src={user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl}
+                      src={user?.avatar_url || user?.avatarUrl || profileAvatarUrl}
                       alt={user?.name || "Profil"}
                       className="w-10 h-10 rounded-xl object-cover border border-zinc-800 shadow-sm"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xs font-bold text-white">
-                      {getUserInitials(user?.name, user?.email)}
+                      {user?.name?.slice(0, 2).toUpperCase() || "RO"}
                     </div>
                   )}
                 </div>
@@ -2768,15 +2835,15 @@ export default function AeuxDashboard({
                 <div className="absolute right-0 top-full mt-2 w-56 bg-[#0D0E12] border border-[#17181F] rounded-[20px] p-1.5 z-50 shadow-2xl animate-in fade-in">
                   <div className="px-3 py-2.5 border-b border-[#17181F] mb-1 flex items-center gap-2.5">
                     <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                      {(user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl) ? (
+                      {(user?.avatar_url || user?.avatarUrl || profileAvatarUrl) ? (
                         <img
-                          src={user?.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || profileAvatarUrl}
+                          src={user?.avatar_url || user?.avatarUrl || profileAvatarUrl}
                           alt={user?.name || "Profil"}
                           className="w-9 h-9 rounded-xl object-cover border border-[#262835]"
                         />
                       ) : (
                         <div className="w-9 h-9 rounded-xl bg-[#181B24] border border-[#262835] flex items-center justify-center text-xs font-bold text-[#D0FF00]">
-                          {getUserInitials(user?.name, user?.email)}
+                          {user?.name?.slice(0, 2).toUpperCase() || "RO"}
                         </div>
                       )}
                     </div>
@@ -3743,12 +3810,12 @@ export default function AeuxDashboard({
                   <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block font-sans">
                     Aktualny awatar
                   </span>
-                  <div className="w-28 h-28 rounded-2xl overflow-hidden bg-[#111319] border-2 border-[#1C1E26] flex items-center justify-center shadow-xl relative group">
+                  <div className="w-24 h-24 rounded-2xl border border-zinc-700/80 bg-zinc-900 object-cover shadow-md overflow-hidden flex items-center justify-center relative group">
                     {profileAvatarUrl ? (
                       <>
                         <img
                           src={profileAvatarUrl}
-                          alt="Podgląd zdjęcia profilowego"
+                          alt={user?.name || "Profil"}
                           className="w-full h-full object-cover"
                         />
                         <button
@@ -3757,26 +3824,34 @@ export default function AeuxDashboard({
                           className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-rose-400 font-semibold text-xs gap-1 cursor-pointer"
                           title="Usuń zdjęcie"
                         >
-                          <Trash2 className="w-5 h-5 text-rose-400" />
+                          <Trash2 className="w-4 h-4 text-rose-400" />
                           <span>Usuń</span>
                         </button>
                       </>
                     ) : (
-                      <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-2xl font-bold text-white">
+                      <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-xl font-bold text-white">
                         {getUserInitials(profileName || user?.name, user?.email)}
                       </div>
                     )}
                   </div>
-                  {profileAvatarUrl && (
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={handleRemoveAvatar}
-                      className="text-xs text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="text-xs font-semibold text-[#D0FF00] hover:underline cursor-pointer"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Usuń zdjęcie profilowe</span>
+                      Zmień zdjęcie
                     </button>
-                  )}
+                    {profileAvatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                      >
+                        Usuń zdjęcie
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* STREFA DRAG & DROP + WYBÓR Z DYSKU */}
@@ -3795,16 +3870,16 @@ export default function AeuxDashboard({
                       }
                     }}
                     onClick={() => avatarFileInputRef.current?.click()}
-                    className={`p-6 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center text-center cursor-pointer ${
+                    className={`border-2 border-dashed rounded-2xl p-6 transition cursor-pointer text-center ${
                       isDraggingAvatar
                         ? "border-[#D0FF00] bg-[#D0FF00]/10 ring-2 ring-[#D0FF00]/30"
-                        : "border-[#1C1E26] hover:border-[#D0FF00]/50 bg-[#111319]/70 hover:bg-[#111319]"
+                        : "border-zinc-700 hover:border-zinc-500 bg-zinc-900/50 hover:bg-zinc-900/80"
                     }`}
                   >
                     <input
                       ref={avatarFileInputRef}
                       type="file"
-                      accept="image/png, image/jpeg, image/webp, image/gif"
+                      accept="image/png, image/jpeg, image/webp"
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -3812,14 +3887,14 @@ export default function AeuxDashboard({
                         }
                       }}
                     />
-                    <div className="w-12 h-12 rounded-xl bg-[#181B24] border border-[#262B3B] flex items-center justify-center text-[#D0FF00] mb-3 shadow-inner">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-300 mx-auto mb-3 shadow-inner">
                       <Upload className="w-5 h-5" />
                     </div>
-                    <p className="text-sm font-semibold text-white font-sans">
-                      {isDraggingAvatar ? "Upuść plik tutaj..." : "Przeciągnij i upuść zdjęcie tutaj"}
+                    <p className="text-sm font-medium text-white font-sans">
+                      Przeciągnij i upuść zdjęcie tutaj lub <span className="font-bold text-[#D0FF00] underline">kliknij, aby wybrać z dysku</span>
                     </p>
                     <p className="text-xs text-zinc-400 mt-1 font-sans">
-                      lub <span className="text-[#D0FF00] underline font-medium">kliknij, aby wybrać z dysku</span> (PNG, JPG, WebP)
+                      PNG, JPG lub WEBP do 5 MB
                     </p>
                   </div>
 
