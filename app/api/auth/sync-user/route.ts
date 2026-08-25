@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { getUserAvatar, saveUserAvatar } from "@/lib/avatars";
+import { isUser2FAEnabled, getUser2FASecret, saveUser2FASecret, disableUser2FA } from "@/lib/totpStore";
 
 export async function GET(req: NextRequest) {
   try {
@@ -186,6 +187,8 @@ export async function GET(req: NextRequest) {
     // 5. Zbuduj pełny obiekt użytkownika
     const isSuperadmin = email === "projekt@motywo.pl" || email === "projekt@iskral.pl" || email.includes("admin");
     const persistentAvatar = getUserAvatar(email) || profile?.avatar_url || profile?.avatarUrl || "";
+    const is2FA = isUser2FAEnabled(email) || Boolean(profile?.is_2fa_enabled || profile?.two_factor_enabled);
+    const twoFactorSec = getUser2FASecret(email) || profile?.two_factor_secret || null;
 
     const fullUser = {
       id: profile?.id || `usr_${email.replace(/[^a-z0-9]/g, "_")}`,
@@ -198,6 +201,9 @@ export async function GET(req: NextRequest) {
       hasStore: storesWithDetails.length > 0 || Boolean(profile?.has_store),
       accountStatus: profile?.account_status || "Active",
       isEmailVerified: profile?.is_email_verified !== false,
+      is2FAEnabled: is2FA,
+      two_factor_enabled: is2FA,
+      two_factor_secret: twoFactorSec,
       createdAt: profile?.created_at || new Date().toISOString(),
       services: userServices,
       stores: storesWithDetails,
@@ -233,10 +239,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Brak połączenia z bazą danych Supabase." }, { status: 500 });
     }
 
-    // 0. Trwały zapis avatara jeśli przesłano w obiekcie usera
+    // 0. Trwały zapis avatara i 2FA jeśli przesłano w obiekcie usera
     const incomingAvatar = incomingUser.avatarUrl || incomingUser.avatar_url || incomingUser.image;
     if (incomingAvatar && typeof incomingAvatar === "string" && incomingAvatar.length > 0) {
       await saveUserAvatar(cleanEmail, incomingAvatar);
+    }
+
+    if (incomingUser.is2FAEnabled !== undefined || incomingUser.two_factor_enabled !== undefined) {
+      const isEnabled = incomingUser.is2FAEnabled !== false && incomingUser.two_factor_enabled !== false;
+      const sec = incomingUser.two_factor_secret || getUser2FASecret(cleanEmail);
+      if (isEnabled && sec) {
+        saveUser2FASecret(cleanEmail, sec, true);
+      } else if (!isEnabled) {
+        disableUser2FA(cleanEmail);
+      }
     }
 
     const isSuperadmin = cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl" || cleanEmail.includes("admin");

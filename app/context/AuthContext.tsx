@@ -992,6 +992,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminUser = ADMIN_USER;
         setAllUsers((prev) => [ADMIN_USER, ...prev]);
       }
+      const adminEmailKey = cleanEmail.replace(/[^a-z0-9]/g, "_");
+      const adminLocal2FA = typeof window !== "undefined" ? localStorage.getItem(`iskra_2fa_enabled_${adminEmailKey}`) === "true" : false;
+      if (adminUser.is2FAEnabled || (adminUser as any)?.two_factor_enabled || adminLocal2FA) {
+        setRequires2FA(true);
+        setPending2FAUser(adminUser);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("iskra_pending_login_email", cleanEmail);
+        }
+        return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
+      }
       setAuthCookie("iskra_session", JSON.stringify(adminUser));
       setUser(adminUser);
       setMessage({ type: "success", text: "Zalogowano jako Właściciel / Superadmin!" });
@@ -1081,9 +1091,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activeStoreId,
     };
 
-    if (targetUser.is2FAEnabled) {
+    const emailKey = cleanEmail.replace(/[^a-z0-9]/g, "_");
+    const local2FA = typeof window !== "undefined" ? localStorage.getItem(`iskra_2fa_enabled_${emailKey}`) === "true" : false;
+    const is2FAActive = Boolean(targetUser.is2FAEnabled || (targetUser as any)?.two_factor_enabled || local2FA);
+
+    if (is2FAActive) {
       setRequires2FA(true);
       setPending2FAUser(loggedInUser);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("iskra_pending_login_email", cleanEmail);
+      }
       return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
     }
 
@@ -1107,7 +1124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanCode = code.trim().replace(/\s+/g, "");
     if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) return false;
 
-    const emailToVerify = pending2FAUser?.email || user?.email;
+    const emailToVerify = pending2FAUser?.email || user?.email || (typeof window !== "undefined" ? sessionStorage.getItem("iskra_pending_login_email") : null);
     if (!emailToVerify) return false;
 
     const emailKey = emailToVerify.toLowerCase().replace(/[^a-z0-9]/g, "_");
@@ -1127,14 +1144,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        const loggedIn = pending2FAUser || user;
-        if (loggedIn) {
-          setAuthCookie("iskra_session", JSON.stringify(loggedIn));
-          safeSetItem("iskra_current_user_v12", loggedIn);
-          setUser(loggedIn);
-          setPending2FAUser(null);
-          setRequires2FA(false);
+        let loggedIn = pending2FAUser || user;
+        if (!loggedIn) {
+          loggedIn = allUsers.find((u) => u.email.toLowerCase() === emailToVerify.toLowerCase()) || {
+            id: `usr_${emailKey}`,
+            email: emailToVerify,
+            name: emailToVerify.split("@")[0],
+            role: "user",
+            plan: "Start",
+            hasStore: false,
+            is2FAEnabled: true,
+            isEmailVerified: true,
+            accountStatus: "Active",
+            createdAt: new Date().toISOString(),
+          };
         }
+
+        setAuthCookie("iskra_session", JSON.stringify(loggedIn));
+        safeSetItem("iskra_current_user_v12", loggedIn);
+        setUser(loggedIn);
+        setPending2FAUser(null);
+        setRequires2FA(false);
         setMessage({ type: "success", text: "Dwuczynnikowa weryfikacja 2FA przebiegła pomyślnie!" });
         return true;
       } else {

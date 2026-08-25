@@ -2097,6 +2097,14 @@ export default function AeuxDashboard({
     setTotpError("");
     setIs2FAActive(true);
     setIs2FASetupOpen(false);
+
+    const targetEmail = user?.email || profileEmail;
+    const emailKey = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`iskra_2fa_secret_${emailKey}`, totpSecret);
+      localStorage.setItem(`iskra_2fa_enabled_${emailKey}`, "true");
+    }
+
     if (updateUserProfile) {
       updateUserProfile({
         is2FAEnabled: true,
@@ -2118,6 +2126,20 @@ export default function AeuxDashboard({
     }
     setIs2FAActive(false);
     setIs2FASetupOpen(false);
+
+    const targetEmail = user?.email || profileEmail;
+    const emailKey = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`iskra_2fa_secret_${emailKey}`);
+      localStorage.setItem(`iskra_2fa_enabled_${emailKey}`, "false");
+    }
+
+    fetch("/api/auth/verify-2fa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: targetEmail, action: "disable" }),
+    }).catch(() => {});
+
     if (updateUserProfile) {
       updateUserProfile({
         is2FAEnabled: false,
