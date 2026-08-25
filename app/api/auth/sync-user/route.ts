@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { getUserAvatar, saveUserAvatar } from "@/lib/avatars";
 
 export async function GET(req: NextRequest) {
   try {
@@ -184,13 +185,14 @@ export async function GET(req: NextRequest) {
 
     // 5. Zbuduj pełny obiekt użytkownika
     const isSuperadmin = email === "projekt@motywo.pl" || email === "projekt@iskral.pl" || email.includes("admin");
+    const persistentAvatar = getUserAvatar(email) || profile?.avatar_url || profile?.avatarUrl || "";
 
     const fullUser = {
       id: profile?.id || `usr_${email.replace(/[^a-z0-9]/g, "_")}`,
       email: email,
       name: profile?.name || email.split("@")[0],
-      avatarUrl: profile?.avatar_url || profile?.avatarUrl || "",
-      avatar_url: profile?.avatar_url || profile?.avatarUrl || "",
+      avatarUrl: persistentAvatar,
+      avatar_url: persistentAvatar,
       role: isSuperadmin ? "superadmin" : (profile?.role || "user"),
       plan: profile?.plan || (isSuperadmin ? "Brand" : "Start"),
       hasStore: storesWithDetails.length > 0 || Boolean(profile?.has_store),
@@ -231,12 +233,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Brak połączenia z bazą danych Supabase." }, { status: 500 });
     }
 
+    // 0. Trwały zapis avatara jeśli przesłano w obiekcie usera
+    const incomingAvatar = incomingUser.avatarUrl || incomingUser.avatar_url || incomingUser.image;
+    if (incomingAvatar && typeof incomingAvatar === "string" && incomingAvatar.length > 0) {
+      await saveUserAvatar(cleanEmail, incomingAvatar);
+    }
+
     const isSuperadmin = cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl" || cleanEmail.includes("admin");
 
     const profilePayload: any = {
       email: cleanEmail,
       name: incomingUser.name || cleanEmail.split("@")[0],
-      avatar_url: incomingUser.avatarUrl !== undefined ? incomingUser.avatarUrl : (incomingUser.avatar_url || incomingUser.image || null),
       role: isSuperadmin ? "superadmin" : (incomingUser.role || "user"),
       plan: incomingUser.plan || "Start",
       account_status: incomingUser.accountStatus || "Active",
@@ -247,7 +254,7 @@ export async function POST(req: NextRequest) {
       profilePayload.id = incomingUser.id;
     }
 
-    // 1. Bezpieczny upsert profilu w Supabase (tylko kolumny tabeli profiles)
+    // 1. Bezpieczny upsert profilu w Supabase
     let resolvedOwnerId = (typeof incomingUser.id === "string" && incomingUser.id.length > 20 && incomingUser.id.includes("-")) ? incomingUser.id : null;
 
     try {

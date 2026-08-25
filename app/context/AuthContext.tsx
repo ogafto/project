@@ -496,9 +496,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (loadedUser) {
-        const uKey = loadedUser.id || loadedUser.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
-        const cachedAvatar = safeGetItem(`iskra_user_avatar_${uKey}`);
-        if (cachedAvatar && !loadedUser.avatarUrl && !loadedUser.avatar_url) {
+        const emailKey = loadedUser.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        const uKey = loadedUser.id || emailKey;
+        const cachedAvatar = safeGetItem(`iskra_user_avatar_${emailKey}`) || safeGetItem(`iskra_user_avatar_${uKey}`);
+        if (cachedAvatar) {
           loadedUser.avatarUrl = cachedAvatar;
           loadedUser.avatar_url = cachedAvatar;
         }
@@ -663,13 +664,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const serverServices = Array.isArray(serverUser.services) ? serverUser.services : [];
               const prevServices = Array.isArray(prev.services) ? prev.services : [];
 
+              const emailKey = prev.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+              const localCachedAvatar = safeGetItem(`iskra_user_avatar_${emailKey}`) || safeGetItem(`iskra_user_avatar_${prev.id}`);
+              const resolvedAvatar = serverUser.avatarUrl || serverUser.avatar_url || prev.avatarUrl || prev.avatar_url || localCachedAvatar || undefined;
+
               // Prevent reference change if data is identical
               if (
                 serverStores.length === prevStores.length &&
                 serverServices.length === prevServices.length &&
                 serverUser.plan === prev.plan &&
                 serverUser.role === prev.role &&
-                serverUser.name === prev.name
+                serverUser.name === prev.name &&
+                (serverUser.avatarUrl || serverUser.avatar_url) === (prev.avatarUrl || prev.avatar_url)
               ) {
                 return prev;
               }
@@ -679,6 +685,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               return {
                 ...prev,
                 ...serverUser,
+                avatarUrl: resolvedAvatar,
+                avatar_url: resolvedAvatar,
                 stores: mergedStores,
                 store: mergedStores && mergedStores.length > 0 ? mergedStores[0] : prev.store,
                 services: mergedServices,
@@ -1493,10 +1501,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
     setMessage({ type: "success", text: "Zaktualizowano profil i dane konta!" });
 
-    const uKey = user.id || user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const emailKey = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const uKey = user.id || emailKey;
     if (resolvedAvatar) {
+      safeSetItem(`iskra_user_avatar_${emailKey}`, resolvedAvatar);
       safeSetItem(`iskra_user_avatar_${uKey}`, resolvedAvatar);
     } else {
+      safeRemoveItem(`iskra_user_avatar_${emailKey}`);
       safeRemoveItem(`iskra_user_avatar_${uKey}`);
     }
 

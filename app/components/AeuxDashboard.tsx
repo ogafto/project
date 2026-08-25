@@ -312,7 +312,20 @@ export default function AeuxDashboard({
   // Profile Management State
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileEmail, setProfileEmail] = useState(user?.email || "");
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState(user?.avatarUrl || (user as any)?.avatar_url || "");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(() => {
+    if (typeof window !== "undefined" && user) {
+      const emailKey = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      return (
+        user?.avatarUrl ||
+        (user as any)?.avatar_url ||
+        localStorage.getItem(`iskra_user_avatar_${emailKey}`) ||
+        localStorage.getItem(`iskra_user_avatar_${user.id}`) ||
+        localStorage.getItem(`iskra_user_avatar_${userKey}`) ||
+        ""
+      );
+    }
+    return user?.avatarUrl || (user as any)?.avatar_url || "";
+  });
   const [avatarUrlInput, setAvatarUrlInput] = useState("");
   const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
   const avatarFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -415,7 +428,17 @@ export default function AeuxDashboard({
     if (user) {
       setProfileName(user.name || "");
       setProfileEmail(user.email || "");
-      setProfileAvatarUrl(user.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || "");
+      const emailKey = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const localCached =
+        typeof window !== "undefined"
+          ? localStorage.getItem(`iskra_user_avatar_${emailKey}`) ||
+            localStorage.getItem(`iskra_user_avatar_${user.id}`) ||
+            localStorage.getItem(`iskra_user_avatar_${userKey}`)
+          : null;
+      const nextAvatar = user.avatarUrl || (user as any)?.avatar_url || (user as any)?.image || localCached || "";
+      if (nextAvatar || !profileAvatarUrl) {
+        setProfileAvatarUrl(nextAvatar);
+      }
       setIs2FAActive(user.is2FAEnabled || (user as any)?.two_factor_enabled || false);
       if (typeof window !== "undefined") {
         setProfilePhone(localStorage.getItem(`iskra_profile_phone_${userKey}`) || user.phone || "");
@@ -1886,9 +1909,13 @@ export default function AeuxDashboard({
       const dataUrl = event.target?.result as string;
       setProfileAvatarUrl(dataUrl);
 
-      if (typeof window !== "undefined" && user) {
-        const key = getUserKey(user);
-        localStorage.setItem(`iskra_user_avatar_${key}`, dataUrl);
+      const targetEmail = user?.email || profileEmail;
+      const emailKey = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`iskra_user_avatar_${emailKey}`, dataUrl);
+        if (user?.id) localStorage.setItem(`iskra_user_avatar_${user.id}`, dataUrl);
+        if (userKey) localStorage.setItem(`iskra_user_avatar_${userKey}`, dataUrl);
       }
 
       if (updateUserProfile) {
@@ -1896,21 +1923,34 @@ export default function AeuxDashboard({
       }
 
       try {
-        await fetch("/api/profile/avatar", {
+        const res = await fetch("/api/profile/avatar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: user?.email || profileEmail,
+            email: targetEmail,
             userId: user?.id,
             avatarUrl: dataUrl,
             imageBase64: dataUrl,
           }),
         });
+        if (res.ok) {
+          const apiData = await res.json();
+          if (apiData.success && apiData.avatarUrl) {
+            setProfileAvatarUrl(apiData.avatarUrl);
+            if (typeof window !== "undefined") {
+              localStorage.setItem(`iskra_user_avatar_${emailKey}`, apiData.avatarUrl);
+              if (user?.id) localStorage.setItem(`iskra_user_avatar_${user.id}`, apiData.avatarUrl);
+            }
+            if (updateUserProfile) {
+              updateUserProfile({ avatarUrl: apiData.avatarUrl, avatar_url: apiData.avatarUrl } as any);
+            }
+          }
+        }
       } catch (e) {
         console.warn("[Avatar Upload] API error:", e);
       }
 
-      if (setMessage) setMessage({ type: "success", text: "Zaktualizowano i zapisano zdjęcie profilowe!" });
+      if (setMessage) setMessage({ type: "success", text: "Zaktualizowano i trwale zapisano zdjęcie profilowe!" });
     };
     reader.readAsDataURL(file);
   };
@@ -1920,9 +1960,13 @@ export default function AeuxDashboard({
     const cleanUrl = avatarUrlInput.trim();
     setProfileAvatarUrl(cleanUrl);
 
-    if (typeof window !== "undefined" && user) {
-      const key = getUserKey(user);
-      localStorage.setItem(`iskra_user_avatar_${key}`, cleanUrl);
+    const targetEmail = user?.email || profileEmail;
+    const emailKey = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`iskra_user_avatar_${emailKey}`, cleanUrl);
+      if (user?.id) localStorage.setItem(`iskra_user_avatar_${user.id}`, cleanUrl);
+      if (userKey) localStorage.setItem(`iskra_user_avatar_${userKey}`, cleanUrl);
     }
 
     if (updateUserProfile) {
@@ -1934,7 +1978,7 @@ export default function AeuxDashboard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: user?.email || profileEmail,
+          email: targetEmail,
           userId: user?.id,
           avatarUrl: cleanUrl,
         }),
@@ -1951,9 +1995,13 @@ export default function AeuxDashboard({
     setProfileAvatarUrl("");
     setAvatarUrlInput("");
 
-    if (typeof window !== "undefined" && user) {
-      const key = getUserKey(user);
-      localStorage.removeItem(`iskra_user_avatar_${key}`);
+    const targetEmail = user?.email || profileEmail;
+    const emailKey = targetEmail.toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`iskra_user_avatar_${emailKey}`);
+      if (user?.id) localStorage.removeItem(`iskra_user_avatar_${user.id}`);
+      if (userKey) localStorage.removeItem(`iskra_user_avatar_${userKey}`);
     }
 
     if (updateUserProfile) {
@@ -1965,7 +2013,7 @@ export default function AeuxDashboard({
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: user?.email || profileEmail,
+          email: targetEmail,
           userId: user?.id,
         }),
       });
@@ -1973,7 +2021,6 @@ export default function AeuxDashboard({
       console.warn("[Avatar Delete] API error:", e);
     }
 
-    if (setMessage) setMessage({ type: "success", text: "Usunięto zdjęcie profilowe z profilu i bazy." });
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
