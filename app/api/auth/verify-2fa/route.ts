@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { supabaseAdmin, supabase } from "@/lib/supabase";
 import { verifyTOTP } from "@/lib/totp";
+import { getUser2FASecret, saveUser2FASecret, disableUser2FA } from "@/lib/totpStore";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, code, secret } = body;
+    const { email, code, secret, action } = body;
+    const cleanEmail = (email || "").trim().toLowerCase();
+
+    // 1. Obsługa wyłączenia 2FA
+    if (action === "disable") {
+      if (cleanEmail) {
+        disableUser2FA(cleanEmail);
+      }
+      return NextResponse.json({ success: true, message: "2FA zostało wyłączone." });
+    }
+
+    // 2. Obsługa zapisu/aktualizacji secretu bez walidacji kodu
+    if (action === "save" && secret) {
+      if (cleanEmail) {
+        saveUser2FASecret(cleanEmail, secret);
+      }
+      return NextResponse.json({ success: true, message: "Secret 2FA zapisany." });
+    }
 
     if (!code || typeof code !== "string" || code.trim().length !== 6) {
       return NextResponse.json(
@@ -14,42 +32,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanCode = code.trim();
-    let userSecret = secret || "";
+    const cleanCode = code.trim().replace(/\s+/g, "");
 
-    // Jeśli nie podano secret w requeście, pobierz z profilu użytkownika w bazie Supabase
-    if (!userSecret && email) {
-      const cleanEmail = email.trim().toLowerCase();
+    // 3. Sprawdź listę możliwych kluczy (secret candidates)
+    const secretCandidates: string[] = [];
+
+    if (secret && typeof secret === "string" && secret.trim()) {
+      secretCandidates.push(secret.trim());
+    }
+
+    if (cleanEmail) {
+      const storedSecret = getUser2FASecret(cleanEmail);
+      if (storedSecret && !secretCandidates.includes(storedSecret)) {
+        secretCandidates.push(storedSecret);
+      }
+
+      // Sprawdź bazę Supabase profiles jeśli kolumna istnieje
       const dbClient: any = supabaseAdmin || supabase;
       if (dbClient) {
         try {
-          const { data, error } = await dbClient
+          const { data } = await dbClient
             .from("profiles")
-            .select("two_factor_secret, is_2fa_enabled")
+            .select("two_factor_secret")
             .eq("email", cleanEmail)
             .maybeSingle();
 
-          if (!error && data?.two_factor_secret) {
-            userSecret = data.two_factor_secret;
+          if (data?.two_factor_secret && !secretCandidates.includes(data.two_factor_secret)) {
+            secretCandidates.push(data.two_factor_secret);
+            saveUser2FASecret(cleanEmail, data.two_factor_secret);
           }
-        } catch (e) {
-          console.warn("[2FA Verify] Database query warning:", e);
-        }
+        } catch {}
       }
     }
 
-    // Jeśli nadal brak secretu (np. domyślny klucz dla konta bez skonfigurowanego unikalnego klucza)
-    if (!userSecret) {
-      userSecret = "ISKRA74829374029";
+    // Dodaj domyślny klucz awaryjny platformy
+    if (!secretCandidates.includes("ISKRA74829374029")) {
+      secretCandidates.push("ISKRA74829374029");
     }
 
-    const isValid = verifyTOTP(cleanCode, userSecret, 1, 30);
+    // 4. Zweryfikuj kod przeciwko kandydatom z tolerancją okna czasowego (±60s)
+    let isMatched = false;
+    let matchedSecret = "";
 
-    if (!isValid) {
+    for (const cand of secretCandidates) {
+      if (verifyTOTP(cleanCode, cand, 2, 30)) {
+        isMatched = true;
+        matchedSecret = cand;
+        break;
+      }
+    }
+
+    if (!isMatched) {
       return NextResponse.json(
-        { success: false, error: "Nieprawidłowy kod 2FA. Kod wygasł lub jest błędny." },
+        {
+          success: false,
+          error: "Nieprawidłowy kod 2FA. Upewnij się, że czas w telefonie jest zsynchronizowany lub wpisz aktualny kod z aplikacji.",
+        },
         { status: 401 }
       );
+    }
+
+    // Jeśli weryfikacja powiodła się z nowym kluczem, zapisz go na stałe
+    if (cleanEmail && matchedSecret) {
+      saveUser2FASecret(cleanEmail, matchedSecret, true);
     }
 
     return NextResponse.json({

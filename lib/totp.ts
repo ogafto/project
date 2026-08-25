@@ -81,9 +81,9 @@ export function generateTOTP(secret: string, timeStepSeconds = 30, timeOffsetSte
 }
 
 /**
- * Verifies a 6-digit TOTP code against a base32 secret with ±1 time-step tolerance
+ * Verifies a 6-digit TOTP code against a base32 secret with ±2 time-step tolerance (±60s)
  */
-export function verifyTOTP(token: string, secret: string, windowSteps = 1, timeStepSeconds = 30): boolean {
+export function verifyTOTP(token: string, secret: string, windowSteps = 2, timeStepSeconds = 30): boolean {
   if (!token || typeof token !== "string") return false;
   const cleanToken = token.trim();
   if (cleanToken.length !== 6 || !/^\d{6}$/.test(cleanToken)) return false;

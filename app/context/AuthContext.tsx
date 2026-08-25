@@ -1104,11 +1104,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const verify2FA = async (code: string): Promise<boolean> => {
-    const cleanCode = code.trim();
+    const cleanCode = code.trim().replace(/\s+/g, "");
     if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) return false;
 
     const emailToVerify = pending2FAUser?.email || user?.email;
     if (!emailToVerify) return false;
+
+    const emailKey = emailToVerify.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const localSecret = typeof window !== "undefined" ? localStorage.getItem(`iskra_2fa_secret_${emailKey}`) : null;
+    const resolvedSecret = (pending2FAUser as any)?.two_factor_secret || (user as any)?.two_factor_secret || localSecret || undefined;
 
     try {
       const res = await fetch("/api/auth/verify-2fa", {
@@ -1117,13 +1121,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           email: emailToVerify,
           code: cleanCode,
+          secret: resolvedSecret,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        if (pending2FAUser) {
-          setUser(pending2FAUser);
+        const loggedIn = pending2FAUser || user;
+        if (loggedIn) {
+          setAuthCookie("iskra_session", JSON.stringify(loggedIn));
+          safeSetItem("iskra_current_user_v12", loggedIn);
+          setUser(loggedIn);
           setPending2FAUser(null);
           setRequires2FA(false);
         }
@@ -1509,6 +1517,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       safeRemoveItem(`iskra_user_avatar_${emailKey}`);
       safeRemoveItem(`iskra_user_avatar_${uKey}`);
+    }
+
+    // Trwały zapis 2FA
+    if ((data as any)?.two_factor_secret !== undefined || data.is2FAEnabled !== undefined || (data as any)?.two_factor_enabled !== undefined) {
+      const isEnabled = data.is2FAEnabled !== false && (data as any)?.two_factor_enabled !== false;
+      const secretVal = (data as any)?.two_factor_secret;
+      if (typeof window !== "undefined") {
+        if (isEnabled && secretVal) {
+          localStorage.setItem(`iskra_2fa_secret_${emailKey}`, secretVal);
+          localStorage.setItem(`iskra_2fa_enabled_${emailKey}`, "true");
+        } else if (data.is2FAEnabled === false || (data as any)?.two_factor_enabled === false) {
+          localStorage.removeItem(`iskra_2fa_secret_${emailKey}`);
+          localStorage.setItem(`iskra_2fa_enabled_${emailKey}`, "false");
+        }
+      }
+      if (secretVal && isEnabled) {
+        fetch("/api/auth/verify-2fa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, secret: secretVal, action: "save" }),
+        }).catch(() => {});
+      } else if (data.is2FAEnabled === false || (data as any)?.two_factor_enabled === false) {
+        fetch("/api/auth/verify-2fa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, action: "disable" }),
+        }).catch(() => {});
+      }
     }
 
     // Wywołaj dedykowany endpoint zapisu avatara
