@@ -127,8 +127,7 @@ export type TabType =
   | "sklep-seo"
   | "zamowienia"
   | "pakiety"
-  | "drop"
-  | "ustawienia";
+  | "drop";
 
 interface AeuxDashboardProps {
   initialTab?: TabType;
@@ -201,7 +200,6 @@ export default function AeuxDashboard({
         "zamowienia",
         "pakiety",
         "drop",
-        "ustawienia",
       ];
       if (hash && hash !== "pulpit" && validTabs.includes(hash)) return hash;
     }
@@ -560,8 +558,7 @@ export default function AeuxDashboard({
     activeTab === "zarzadzaj-sklepem" ||
     activeTab.startsWith("sklep-") ||
     activeTab === "zamowienia" ||
-    activeTab === "drop" ||
-    activeTab === "ustawienia";
+    activeTab === "drop";
 
   const currentStore: StoreConfig = activeStore || (userStores.length > 0 ? userStores[0] : {
     id: configuredPackage?.id || "empty_store",
@@ -2866,7 +2863,6 @@ export default function AeuxDashboard({
                 {activeTab === "zamowienia" && "Zamówienia Klientów"}
                 {activeTab === "pakiety" && "Pakiety"}
                 {activeTab === "drop" && "Tryb Dropu"}
-                {activeTab === "ustawienia" && "Ustawienia Konta"}
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-sans">
@@ -2889,7 +2885,6 @@ export default function AeuxDashboard({
               {activeTab === "zamowienia" && "Historia zamówień i płatności Twoich klientów."}
               {activeTab === "pakiety" && "Przegląd ważności i przedłużanie subskrypcji."}
               {activeTab === "drop" && "Konfiguruj premiery i tryb odliczania do dropu."}
-              {activeTab === "ustawienia" && "Zarządzaj danymi konta, podepnij domenę i skonfiguruj wypłaty."}
             </p>
           </div>
 
@@ -3043,17 +3038,6 @@ export default function AeuxDashboard({
                   >
                     <ShoppingBag className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Historia zakupów</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab("ustawienia");
-                      setIsUserMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Ustawienia konta</span>
                   </button>
 
                   {isAdmin && (
@@ -4678,60 +4662,7 @@ export default function AeuxDashboard({
         )}
 
         {/* ========================================================================= */}
-        {/* WIDOK: USTAWIENIA KONTA & DOMENY */}
-        {/* ========================================================================= */}
-        {activeTab === "ustawienia" && (
-          <div className="space-y-6 max-w-3xl font-sans">
-            <div>
-              <h2 className="text-lg font-bold text-white">Ustawienia Domeny i Wypłat</h2>
-              <p className="text-xs text-zinc-400">Zarządzaj domenami i wypłatami środków.</p>
-            </div>
 
-            {/* Własna Domena DNS */}
-            <div className="bg-[#0D0E12] border border-[#17181F] rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white border-b border-[#17181F] pb-2">Własna Domena</h3>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">Adres Domeny (np. twojamarka.pl)</label>
-                <input
-                  type="text"
-                  defaultValue={currentStore.customDomain || ""}
-                  placeholder="twojamarka.pl"
-                  className="w-full bg-[#111319] border border-[#1C1E26] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-[#D0FF00]"
-                />
-              </div>
-              <div className="p-3 bg-[#111319] border border-[#1C1E26] rounded-xl text-xs text-zinc-300">
-                <p className="font-bold text-white">Rekord DNS CNAME:</p>
-                <p className="mt-1 font-mono text-zinc-400">Typ: <strong className="text-white">CNAME</strong> | Host: <strong className="text-white">@ / www</strong> | Wartość: <strong className="text-[#D0FF00]">cname.iskral.pl</strong></p>
-              </div>
-            </div>
-
-            {/* Wypłaty IBAN */}
-            <div className="bg-[#0D0E12] border border-[#17181F] rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white border-b border-[#17181F] pb-2">Wypłata Środków ze Sprzedaży</h3>
-              <div>
-                <span className="text-xs text-zinc-400 block">Dostępne Saldo</span>
-                <span className="text-2xl font-bold text-white font-mono mt-1 block">{totalRevenuePLN} PLN</span>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">Numer Rachunku Bankowego (IBAN)</label>
-                <input
-                  type="text"
-                  placeholder="PL 00 0000 0000 0000 0000 0000 0000"
-                  className="w-full bg-[#111319] border border-[#1C1E26] rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#D0FF00]"
-                />
-              </div>
-              <button
-                onClick={() => {
-                  if (requestPayoutWithIBAN) requestPayoutWithIBAN(1000, "PL000000000000000000000000");
-                  if (setMessage) setMessage({ type: "success", text: "Zlecono wypłatę środków na rachunek bankowy!" });
-                }}
-                className="px-5 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-md"
-              >
-                Zleć Wypłatę na Konto
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ========================================================================= */}
         {/* WIDOK: DEDYKOWANA PODSTRONA KONFIGURACJI SKLEPU */}
