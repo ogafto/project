@@ -3265,31 +3265,37 @@ export default function AeuxDashboard({
         {activeTab === "produkty" && (
           <div className="space-y-8 max-w-6xl">
               
-              {/* PRZEŁĄCZNIK MIESIĄC / ROK (-50%) - WYRÓWNANY DO LEWEJ, W KOLORYSTYCE CREATORA (#D0FF00) */}
+              {/* PRZEŁĄCZNIK MIESIĄC / ROK (-50%) */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="inline-flex p-1 bg-[#0D0E12] border border-[#17181F] rounded-2xl">
+                <div className="inline-flex p-1.5 bg-[#0D0E12] border border-[#17181F] rounded-2xl items-center gap-1.5 select-none shadow-sm">
                   <button
+                    type="button"
                     onClick={() => setBillingInterval("miesiac")}
-                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer ${
+                    className={`px-5 py-2.5 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer ${
                       billingInterval === "miesiac"
                         ? "bg-[#D0FF00] text-black font-bold shadow-sm"
-                        : "text-zinc-400 hover:text-white"
+                        : "text-zinc-400 hover:text-white hover:bg-white/[0.03]"
                     }`}
                   >
                     Miesięcznie
                   </button>
                   <button
+                    type="button"
                     onClick={() => setBillingInterval("rok")}
-                    className={`px-5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-5 py-2.5 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center gap-2 ${
                       billingInterval === "rok"
                         ? "bg-[#D0FF00] text-black font-bold shadow-sm"
-                        : "text-zinc-400 hover:text-white"
+                        : "text-zinc-400 hover:text-white hover:bg-white/[0.03]"
                     }`}
                   >
                     <span>Rocznie</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      billingInterval === "rok" ? "bg-black text-[#D0FF00]" : "bg-[#D0FF00]/15 text-[#D0FF00]"
-                    }`}>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
+                        billingInterval === "rok"
+                          ? "bg-black text-[#D0FF00]"
+                          : "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/30"
+                      }`}
+                    >
                       -50%
                     </span>
                   </button>
@@ -3635,15 +3641,15 @@ export default function AeuxDashboard({
         {activeTab === "kreator" && (
           <div className="space-y-6 max-w-5xl font-sans">
             {/* PRZEŁĄCZNIK DARMOWE / PREMIUM */}
-            <div className="flex justify-start items-center">
-              <div className="bg-[#0D0E12] border border-[#181A22] p-1.5 rounded-full inline-flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="inline-flex p-1.5 bg-[#0D0E12] border border-[#17181F] rounded-2xl items-center gap-1.5 select-none shadow-sm">
                 <button
                   type="button"
                   onClick={() => setTemplateFilter("Darmowe")}
-                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-5 py-2.5 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer ${
                     templateFilter === "Darmowe"
-                      ? "bg-[#D0FF00] text-black shadow-sm font-bold"
-                      : "text-zinc-400 hover:text-white"
+                      ? "bg-[#D0FF00] text-black font-bold shadow-sm"
+                      : "text-zinc-400 hover:text-white hover:bg-white/[0.03]"
                   }`}
                 >
                   Darmowe
@@ -3651,18 +3657,18 @@ export default function AeuxDashboard({
                 <button
                   type="button"
                   onClick={() => setTemplateFilter("Premium")}
-                  className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+                  className={`px-5 py-2.5 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer flex items-center gap-2 ${
                     templateFilter === "Premium"
-                      ? "bg-[#D0FF00] text-black shadow-sm font-bold"
-                      : "text-zinc-400 hover:text-white"
+                      ? "bg-[#D0FF00] text-black font-bold shadow-sm"
+                      : "text-zinc-400 hover:text-white hover:bg-white/[0.03]"
                   }`}
                 >
                   <span>Premium</span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
                       templateFilter === "Premium"
                         ? "bg-black text-[#D0FF00]"
-                        : "bg-[#D0FF00] text-black"
+                        : "bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/30"
                     }`}
                   >
                     PRO
