@@ -16,6 +16,7 @@ export default function NoweHasloPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const getStrength = (pass: string) => {
     if (!pass) return { label: "", color: "w-0 bg-transparent" };
@@ -26,9 +27,10 @@ export default function NoweHasloPage() {
 
   const strength = getStrength(password);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code || code.length !== 6) {
+    const cleanCode = code.trim();
+    if (!cleanCode || cleanCode.length !== 6) {
       setError("Wprowadź 6-cyfrowy kod z wiadomości e-mail.");
       return;
     }
@@ -45,15 +47,24 @@ export default function NoweHasloPage() {
       return;
     }
 
-    const ok = resetPassword(code, password);
-    if (ok) {
-      setError("");
-      setSuccess("Hasło zostało zmienione! Przekierowywanie do logowania...");
-      setTimeout(() => {
-        router.push("/logowanie");
-      }, 1500);
-    } else {
-      setError("Nieprawidłowy kod weryfikacyjny.");
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
+
+    try {
+      const ok = await resetPassword(cleanCode, password);
+      if (ok) {
+        setSuccess("Hasło zostało pomyślnie zmienione! Przekierowywanie do logowania...");
+        setTimeout(() => {
+          router.push("/logowanie");
+        }, 1200);
+      } else {
+        setError("Nieprawidłowy lub wygasły kod weryfikacyjny.");
+      }
+    } catch (err: any) {
+      setError("Błąd: " + (err.message || "Spróbuj ponownie."));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -134,9 +145,10 @@ export default function NoweHasloPage() {
 
               <button
                 type="submit"
-                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer"
+                disabled={isLoading}
+                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] disabled:opacity-50 text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer flex items-center justify-center gap-2"
               >
-                Zapisz nowe hasło
+                {isLoading ? "Zapisywanie hasła..." : "Zapisz nowe hasło"}
               </button>
             </form>
 

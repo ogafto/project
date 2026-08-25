@@ -13,16 +13,31 @@ export default function ZapomnialemHaslaPage() {
   const { sendPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Wprowadź swój adres e-mail.");
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setError("Wprowadź prawidłowy adres e-mail.");
       return;
     }
 
-    sendPasswordReset(email);
-    router.push("/nowe-haslo");
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const ok = await sendPasswordReset(cleanEmail);
+      if (ok) {
+        router.push("/nowe-haslo");
+      } else {
+        setError("Nie udało się wysłać kodu. Sprawdź poprawność adresu e-mail.");
+      }
+    } catch (err: any) {
+      setError("Błąd: " + (err.message || "Spróbuj ponownie."));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -65,9 +80,10 @@ export default function ZapomnialemHaslaPage() {
 
               <button
                 type="submit"
-                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer"
+                disabled={isLoading}
+                className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] disabled:opacity-50 text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer flex items-center justify-center gap-2"
               >
-                Wyślij kod do zresetowania hasła
+                {isLoading ? "Wysyłanie kodu..." : "Wyślij kod do zresetowania hasła"}
               </button>
             </form>
 

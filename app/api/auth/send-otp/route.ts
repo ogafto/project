@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { sendOtpEmail } from "@/lib/email";
+import { sendOtpEmail, sendPasswordResetEmail } from "@/lib/email";
 
 // Fallback in-memory store (works only in same serverless instance)
 // Primary storage is Supabase otp_codes table
@@ -15,7 +15,7 @@ if (!global._otpStore) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email } = body;
+    const { email, type } = body;
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json(
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const expiresAtMs = Date.now() + 10 * 60 * 1000;
     const expiresAtIso = new Date(expiresAtMs).toISOString();
 
-    console.log(`[OTP] Generated code for ${cleanEmail}: ${generatedCode} (expires: ${expiresAtIso})`);
+    console.log(`[OTP] Generated code for ${cleanEmail} (type=${type || "verification"}): ${generatedCode} (expires: ${expiresAtIso})`);
 
     // PRIMARY: Save to RAM (always works, same process)
     global._otpStore?.set(cleanEmail, { code: generatedCode, expiresAt: expiresAtMs });
@@ -75,11 +75,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Send email with OTP code via Resend
-    const emailResult = await sendOtpEmail({
-      to: cleanEmail,
-      code: generatedCode,
-    });
+    // Send email with OTP code via Resend (Password reset or verification)
+    const isReset = type === "password_reset" || type === "reset";
+    const emailResult = isReset
+      ? await sendPasswordResetEmail({ to: cleanEmail, code: generatedCode })
+      : await sendOtpEmail({ to: cleanEmail, code: generatedCode });
 
     if (!emailResult.success) {
       console.error(`[OTP Email FAILED] Could not deliver to ${cleanEmail}: ${emailResult.error}`);

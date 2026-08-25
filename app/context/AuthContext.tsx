@@ -312,8 +312,8 @@ interface AuthContextType {
   verify2FA: (code: string) => Promise<boolean> | boolean;
   register: (name: string, email: string, password?: string) => Promise<boolean>;
   verifyEmail: (code: string) => Promise<boolean> | boolean;
-  sendPasswordReset: (email: string) => boolean;
-  resetPassword: (code: string, newPassword: string) => boolean;
+  sendPasswordReset: (email: string) => Promise<boolean>;
+  resetPassword: (code: string, newPassword: string, emailOverride?: string) => Promise<boolean>;
   logout: () => void;
   buyPlan: (plan: PlanType, billingCycle: "miesiac" | "rok") => Promise<void>;
   updateUserProfile: (data: Partial<User>) => void;
@@ -923,6 +923,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH
+    let authPassed = false;
+    let authNeedVerify = false;
+
     if (password && isSupabaseConfigured && supabase) {
       try {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
@@ -930,27 +933,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: password,
         });
 
-        if (authErr) {
-          console.warn("[Supabase Auth] signInWithPassword error:", authErr.message);
+        if (!authErr && authData?.user) {
+          authPassed = true;
+        } else if (authErr) {
+          console.warn("[Supabase Auth] signInWithPassword note:", authErr.message);
 
           if (authErr.message?.toLowerCase().includes("email not confirmed")) {
-            setPendingEmail(cleanEmail);
-            await sendOTP(cleanEmail);
-            return {
-              success: false,
-              requiresOTP: true,
-              message: "Twój adres e-mail wymaga weryfikacji. Kod 6-cyfrowy został przesłany na skrzynkę.",
-            };
-          }
-
-          // Sprawdź czy to superadmin z predefiniowanym dostępem lokalnym
-          const isSuper = cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl";
-          if (!isSuper) {
-            // BEZWZGLĘDNY STOP – nieprawidłowe hasło w Supabase Auth
-            return {
-              success: false,
-              message: "Nieprawidłowy adres e-mail lub hasło.",
-            };
+            authNeedVerify = true;
+          } else if (authErr.message?.toLowerCase().includes("invalid login credentials")) {
+            // Próba automatycznego seedu/naprawy konta (jeśli to admin lub użytkownik z bazy profiles)
+            try {
+              const repairRes = await fetch("/api/auth/setup-admin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  email: cleanEmail,
+                  password: password,
+                  name: cleanEmail.split("@")[0],
+                }),
+              });
+              if (repairRes.ok) {
+                const repairData = await repairRes.json();
+                if (repairData.success) {
+                  const retry = await supabase.auth.signInWithPassword({
+                    email: cleanEmail,
+                    password: password,
+                  });
+                  if (!retry.error && retry.data?.user) {
+                    authPassed = true;
+                  }
+                }
+              }
+            } catch (repairErr) {
+              console.warn("[Auth] Auto-repair attempt error:", repairErr);
+            }
           }
         }
       } catch (authException: any) {
@@ -968,6 +984,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminUser = ADMIN_USER;
         setAllUsers((prev) => [ADMIN_USER, ...prev]);
       }
+      setAuthCookie("iskra_session", JSON.stringify(adminUser));
       setUser(adminUser);
       setMessage({ type: "success", text: "Zalogowano jako Właściciel / Superadmin!" });
       return { success: true };
@@ -1062,6 +1079,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
     }
 
+    setAuthCookie("iskra_session", JSON.stringify(loggedInUser));
     setUser(loggedInUser);
     setAllUsers((prev) => {
       const idx = prev.findIndex((u) => u.email.toLowerCase() === cleanEmail);
@@ -1305,17 +1323,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const sendPasswordReset = (email: string) => {
-    const existing = allUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    return Boolean(existing);
+  const sendPasswordReset = async (email: string): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setMessage({ type: "error", text: "Wprowadź prawidłowy adres e-mail." });
+      return false;
+    }
+
+    setPendingEmail(cleanEmail);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("iskra_reset_email", cleanEmail);
+      sessionStorage.setItem("iskra_pending_email", cleanEmail);
+    }
+
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, type: "password_reset" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setMessage({ type: "error", text: data.error || "Wystąpił błąd podczas wysyłania kodu resetującego." });
+        return false;
+      }
+
+      setMessage({ type: "success", text: `Kod do resetowania hasła został wysłany na ${cleanEmail}.` });
+      return true;
+    } catch (err: any) {
+      console.error("[sendPasswordReset error]:", err);
+      setMessage({ type: "error", text: "Błąd połączenia z serwerem podczas wysyłania kodu." });
+      return false;
+    }
   };
 
-  const resetPassword = (code: string, newPassword: string) => {
-    if (code.length === 6) {
-      setMessage({ type: "success", text: "Hasło zostało zaktualizowane." });
-      return true;
+  const resetPassword = async (code: string, newPassword: string, emailOverride?: string): Promise<boolean> => {
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6) {
+      setMessage({ type: "error", text: "Wprowadź 6-cyfrowy kod weryfikacyjny." });
+      return false;
     }
-    return false;
+
+    const targetEmail = emailOverride || pendingEmail || (typeof window !== "undefined" ? sessionStorage.getItem("iskra_reset_email") || sessionStorage.getItem("iskra_pending_email") : null) || user?.email;
+
+    if (!targetEmail) {
+      setMessage({ type: "error", text: "Brak adresu e-mail do zresetowania hasła. Rozpocznij procedurę od nowa." });
+      return false;
+    }
+
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: targetEmail,
+          code: cleanCode,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setMessage({ type: "error", text: data.error || "Nieprawidłowy kod weryfikacyjny." });
+        return false;
+      }
+
+      setAllUsers((prev) =>
+        prev.map((u) => (u.email.toLowerCase() === targetEmail.toLowerCase() ? { ...u, isEmailVerified: true } : u))
+      );
+
+      setMessage({ type: "success", text: "Hasło zostało pomyślnie zaktualizowane! Możesz się zalogować." });
+      return true;
+    } catch (err: any) {
+      console.error("[resetPassword error]:", err);
+      setMessage({ type: "error", text: "Błąd serwera podczas resetowania hasła." });
+      return false;
+    }
   };
 
   const logout = () => {
@@ -2241,8 +2324,8 @@ export function useAuth(): AuthContextType {
       verify2FA: () => false,
       register: async () => false,
       verifyEmail: () => false,
-      sendPasswordReset: () => false,
-      resetPassword: () => false,
+      sendPasswordReset: async () => false,
+      resetPassword: async () => false,
       logout: () => {},
       buyPlan: async () => {},
       updateUserProfile: () => {},
