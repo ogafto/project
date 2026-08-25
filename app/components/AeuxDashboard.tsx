@@ -2574,17 +2574,6 @@ export default function AeuxDashboard({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Licznik ważności pakietu w nagłówku */}
-            {((activeStorePackage && activeStorePackage.expiresAt) || (userPackages.length > 0 && userPackages[0].expiresAt) || currentStore?.planExpiresAt) && (
-              <div className="hidden md:flex items-center gap-2 h-[54px] px-4 rounded-[18px] bg-[#0D0E12] border border-[#17181F] text-xs font-sans">
-                <Clock className="w-4 h-4 text-[#D0FF00] shrink-0" />
-                <SubscriptionTimer
-                  expiresAt={activeStorePackage?.expiresAt || (userPackages.length > 0 ? userPackages[0].expiresAt : currentStore?.planExpiresAt)}
-                  className="text-xs"
-                />
-              </div>
-            )}
-
             {/* Dzwonek powiadomień */}
             <div className="relative">
               <button
@@ -4238,7 +4227,9 @@ export default function AeuxDashboard({
                     <span className="px-2.5 py-0.5 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-[#D0FF00] font-sans">
                       Pakiet {activeStorePackage?.planType || "Creator"}
                     </span>
-                    <SubscriptionBadge expiresAt={activeStorePackage?.expiresAt || currentStore?.planExpiresAt} />
+                    <span className="text-xs text-zinc-400 font-sans">
+                      Ważność: <strong className="text-zinc-200 font-semibold"><SubscriptionBadge expiresAt={activeStorePackage?.expiresAt || currentStore?.planExpiresAt} /></strong>
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-zinc-400 font-sans flex-wrap">
