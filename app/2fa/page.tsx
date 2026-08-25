@@ -15,13 +15,14 @@ export default function TwoFactorPage() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.length !== 6) {
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       setError("Podaj pełny 6-cyfrowy kod z aplikacji Authenticator.");
       return;
     }
-    const ok = verify2FA(code);
+    const ok = await verify2FA(cleanCode);
     if (ok) {
       setError("");
       setMsg("Kod weryfikacyjny 2FA jest prawidłowy!");

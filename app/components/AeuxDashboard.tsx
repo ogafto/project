@@ -1945,12 +1945,33 @@ export default function AeuxDashboard({
     setIs2FASetupOpen(true);
   };
 
-  const handleVerifyAndEnable2FA = () => {
+  const handleVerifyAndEnable2FA = async () => {
     const cleanCode = totpCodeInput.trim().replace(/\s+/g, "");
     if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       setTotpError("Wprowadź poprawny 6-cyfrowy kod z aplikacji Authenticator!");
       return;
     }
+
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user?.email || profileEmail,
+          code: cleanCode,
+          secret: totpSecret,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setTotpError(data.error || "Nieprawidłowy kod 2FA. Sprawdź czas w aplikacji Authenticator.");
+        return;
+      }
+    } catch (e: any) {
+      setTotpError("Błąd weryfikacji 2FA.");
+      return;
+    }
+
     setTotpError("");
     setIs2FAActive(true);
     setIs2FASetupOpen(false);

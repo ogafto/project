@@ -18,55 +18,83 @@ export default function LogowaniePage() {
   const [step2FA, setStep2FA] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const formattedEmail = email.trim().toLowerCase();
 
-    if (!formattedEmail) {
-      setError("Wprowadź swój adres e-mail.");
+    if (!formattedEmail || !password) {
+      setError("Wprowadź swój adres e-mail oraz hasło.");
       return;
     }
 
     setError("");
-    const res = await login(formattedEmail, password);
-    if (res.requiresOTP) {
-      setSuccess("Adres e-mail wymaga weryfikacji. Przekierowywanie do weryfikacji OTP...");
-      setTimeout(() => {
-        router.push("/potwierdzenie-email");
-      }, 800);
-      return;
-    }
+    setSuccess("");
+    setIsLoading(true);
 
-    if (!res.success) {
-      setError(res.message || "Błąd logowania. Sprawdź wprowadzone dane.");
-    } else if (res.requires2FA) {
-      setStep2FA(true);
-      setSuccess("Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod.");
-    } else {
+    try {
+      const res = await login(formattedEmail, password);
+
+      if (res.requiresOTP) {
+        setSuccess("Adres e-mail wymaga weryfikacji. Przekierowywanie do weryfikacji OTP...");
+        setTimeout(() => {
+          router.push("/potwierdzenie-email");
+        }, 800);
+        return;
+      }
+
+      if (!res.success) {
+        setError(res.message || "Nieprawidłowy adres e-mail lub hasło.");
+        setIsLoading(false);
+        return; // BEZWZGLĘDNY STOP – nie przekierowuj!
+      }
+
+      if (res.requires2FA) {
+        setStep2FA(true);
+        setIsLoading(false);
+        setSuccess("Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod.");
+        return;
+      }
+
+      // Dopiero po udanej autoryzacji:
       setSuccess("Logowanie pomyślne! Przekierowywanie do panelu...");
       setTimeout(() => {
         router.push("/dashboard");
       }, 500);
+    } catch (err: any) {
+      setError("Wystąpił błąd autoryzacji: " + (err.message || "Błąd serwera."));
+      setIsLoading(false);
     }
   };
 
-  const handle2FASubmit = (e: React.FormEvent) => {
+  const handle2FASubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (authenticatorCode.length !== 6) {
-      setError("Wprowadź 6-cyfrowy kod z aplikacji Authenticator.");
+    const cleanCode = authenticatorCode.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+      setError("Wprowadź poprawny 6-cyfrowy kod z aplikacji Authenticator.");
       return;
     }
 
-    const ok = verify2FA(authenticatorCode);
-    if (ok) {
-      setError("");
-      setSuccess("Kod 2FA pomyślnie zweryfikowany!");
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 600);
-    } else {
-      setError("Nieprawidłowy kod 2FA. Użyj kodu testowego (np. 123456).");
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
+
+    try {
+      const ok = await verify2FA(cleanCode);
+      if (ok) {
+        setSuccess("Kod 2FA pomyślnie zweryfikowany! Przekierowywanie...");
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 500);
+      } else {
+        setError("Nieprawidłowy lub wygasły kod 2FA. Sprawdź aplikację Authenticator.");
+        setIsLoading(false);
+        return; // BEZWZGLĘDNY STOP!
+      }
+    } catch (err: any) {
+      setError("Błąd weryfikacji 2FA: " + (err.message || "Spróbuj ponownie."));
+      setIsLoading(false);
     }
   };
 
@@ -142,9 +170,10 @@ export default function LogowaniePage() {
 
                 <button
                   type="submit"
-                  className="mt-2 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer"
+                  disabled={isLoading}
+                  className="mt-2 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] disabled:opacity-50 text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Zaloguj się
+                  {isLoading ? "Logowanie..." : "Zaloguj się"}
                 </button>
               </form>
             ) : (
@@ -165,9 +194,10 @@ export default function LogowaniePage() {
 
                 <button
                   type="submit"
-                  className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer"
+                  disabled={isLoading}
+                  className="mt-4 w-full h-12 bg-[#FF5B28] hover:bg-[#e04f20] disabled:opacity-50 text-white font-medium rounded-[10px] transition-all shadow-lg shadow-[#FF5B28]/25 text-base cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Zweryfikuj i zaloguj
+                  {isLoading ? "Weryfikacja..." : "Zweryfikuj i zaloguj"}
                 </button>
 
                 <button

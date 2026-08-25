@@ -48,7 +48,7 @@ export default function RejestracjaPage() {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("iskra_pending_email", formattedEmail);
       }
-      const ok = await register(formattedName, formattedEmail);
+      const ok = await register(formattedName, formattedEmail, password);
       if (ok) {
         router.push("/potwierdzenie-email");
       } else {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase, upsertStoreInSupabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured, upsertStoreInSupabase } from "@/lib/supabase";
 import { getAuthCookie, setAuthCookie, deleteAuthCookie } from "@/lib/cookies";
 import { hasFeatureAccess, PlanFeatureConfig, getStoreLifecycleDates } from "@/lib/plans";
 import {
@@ -309,8 +309,8 @@ interface AuthContextType {
   toggleImpersonationEdit: () => void;
   sendOTP: (email: string) => Promise<boolean>;
   login: (email: string, password?: string) => Promise<{ success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string }>;
-  verify2FA: (code: string) => boolean;
-  register: (name: string, email: string) => Promise<boolean>;
+  verify2FA: (code: string) => Promise<boolean> | boolean;
+  register: (name: string, email: string, password?: string) => Promise<boolean>;
   verifyEmail: (code: string) => Promise<boolean> | boolean;
   sendPasswordReset: (email: string) => boolean;
   resetPassword: (code: string, newPassword: string) => boolean;
@@ -922,6 +922,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: "Wprowadź swój adres e-mail." };
     }
 
+    // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH
+    if (password && isSupabaseConfigured && supabase) {
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: password,
+        });
+
+        if (authErr) {
+          console.warn("[Supabase Auth] signInWithPassword error:", authErr.message);
+
+          if (authErr.message?.toLowerCase().includes("email not confirmed")) {
+            setPendingEmail(cleanEmail);
+            await sendOTP(cleanEmail);
+            return {
+              success: false,
+              requiresOTP: true,
+              message: "Twój adres e-mail wymaga weryfikacji. Kod 6-cyfrowy został przesłany na skrzynkę.",
+            };
+          }
+
+          // Sprawdź czy to superadmin z predefiniowanym dostępem lokalnym
+          const isSuper = cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl";
+          if (!isSuper) {
+            // BEZWZGLĘDNY STOP – nieprawidłowe hasło w Supabase Auth
+            return {
+              success: false,
+              message: "Nieprawidłowy adres e-mail lub hasło.",
+            };
+          }
+        }
+      } catch (authException: any) {
+        console.warn("[Supabase Auth] Login exception:", authException);
+      }
+    } else if (!password && cleanEmail !== "projekt@motywo.pl" && cleanEmail !== "projekt@iskral.pl") {
+      return { success: false, message: "Wprowadź swoje hasło." };
+    }
+
     if (cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl") {
       let adminUser = allUsers.find(
         (u) => u.email.toLowerCase() === "projekt@motywo.pl" || u.email.toLowerCase() === "projekt@iskral.pl"
@@ -959,7 +997,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!existing) {
       return {
         success: false,
-        message: "Konto o podanym adresie e-mail nie istnieje. Sprawdź pisownię lub załóż darmowe konto.",
+        message: "Nieprawidłowy adres e-mail lub hasło.",
       };
     }
 
@@ -1039,17 +1077,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
-  const verify2FA = (code: string) => {
-    if (code.length === 6) {
-      if (pending2FAUser) {
-        setUser(pending2FAUser);
-        setPending2FAUser(null);
-        setRequires2FA(false);
+  const verify2FA = async (code: string): Promise<boolean> => {
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) return false;
+
+    const emailToVerify = pending2FAUser?.email || user?.email;
+    if (!emailToVerify) return false;
+
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailToVerify,
+          code: cleanCode,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (pending2FAUser) {
+          setUser(pending2FAUser);
+          setPending2FAUser(null);
+          setRequires2FA(false);
+        }
         setMessage({ type: "success", text: "Dwuczynnikowa weryfikacja 2FA przebiegła pomyślnie!" });
         return true;
+      } else {
+        setMessage({ type: "error", text: data.error || "Nieprawidłowy kod 2FA." });
+        return false;
       }
+    } catch (err) {
+      console.error("[2FA verify error]:", err);
+      return false;
     }
-    return false;
   };
 
   const sendOTP = async (email: string): Promise<boolean> => {
@@ -1101,11 +1162,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string): Promise<boolean> => {
+  const register = async (name: string, email: string, password?: string): Promise<boolean> => {
     const cleanEmail = email.toLowerCase().trim();
     setPendingEmail(cleanEmail);
     if (typeof window !== "undefined") {
       sessionStorage.setItem("iskra_pending_email", cleanEmail);
+    }
+
+    if (password && isSupabaseConfigured && supabase) {
+      try {
+        const { error: signUpErr } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: password,
+          options: {
+            data: { name: name.trim() },
+          },
+        });
+        if (signUpErr && !signUpErr.message?.toLowerCase().includes("already registered")) {
+          console.warn("[Supabase Auth] signUp warning:", signUpErr.message);
+        }
+      } catch (e) {
+        console.warn("[Supabase Auth] signUp exception:", e);
+      }
     }
 
     const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
