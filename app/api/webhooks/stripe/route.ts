@@ -67,6 +67,37 @@ export async function POST(req: NextRequest) {
           }
         } catch {}
       }
+
+      if ((!resolvedStoreId || resolvedStoreId === "demo-tenant" || resolvedStoreId === "empty_store") && (metadata.type === "plan" || metadata.type === "plan_purchase" || metadata.type === "plan_renewal" || metadata.plan_type || metadata.planType)) {
+        const targetUserId = metadata.userId || metadata.user_id;
+        const targetEmail = session.customer_details?.email || metadata.customerEmail || metadata.customer_email || session.customer_email;
+        if (targetUserId) {
+          try {
+            const { data: userStore } = await dbAdmin
+              .from("stores")
+              .select("id")
+              .eq("owner_id", targetUserId)
+              .neq("status", "deleted")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (userStore?.id) resolvedStoreId = userStore.id;
+          } catch {}
+        }
+        if (!resolvedStoreId && targetEmail) {
+          try {
+            const { data: allStores } = await dbAdmin
+              .from("stores")
+              .select("id, theme_config, owner_email")
+              .neq("status", "deleted");
+            const found = (allStores || []).find((s: any) => {
+              const ownerEmail = s.theme_config?.ownerEmail || s.owner_email;
+              return ownerEmail && ownerEmail.toLowerCase() === targetEmail.toLowerCase();
+            });
+            if (found?.id) resolvedStoreId = found.id;
+          } catch {}
+        }
+      }
     }
 
     const tenantId = resolvedStoreId || rawStoreId;

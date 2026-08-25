@@ -10,38 +10,34 @@ export function SubscriptionExpiryBadge({
   className?: string;
 }) {
   if (!expiresAt) {
-    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Aktywny</span>;
+    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Ważność: Aktywny</span>;
   }
 
   const expiryDate = new Date(expiresAt);
   if (isNaN(expiryDate.getTime())) {
-    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Aktywny</span>;
+    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Ważność: Aktywny</span>;
   }
 
   const isExpired = expiryDate.getTime() <= Date.now();
 
-  // Format daty i godziny: DD.MM.YYYY, HH:mm
+  // Format daty: DD.MM.YYYY
   const formattedDate = expiryDate.toLocaleDateString('pl-PL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
-  const formattedTime = expiryDate.toLocaleTimeString('pl-PL', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
   if (isExpired) {
     return (
       <span className={`text-xs font-semibold text-rose-400 whitespace-nowrap ${className || ''}`}>
-        Wygasł ({formattedDate}, {formattedTime})
+        Ważność: Wygasł ({formattedDate})
       </span>
     );
   }
 
   return (
     <span className={`text-xs font-medium text-zinc-200 whitespace-nowrap ${className || ''}`}>
-      {formattedDate}, {formattedTime}
+      Ważność: do {formattedDate}
     </span>
   );
 }

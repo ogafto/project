@@ -160,28 +160,11 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    // 4. Pobierz subskrypcje / pakiety
+    // 4. Pobierz subskrypcje / pakiety (tylko realne, nieprzypisane usługi jeśli brak sklepu)
     let userServices: any[] = [];
     if (profile?.services && Array.isArray(profile.services)) {
-      userServices = profile.services;
-    } else if (userId) {
-      const { data: subs } = await dbClient
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("status", "active");
-
-      if (subs && subs.length > 0) {
-        userServices = subs.map((sub: any, idx: number) => ({
-          id: sub.id || `srv_${idx + 100}`,
-          number: 5000 + idx,
-          title: `Pakiet ${sub.plan_name || "Start"}`,
-          planType: sub.plan_name || "Start",
-          status: "Aktywny",
-          expiresAt: sub.current_period_end || null,
-          createdAt: sub.created_at,
-        }));
-      }
+      // Usuń wszelkie śmieciowe usługi z numerami 5000-5007
+      userServices = profile.services.filter((s: any) => !s.number || s.number < 5000 || s.number > 5007);
     }
 
     // 5. Zbuduj pełny obiekt użytkownika

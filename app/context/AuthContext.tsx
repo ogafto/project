@@ -1478,27 +1478,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isTrial = plan === "Start" || plan === "trial_14d";
     const durationDays = isTrial ? 14 : billingCycle === "rok" ? 365 : 30;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+    const cleanPlan = (String(plan).replace(/^Pakiet\s+/i, "")) as PlanType;
+    const planTitle = isTrial ? "Pakiet Start (Trial 14 dni)" : `Pakiet ${cleanPlan}`;
 
-    const priceCents = isTrial ? 0 : plan === "Creator" || plan === "starter" ? (billingCycle === "rok" ? 29900 : 4990) : (billingCycle === "rok" ? 59900 : 9990);
+    const priceCents = isTrial ? 0 : cleanPlan === "Creator" || (cleanPlan as any) === "starter" ? (billingCycle === "rok" ? 29900 : 4990) : (billingCycle === "rok" ? 59900 : 9990);
 
-    const packageNumber = Math.floor(100 + Math.random() * 900);
-    const newService: ServicePackage = {
-      id: `srv_${Date.now()}`,
-      number: packageNumber,
-      title: `Pakiet ${plan} #${packageNumber}`,
-      planType: plan,
-      status: "Nieprzypisany",
-      expiresAt: expiresAt,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedServices = [...(user.services || []), newService];
+    // 1. Jeśli użytkownik ma już sklep (np. Metek), aktualizujemy ten sklep bezpośrednio
+    const currentStores = user.stores || (user.store ? [user.store] : []);
+    let updatedStores = currentStores.map((st, idx) => {
+      if (idx === 0) {
+        return {
+          ...st,
+          plan: planTitle,
+          planType: cleanPlan,
+          planStatus: "active" as const,
+          status: "active" as const,
+          expires_at: expiresAt,
+          planExpiresAt: expiresAt,
+          expiresAt: expiresAt,
+        };
+      }
+      return st;
+    });
 
     const updatedUser: User = {
       ...user,
-      plan,
-      services: updatedServices,
+      plan: cleanPlan,
       planExpiresAt: expiresAt,
+      stores: updatedStores,
+      store: updatedStores[0] || user.store,
     };
 
     setUser(updatedUser);
@@ -1507,18 +1515,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetch("/api/auth/sync-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user: updatedUser, services: updatedServices }),
+      body: JSON.stringify({ user: updatedUser, stores: updatedStores }),
     }).catch(() => {});
 
     setMessage({
       type: "success",
       text: isTrial
-        ? `🎉 Aktywowano 14-dniowy bezpłatny okres próbny (${newService.title})! Przejdź do konfiguracji sklepu.`
-        : `🎉 Pomyślnie zakupiono ${newService.title}! Przejdź do konfiguracji sklepu.`,
+        ? `🎉 Aktywowano 14-dniowy bezpłatny okres próbny (${planTitle})!`
+        : `🎉 Pomyślnie aktywowano ${planTitle}!`,
     });
 
     if (priceCents > 0) {
-      recordSaaSSubscription(newService.id, user.id, user.email, plan, priceCents);
+      recordSaaSSubscription(activeStore?.id || "store_1000", user.id, user.email, cleanPlan, priceCents);
     }
 
     // Wysyłka potwierdzenia pakietu na e-mail

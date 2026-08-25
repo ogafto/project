@@ -36,8 +36,14 @@ export async function POST(req: NextRequest) {
     results.push({ table: "profiles", status: "error: " + e.message });
   }
 
-  // 3. Test and repair stores
+  // 3. Test and repair stores (plus purge dummy #5000-#5007 test stores)
   try {
+    // Purge any dummy stores
+    await dbClient
+      .from("stores")
+      .delete()
+      .or("id.ilike.%5000%,id.ilike.%5001%,id.ilike.%5002%,id.ilike.%5003%,id.ilike.%5004%,id.ilike.%5005%,id.ilike.%5006%,id.ilike.%5007%,subdomain.ilike.%5000%,subdomain.ilike.%5001%,subdomain.ilike.%5002%,subdomain.ilike.%5003%,subdomain.ilike.%5004%,subdomain.ilike.%5005%,subdomain.ilike.%5006%,subdomain.ilike.%5007%");
+
     const { data: stores } = await dbClient.from("stores").select("*");
     const fixedStores: string[] = [];
     if (stores && stores.length > 0) {

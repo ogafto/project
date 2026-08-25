@@ -508,16 +508,18 @@ export default function AeuxDashboard({
   const getUserPackages = (currentUser: User | null, currentStores: StoreConfig[]): UserPackage[] => {
     if (!currentUser) return [];
 
-    // 1. Sprawdź najpierw sklepy użytkownika z bazy Supabase
+    // 1. Sprawdź najpierw realne sklepy użytkownika z bazy Supabase
     if (currentStores && currentStores.length > 0) {
       return currentStores.map((st, idx) => {
         const storeExp = st.planExpiresAt || (st as any).expires_at || (st as any).expiresAt || st.trialEndsAt || (st as any).trial_ends_at;
+        const rawPlan = (st.planType as any) || (st as any).plan || "Creator";
+        const cleanPlan = String(rawPlan).replace(/^Pakiet\s+/i, "");
         return {
           id: st.id || `pkg_${idx + 1000}`,
           number: 1000 + idx,
           name: st.name || `Sklep #${1000 + idx}`,
-          planType: (st.planType as any) || "Creator",
-          price: "29.99 zł / msc",
+          planType: cleanPlan as any,
+          price: cleanPlan === "Start" ? "14 dni za darmo" : cleanPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
           expiresAt: storeExp || "",
           storeName: st.name,
           subdomain: st.subdomain,
@@ -527,30 +529,45 @@ export default function AeuxDashboard({
       });
     }
 
-    // 2. Sprawdź zakupione usługi (services)
+    // 2. Jeśli brak sklepów, sprawdź wyłącznie prawdziwe nieprzypisane usługi
     if (currentUser.services && currentUser.services.length > 0) {
-      return currentUser.services.map((s) => ({
-        id: s.id || `pkg_${s.number}`,
-        number: s.number || 5191,
-        name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
-        planType: (s.planType as any) || "Start",
-        price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
-        expiresAt: s.expiresAt || "",
-        storeName: s.assignedStoreName || "",
-        subdomain: s.assignedSubdomain || "",
-        logoUrl: "",
-        isConfigured: Boolean(s.assignedSubdomain),
-      }));
+      const realServices = currentUser.services.filter((s) => !s.number || (s.number < 5000 || s.number > 5007));
+      if (realServices.length > 0) {
+        return realServices.map((s, idx) => {
+          const rawPlan = s.planType || s.title?.replace(/^Pakiet\s+/i, "") || "Start";
+          const cleanPlan = String(rawPlan).replace(/^Pakiet\s+/i, "");
+          return {
+            id: s.id || `pkg_${idx + 1000}`,
+            number: 1000 + idx,
+            name: s.assignedStoreName || s.title || `Pakiet ${cleanPlan} #${1000 + idx}`,
+            planType: cleanPlan as any,
+            price: cleanPlan === "Start" ? "14 dni za darmo" : cleanPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+            expiresAt: s.expiresAt || "",
+            storeName: s.assignedStoreName || "",
+            subdomain: s.assignedSubdomain || "",
+            logoUrl: "",
+            isConfigured: Boolean(s.assignedSubdomain),
+          };
+        });
+      }
     }
 
-    // 3. Fallback do localStorage użytkownika
+    // 3. Fallback do localStorage użytkownika (filtrujemy stare mocki)
     const key = getUserKey(currentUser);
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(`iskra_user_packages_${key}`);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const cleanList = parsed
+              .filter((p: any) => !p.number || (p.number < 5000 || p.number > 5007))
+              .map((p: any) => ({
+                ...p,
+                planType: String(p.planType || "Creator").replace(/^Pakiet\s+/i, ""),
+              }));
+            if (cleanList.length > 0) return cleanList;
+          }
         } catch {}
       }
     }
@@ -1008,42 +1025,24 @@ export default function AeuxDashboard({
             const serverStores: any[] = data.stores || data.user.stores || [];
             const serverServices: any[] = data.services || data.user.services || [];
 
-            if (serverStores.length > 0 || serverServices.length > 0) {
-              const serverPkgs: UserPackage[] = [];
-
-              // 1. Zbuduj pakiety ze sklepów zapisanych w bazie Supabase
-              serverStores.forEach((st: any, idx: number) => {
+            if (serverStores.length > 0) {
+              // 1. Zbuduj pakiety z realnych sklepów zapisanych w bazie Supabase
+              const serverPkgs: UserPackage[] = serverStores.map((st: any, idx: number) => {
                 const storeExp = st.planExpiresAt || st.expires_at || st.expiresAt || st.trialEndsAt || st.trial_ends_at;
-                serverPkgs.push({
+                const rawPlan = st.planType || st.plan || "Creator";
+                const cleanPlan = String(rawPlan).replace(/^Pakiet\s+/i, "");
+                return {
                   id: st.id || `pkg_${idx + 1000}`,
                   number: 1000 + idx,
                   name: st.name || `Sklep #${1000 + idx}`,
-                  planType: (st.planType as any) || "Creator",
-                  price: "29.99 zł / msc",
+                  planType: cleanPlan as any,
+                  price: cleanPlan === "Start" ? "14 dni za darmo" : cleanPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
                   expiresAt: storeExp || "",
                   storeName: st.name,
                   subdomain: st.subdomain,
                   logoUrl: st.logoUrl || "",
                   isConfigured: Boolean(st.subdomain),
-                });
-              });
-
-              // 2. Dołącz pakiety z wykupionych usług (services)
-              serverServices.forEach((s: any) => {
-                if (!serverPkgs.some((p) => p.id === s.id)) {
-                  serverPkgs.push({
-                    id: s.id || `pkg_${s.number}`,
-                    number: s.number || 5191,
-                    name: s.assignedStoreName || s.title || `Pakiet ${s.planType} #${s.number}`,
-                    planType: (s.planType as any) || "Start",
-                    price: s.planType === "Start" ? "14 dni za darmo" : s.planType === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
-                    expiresAt: s.expiresAt || "",
-                    storeName: s.assignedStoreName || "",
-                    subdomain: s.assignedSubdomain || "",
-                    logoUrl: "",
-                    isConfigured: Boolean(s.assignedSubdomain),
-                  });
-                }
+                };
               });
 
               if (serverPkgs.length > 0) {
@@ -1053,16 +1052,43 @@ export default function AeuxDashboard({
                   return serverPkgs;
                 });
               }
+            } else if (serverServices.length > 0) {
+              // 2. Jeśli użytkownik nie skonfigurował jeszcze żadnego sklepu, pokaż realne nieprzypisane usługi
+              const cleanServices = serverServices.filter((s: any) => !s.number || (s.number < 5000 || s.number > 5007));
+              const serverPkgs: UserPackage[] = cleanServices.map((s: any, idx: number) => {
+                const rawPlan = s.planType || s.title?.replace(/^Pakiet\s+/i, "") || "Start";
+                const cleanPlan = String(rawPlan).replace(/^Pakiet\s+/i, "");
+                return {
+                  id: s.id || `pkg_${idx + 1000}`,
+                  number: 1000 + idx,
+                  name: s.assignedStoreName || s.title || `Pakiet ${cleanPlan} #${1000 + idx}`,
+                  planType: cleanPlan as any,
+                  price: cleanPlan === "Start" ? "14 dni za darmo" : cleanPlan === "Creator" ? "29.99 zł / msc" : "59.99 zł / msc",
+                  expiresAt: s.expiresAt || "",
+                  storeName: s.assignedStoreName || "",
+                  subdomain: s.assignedSubdomain || "",
+                  logoUrl: "",
+                  isConfigured: Boolean(s.assignedSubdomain),
+                };
+              });
 
-              // Synchronizuj produkty aktywnego sklepu z bazy danych
-              const activeSt = serverStores[0];
-              if (activeSt && Array.isArray(activeSt.products) && activeSt.products.length > 0) {
-                setLocalProducts((prev) => {
-                  if (JSON.stringify(prev) === JSON.stringify(activeSt.products)) return prev;
-                  localStorage.setItem(`iskra_products_${key}`, JSON.stringify(activeSt.products));
-                  return activeSt.products;
+              if (serverPkgs.length > 0) {
+                setUserPackages((prev) => {
+                  if (JSON.stringify(prev) === JSON.stringify(serverPkgs)) return prev;
+                  localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(serverPkgs));
+                  return serverPkgs;
                 });
               }
+            }
+
+            // Synchronizuj produkty aktywnego sklepu z bazy danych
+            const activeSt = serverStores[0];
+            if (activeSt && Array.isArray(activeSt.products) && activeSt.products.length > 0) {
+              setLocalProducts((prev) => {
+                if (JSON.stringify(prev) === JSON.stringify(activeSt.products)) return prev;
+                localStorage.setItem(`iskra_products_${key}`, JSON.stringify(activeSt.products));
+                return activeSt.products;
+              });
             }
           }
         }
@@ -1104,60 +1130,61 @@ export default function AeuxDashboard({
           .catch(() => {});
       }
 
-      // 2. Aktualizacja lokalnego stanu pakietów użytkownika
-      if (action === "buy") {
-        const priceText =
-          billing === "rok"
-            ? plan === "Creator"
-              ? "14.99 PLN / msc"
-              : "29.99 PLN / msc"
-            : plan === "Creator"
-            ? "29.99 PLN / msc"
-            : "59.99 PLN / msc";
+      // 2. Aktualizacja lokalnego stanu pakietów użytkownika bez tworzenia fałszywych zduplikowanych sklepów
+      const cleanPlan = plan.replace(/^Pakiet\s+/i, "");
+      const priceText =
+        billing === "rok"
+          ? cleanPlan === "Creator"
+            ? "14.99 PLN / msc"
+            : "29.99 PLN / msc"
+          : cleanPlan === "Creator"
+          ? "29.99 PLN / msc"
+          : "59.99 PLN / msc";
 
-        const newPkg: UserPackage = {
-          id: `pkg_${Date.now()}`,
-          number: Math.floor(1000 + Math.random() * 9000),
-          name: formattedPlan,
-          planType: plan,
-          price: priceText,
-          expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
-          isConfigured: false,
-        };
-
-        setUserPackages((prev) => {
-          const updated = [newPkg, ...prev];
-          if (user) {
-            const key = getUserKey(user);
-            localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
-          }
-          return updated;
-        });
-
-        if (buyPlan) {
-          buyPlan(plan, billing);
-        }
-      } else if (action === "extend" || action === "renew" || action === "upgrade") {
-        setUserPackages((prev) => {
-          const updated = prev.map((p) => {
-            if (!pkgId || p.id === pkgId) {
-              const currentExp = new Date(p.expiresAt || Date.now()).getTime();
+      setUserPackages((prev) => {
+        let updated: UserPackage[];
+        if (prev.length > 0) {
+          // Użytkownik posiada już sklep (np. Metek #1000) -> aktualizujemy jego dane i datę ważności
+          updated = prev.map((p, idx) => {
+            if (idx === 0 || p.id === pkgId || p.subdomain === activeStore?.subdomain) {
+              const currentExp = new Date(p.expiresAt || (activeStore as any)?.expires_at || Date.now()).getTime();
               const base = currentExp > Date.now() ? currentExp : Date.now();
+              const newExpIso = new Date(base + days * 86400000).toISOString();
               return {
                 ...p,
-                planType: plan,
-                name: formattedPlan,
-                expiresAt: new Date(base + days * 86400000).toISOString(),
+                planType: cleanPlan as any,
+                price: priceText,
+                name: p.storeName || activeStore?.name || `Sklep #${p.number}`,
+                expiresAt: newExpIso,
               };
             }
             return p;
           });
-          if (user) {
-            const key = getUserKey(user);
-            localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
-          }
-          return updated;
-        });
+        } else {
+          // Pierwszy i jedyny pakiet dla nowego użytkownika (#1000)
+          const newPkg: UserPackage = {
+            id: activeStore?.id || `pkg_1000`,
+            number: 1000,
+            name: activeStore?.name || "Twój Sklep",
+            planType: cleanPlan as any,
+            price: priceText,
+            expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+            isConfigured: Boolean(activeStore?.subdomain),
+            storeName: activeStore?.name,
+            subdomain: activeStore?.subdomain,
+          };
+          updated = [newPkg];
+        }
+
+        if (user) {
+          const key = getUserKey(user);
+          localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+
+      if (buyPlan) {
+        buyPlan(cleanPlan as any, billing);
       }
 
       // 3. Obliczenie nowej daty ważności (+30 dni)
@@ -1350,21 +1377,43 @@ export default function AeuxDashboard({
       }
       const days = 14;
       const priceText = "0 PLN / 14 dni";
-      const newPkg: UserPackage = {
-        id: `pkg_${Date.now()}`,
-        number: Math.floor(1000 + Math.random() * 9000),
-        name: `Pakiet ${planType}`,
-        planType,
-        price: priceText,
-        expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
-        isConfigured: false,
-      };
-      const updated = [newPkg, ...userPackages];
-      setUserPackages(updated);
-      if (typeof window !== "undefined" && user) {
-        const key = getUserKey(user);
-        localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
-      }
+      const cleanPlan = "Start";
+      
+      setUserPackages((prev) => {
+        let updated: UserPackage[];
+        if (prev.length > 0) {
+          updated = prev.map((p, idx) => {
+            if (idx === 0) {
+              return {
+                ...p,
+                planType: cleanPlan as any,
+                price: priceText,
+                expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+              };
+            }
+            return p;
+          });
+        } else {
+          const newPkg: UserPackage = {
+            id: activeStore?.id || `pkg_1000`,
+            number: 1000,
+            name: activeStore?.name || "Twój Sklep",
+            planType: cleanPlan as any,
+            price: priceText,
+            expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
+            isConfigured: Boolean(activeStore?.subdomain),
+            storeName: activeStore?.name,
+            subdomain: activeStore?.subdomain,
+          };
+          updated = [newPkg];
+        }
+        if (typeof window !== "undefined" && user) {
+          const key = getUserKey(user);
+          localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+
       if (setMessage) setMessage({ type: "success", text: `🎉 Aktywowano Pakiet Start (14 dni za darmo)!` });
       setActiveTab("pulpit");
       return;
@@ -3375,7 +3424,7 @@ export default function AeuxDashboard({
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="px-3 py-1 rounded-full bg-[#111319] border border-[#1C1E26] text-xs font-semibold text-white font-sans">
-                            Pakiet {pkg.planType}
+                            Pakiet {String(pkg.planType || "Creator").replace(/^Pakiet\s+/i, "")}
                           </span>
                           
                           {/* BADGE WYGASŁ LUB PRZYCISK ULEPSZENIA */}
