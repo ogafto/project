@@ -2439,6 +2439,15 @@ export default function AeuxDashboard({
                       <ShoppingBag className="w-5 h-5 shrink-0" />
                       <span className="text-[15px]">Zakupy</span>
                     </button>
+
+                    <Link
+                      href="/"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer text-[#5B5B62] hover:text-white"
+                    >
+                      <FileText className="w-5 h-5 shrink-0" />
+                      <span className="text-[15px]">Regulamin</span>
+                    </Link>
                   </nav>
                 </>
               )}
@@ -2456,15 +2465,6 @@ export default function AeuxDashboard({
                 <UserIcon className="w-5 h-5 shrink-0" />
                 <span className="text-[15px]">Twój profil</span>
               </button>
-
-              <Link
-                href="/"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer text-[#5B5B62] hover:text-white"
-              >
-                <FileText className="w-5 h-5 shrink-0" />
-                <span className="text-[15px]">Regulamin</span>
-              </Link>
 
               {logout && (
                 <button
@@ -2759,7 +2759,7 @@ export default function AeuxDashboard({
 
                 <button
                   onClick={() => setActiveTab("purchases")}
-                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
                     activeTab === "purchases" || activeTab === "zakupy"
                       ? "text-[#D0FF00]"
                       : "text-[#5B5B62] hover:text-[#8E8E98]"
@@ -2779,6 +2779,16 @@ export default function AeuxDashboard({
                     Zakupy
                   </span>
                 </button>
+
+                <Link
+                  href="/"
+                  className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group text-[#5B5B62] hover:text-[#8E8E98]"
+                >
+                  <FileText className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#5B5B62]" />
+                  <span className="text-[15px] font-medium tracking-tight">
+                    Regulamin
+                  </span>
+                </Link>
               </nav>
             </>
           )}
@@ -2808,16 +2818,6 @@ export default function AeuxDashboard({
               Twój profil
             </span>
           </button>
-
-          <Link
-            href="/"
-            className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] text-[#5B5B62] hover:text-[#8E8E98]"
-          >
-            <FileText className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#5B5B62]" />
-            <span className="text-[15px] font-medium tracking-tight">
-              Regulamin
-            </span>
-          </Link>
 
           {logout && (
             <button
@@ -4405,101 +4405,7 @@ export default function AeuxDashboard({
         {/* WIDOK: ZAKUPY I HISTORIA TRANSAKCJI */}
         {/* ========================================================================= */}
         {(activeTab === "purchases" || activeTab === "zakupy") && (
-          <div className="space-y-8 max-w-6xl font-sans">
-            {/* GÓRNE KAFELKI PODSUMOWANIA (3 W RZĘDZIE) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* KAFELEK 1: AKTUALNY PAKIET */}
-              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
-                    Aktualny pakiet
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Aktywny
-                  </span>
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-2xl font-bold text-white tracking-tight font-sans">
-                    Pakiet {activeStore?.planType || user?.plan || "Creator"}
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    {activeStore?.name || "Twój aktywny sklep"}
-                  </p>
-                </div>
-                <div className="mt-4 pt-4 border-t border-[#17181F] flex items-center justify-between text-xs text-zinc-500">
-                  <span>Odnowienie subskrypcji</span>
-                  <span className="font-semibold text-zinc-300">Co 30 dni</span>
-                </div>
-              </div>
-
-              {/* KAFELEK 2: WAŻNOŚĆ SUBSKRYPCJI */}
-              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
-                    Ważność subskrypcji
-                  </span>
-                  <Clock className="w-4 h-4 text-zinc-400" />
-                </div>
-                <div className="mt-4">
-                  <div className="text-xl sm:text-2xl font-bold text-white tracking-tight font-sans">
-                    {(() => {
-                      const exp = activeStorePackage?.expiresAt || (activeStore as any)?.expires_at || (activeStore as any)?.expiresAt || user?.planExpiresAt;
-                      if (!exp) return "do 24.09.2026";
-                      try {
-                        const d = new Date(exp);
-                        if (isNaN(d.getTime())) return "Aktywny";
-                        const day = String(d.getDate()).padStart(2, "0");
-                        const month = String(d.getMonth() + 1).padStart(2, "0");
-                        const year = d.getFullYear();
-                        return `do ${day}.${month}.${year}`;
-                      } catch {
-                        return "Aktywny";
-                      }
-                    })()}
-                  </div>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    {activeStore?.subdomain ? `${activeStore.subdomain}.iskral.pl` : "Dostęp do wszystkich funkcji"}
-                  </p>
-                </div>
-                <div className="mt-4 pt-4 border-t border-[#17181F]">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("produkty")}
-                    className="w-full py-2 px-3 bg-[#FF5A28] hover:bg-[#FF7144] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Przedłuż pakiet</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* KAFELEK 3: WYDANO ŁĄCZNIE */}
-              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
-                    Wydano łącznie
-                  </span>
-                  <Wallet className="w-4 h-4 text-[#D0FF00]" />
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-2xl font-bold text-white tracking-tight font-sans">
-                    {(() => {
-                      const totalCents = purchasesList.reduce((acc, p) => acc + (Number(p.amount_cents) || 0), 0);
-                      return (totalCents / 100).toFixed(2);
-                    })()} PLN
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Łączna suma opłaconych pakietów
-                  </p>
-                </div>
-                <div className="mt-4 pt-4 border-t border-[#17181F] flex items-center justify-between text-xs text-zinc-500">
-                  <span>Liczba transakcji</span>
-                  <span className="font-semibold text-white">{purchasesList.length}</span>
-                </div>
-              </div>
-            </div>
-
+          <div className="space-y-6 max-w-6xl font-sans">
             {/* GŁÓWNA TABELA TRANSAKCJI */}
             <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6 shadow-2xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#17181F] pb-4">
