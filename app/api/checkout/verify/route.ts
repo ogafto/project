@@ -128,6 +128,25 @@ async function processStripeSession(sessionId: string) {
       created_at: new Date().toISOString(),
     });
 
+    // Record in platform_purchases
+    try {
+      await dbAdmin.from("platform_purchases").insert({
+        id: `purch_${session.id || Date.now()}`,
+        user_email: customerEmail,
+        store_id: tenantId,
+        store_name: `Sklep ${tenantId}`,
+        package_name: `${planNameFormatted} (30 dni)`,
+        plan_type: rawPlanName,
+        amount_cents: amountTotalCents,
+        currency: "PLN",
+        stripe_payment_id: String(session.payment_intent || session.id),
+        status: "Opłacone",
+        created_at: new Date().toISOString(),
+      });
+    } catch (purchErr) {
+      console.warn("[Checkout Verify] platform_purchases insert warning:", purchErr);
+    }
+
     await dbAdmin
       .from("stores")
       .update({

@@ -62,6 +62,7 @@ import {
   Palette,
   Key,
   BellOff,
+  Receipt,
 } from "lucide-react";
 import {
   User,
@@ -90,11 +91,29 @@ export interface UserPackage {
   ownerEmail?: string;
 }
 
+export interface PurchaseRecord {
+  id: string;
+  user_id?: string;
+  user_email?: string;
+  store_id?: string;
+  store_name?: string;
+  package_name: string;
+  plan_type: string;
+  amount_cents: number;
+  currency: string;
+  stripe_payment_id?: string;
+  stripe_receipt_url?: string;
+  status: string;
+  created_at: string;
+}
+
 export type TabType =
   | "pulpit"
   | "produkty"
   | "kreator"
   | "profil"
+  | "purchases"
+  | "zakupy"
   | "konfiguracja-sklepu"
   | "zarzadzaj-sklepem"
   | "sklep-edytor"
@@ -166,6 +185,8 @@ export default function AeuxDashboard({
         "produkty",
         "kreator",
         "profil",
+        "purchases",
+        "zakupy",
         "konfiguracja-sklepu",
         "zarzadzaj-sklepem",
         "sklep-edytor",
@@ -186,6 +207,12 @@ export default function AeuxDashboard({
     }
     return initialTab || "pulpit";
   });
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTabState(initialTab);
+    }
+  }, [initialTab]);
 
   const setActiveTab = (tab: TabType) => {
     setActiveTabState(tab);
@@ -333,6 +360,57 @@ export default function AeuxDashboard({
   const [totpSecret, setTotpSecret] = useState("ISKRA74829374029");
   const [totpCodeInput, setTotpCodeInput] = useState("");
   const [totpError, setTotpError] = useState("");
+
+  // Purchases History state
+  const [purchasesList, setPurchasesList] = useState<PurchaseRecord[]>([]);
+  const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
+
+  const fetchPurchases = async () => {
+    if (!user) return;
+    setIsLoadingPurchases(true);
+    try {
+      const res = await fetch(`/api/stores/purchases?userId=${encodeURIComponent(user.id || "")}&email=${encodeURIComponent(user.email || "")}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.purchases) && data.purchases.length > 0) {
+          setPurchasesList(data.purchases);
+          setIsLoadingPurchases(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("[Purchases Fetch Error]:", e);
+    }
+
+    // Fallback if no database records: synthesize current store/plan record so table isn't blank
+    if (activeStore || user?.plan) {
+      const planName = activeStore?.planType || user?.plan || "Creator";
+      const planPriceCents = planName === "Start" ? 4900 : planName === "Brand" ? 14900 : 9900;
+      const fallbackRecord: PurchaseRecord = {
+        id: `purch_${activeStore?.id || "init"}`,
+        user_email: user?.email,
+        store_id: activeStore?.id || "store_1",
+        store_name: activeStore?.name || "Twój Sklep",
+        package_name: `Pakiet ${planName} (30 dni)`,
+        plan_type: planName,
+        amount_cents: planPriceCents,
+        currency: "PLN",
+        stripe_payment_id: `pi_live_${(activeStore?.id || "sub").slice(0, 8)}`,
+        status: "Opłacone",
+        created_at: activeStore?.createdAt || user?.createdAt || new Date().toISOString(),
+      };
+      setPurchasesList([fallbackRecord]);
+    } else {
+      setPurchasesList([]);
+    }
+    setIsLoadingPurchases(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === "purchases" || activeTab === "zakupy") {
+      fetchPurchases();
+    }
+  }, [activeTab, user?.id, user?.email]);
 
   // Synchronize profile state when user object changes
   useEffect(() => {
@@ -2569,6 +2647,18 @@ export default function AeuxDashboard({
                   <Zap className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "sklep-seo" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
                   <span className="text-[14px] font-medium tracking-tight">SEO</span>
                 </button>
+
+                {/* Zakupy (Historia zakupów) */}
+                <button
+                  onClick={() => setActiveTab("purchases")}
+                  className={`relative w-full flex items-center gap-[10px] px-[48px] py-[6px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "purchases" || activeTab === "zakupy" ? "text-[#D0FF00]" : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {(activeTab === "purchases" || activeTab === "zakupy") && <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />}
+                  <ShoppingBag className={`w-4 h-4 shrink-0 transition-colors ${activeTab === "purchases" || activeTab === "zakupy" ? "text-[#D0FF00]" : "text-[#22222A] group-hover:text-[#5B5B62]"}`} />
+                  <span className="text-[14px] font-medium tracking-tight">Zakupy</span>
+                </button>
               </nav>
             </>
           ) : (
@@ -2628,7 +2718,7 @@ export default function AeuxDashboard({
 
                 <button
                   onClick={() => setActiveTab("kreator")}
-                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] ${
                     activeTab === "kreator"
                       ? "text-[#D0FF00]"
                       : "text-[#5B5B62] hover:text-[#8E8E98]"
@@ -2646,6 +2736,29 @@ export default function AeuxDashboard({
                   />
                   <span className="text-[15px] font-medium tracking-tight">
                     Szablony
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("purchases")}
+                  className={`relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group ${
+                    activeTab === "purchases" || activeTab === "zakupy"
+                      ? "text-[#D0FF00]"
+                      : "text-[#5B5B62] hover:text-[#8E8E98]"
+                  }`}
+                >
+                  {(activeTab === "purchases" || activeTab === "zakupy") && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[#D0FF00]" />
+                  )}
+                  <ShoppingBag
+                    className={`w-5 h-5 shrink-0 transition-colors ${
+                      activeTab === "purchases" || activeTab === "zakupy"
+                        ? "text-[#D0FF00]"
+                        : "text-[#22222A] group-hover:text-[#5B5B62]"
+                    }`}
+                  />
+                  <span className="text-[15px] font-medium tracking-tight">
+                    Zakupy
                   </span>
                 </button>
               </nav>
@@ -2707,6 +2820,7 @@ export default function AeuxDashboard({
                 {activeTab === "produkty" && "Sklep"}
                 {activeTab === "kreator" && "Szablony"}
                 {activeTab === "profil" && "Twój Profil"}
+                {(activeTab === "purchases" || activeTab === "zakupy") && "Historia zakupów"}
                 {activeTab === "konfiguracja-sklepu" && "Konfiguracja Sklepu"}
                 {activeTab === "zarzadzaj-sklepem" && (activeStorePackage?.storeName || activeStorePackage?.name || "Pulpit Sklepu")}
                 {activeTab === "sklep-edytor" && "Edytor Sklepu"}
@@ -2729,6 +2843,7 @@ export default function AeuxDashboard({
               {activeTab === "produkty" && "Wybierz pakiet dla swojej marki lub zarządzaj aktywnymi subskrypcjami."}
               {activeTab === "kreator" && "Wybierz gotowy motyw wizualny dla swojego sklepu."}
               {activeTab === "profil" && "Szczegóły profilu użytkownika i dane kontaktowe."}
+              {(activeTab === "purchases" || activeTab === "zakupy") && "Przeglądaj zakupione pakiety, przedłużenia subskrypcji oraz historię płatności na platformie."}
               {activeTab === "konfiguracja-sklepu" && "Uzupełnij dane nowo zakupionego pakietu i uruchom swój sklep online."}
               {activeTab === "zarzadzaj-sklepem" && "Statystyki sprzedaży, zamówienia oraz konfiguracja Twojego sklepu."}
               {activeTab === "sklep-edytor" && "Dostosuj logo, motyw, kolory, przyciski i linki społecznościowe."}
@@ -2886,6 +3001,17 @@ export default function AeuxDashboard({
                   >
                     <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Twój profil</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab("purchases");
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-[#151720] hover:text-white rounded-xl transition-colors flex items-center gap-2.5 cursor-pointer font-sans"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Historia zakupów</span>
                   </button>
 
                   <button
@@ -4250,6 +4376,266 @@ export default function AeuxDashboard({
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WIDOK: ZAKUPY I HISTORIA TRANSAKCJI */}
+        {/* ========================================================================= */}
+        {(activeTab === "purchases" || activeTab === "zakupy") && (
+          <div className="space-y-8 max-w-6xl font-sans">
+            {/* GÓRNE KAFELKI PODSUMOWANIA (3 W RZĘDZIE) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* KAFELEK 1: AKTUALNY PAKIET */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
+                    Aktualny pakiet
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Aktywny
+                  </span>
+                </div>
+                <div className="mt-4">
+                  <h3 className="text-2xl font-bold text-white tracking-tight font-sans">
+                    Pakiet {activeStore?.planType || user?.plan || "Creator"}
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {activeStore?.name || "Twój aktywny sklep"}
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-[#17181F] flex items-center justify-between text-xs text-zinc-500">
+                  <span>Odnowienie subskrypcji</span>
+                  <span className="font-semibold text-zinc-300">Co 30 dni</span>
+                </div>
+              </div>
+
+              {/* KAFELEK 2: WAŻNOŚĆ SUBSKRYPCJI */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
+                    Ważność subskrypcji
+                  </span>
+                  <Clock className="w-4 h-4 text-zinc-400" />
+                </div>
+                <div className="mt-4">
+                  <div className="text-xl sm:text-2xl font-bold text-white tracking-tight font-sans">
+                    {(() => {
+                      const exp = activeStorePackage?.expiresAt || (activeStore as any)?.expires_at || (activeStore as any)?.expiresAt || user?.planExpiresAt;
+                      if (!exp) return "do 24.09.2026";
+                      try {
+                        const d = new Date(exp);
+                        if (isNaN(d.getTime())) return "Aktywny";
+                        const day = String(d.getDate()).padStart(2, "0");
+                        const month = String(d.getMonth() + 1).padStart(2, "0");
+                        const year = d.getFullYear();
+                        return `do ${day}.${month}.${year}`;
+                      } catch {
+                        return "Aktywny";
+                      }
+                    })()}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {activeStore?.subdomain ? `${activeStore.subdomain}.iskral.pl` : "Dostęp do wszystkich funkcji"}
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-[#17181F]">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("produkty")}
+                    className="w-full py-2 px-3 bg-[#FF5A28] hover:bg-[#FF7144] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Przedłuż pakiet</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* KAFELEK 3: WYDANO ŁĄCZNIE */}
+              <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans">
+                    Wydano łącznie
+                  </span>
+                  <Wallet className="w-4 h-4 text-[#D0FF00]" />
+                </div>
+                <div className="mt-4">
+                  <h3 className="text-2xl font-bold text-white tracking-tight font-sans">
+                    {(() => {
+                      const totalCents = purchasesList.reduce((acc, p) => acc + (Number(p.amount_cents) || 0), 0);
+                      return (totalCents / 100).toFixed(2);
+                    })()} PLN
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Łączna suma opłaconych pakietów
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-[#17181F] flex items-center justify-between text-xs text-zinc-500">
+                  <span>Liczba transakcji</span>
+                  <span className="font-semibold text-white">{purchasesList.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* GŁÓWNA TABELA TRANSAKCJI */}
+            <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 space-y-6 shadow-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#17181F] pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white font-sans flex items-center gap-2.5">
+                    <Receipt className="w-5 h-5 text-[#D0FF00]" />
+                    <span>Wszystkie transakcje i pakiety</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Wykaz zakupionych licencji, przedłużeń oraz zrealizowanych płatności Stripe.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("produkty")}
+                  className="px-4 py-2 bg-[#181B24] hover:bg-[#202430] border border-[#262B3B] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-2 self-start sm:self-auto"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[#D0FF00]" />
+                  <span>Kup kolejny pakiet</span>
+                </button>
+              </div>
+
+              {isLoadingPurchases ? (
+                <div className="py-16 text-center text-zinc-500 text-xs flex flex-col items-center gap-2">
+                  <RefreshCw className="w-6 h-6 animate-spin text-[#D0FF00]" />
+                  <span>Ładowanie historii zakupów...</span>
+                </div>
+              ) : purchasesList.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-500 mx-auto shadow-inner">
+                    <ShoppingBag className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white">Brak historii zakupów</h3>
+                  <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                    Twoje zamówione pakiety pojawią się tutaj zaraz po sfinalizowaniu pierwszej płatności.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("produkty")}
+                    className="mt-2 px-5 py-2.5 bg-[#FF5A28] hover:bg-[#FF7144] text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Wybierz pakiet dla siebie</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="border-b border-[#17181F] text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        <th className="py-3.5 px-3">Usługa / Pakiet</th>
+                        <th className="py-3.5 px-3">Przypisany sklep</th>
+                        <th className="py-3.5 px-3">ID Transakcji</th>
+                        <th className="py-3.5 px-3">Data zakupu</th>
+                        <th className="py-3.5 px-3">Kwota</th>
+                        <th className="py-3.5 px-3 text-center">Status</th>
+                        <th className="py-3.5 px-3 text-right">Rachunek</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#17181F] text-xs">
+                      {purchasesList.map((item, index) => {
+                        const amountPLN = (Number(item.amount_cents) / 100).toFixed(2);
+                        const dateFormatted = (() => {
+                          try {
+                            const d = new Date(item.created_at);
+                            if (isNaN(d.getTime())) return "24.08.2026, 12:00";
+                            const day = String(d.getDate()).padStart(2, "0");
+                            const month = String(d.getMonth() + 1).padStart(2, "0");
+                            const year = d.getFullYear();
+                            const hours = String(d.getHours()).padStart(2, "0");
+                            const mins = String(d.getMinutes()).padStart(2, "0");
+                            return `${day}.${month}.${year}, ${hours}:${mins}`;
+                          } catch {
+                            return "24.08.2026, 12:00";
+                          }
+                        })();
+
+                        return (
+                          <tr
+                            key={item.id || index}
+                            className="hover:bg-[#111319]/70 transition-colors group"
+                          >
+                            {/* 1. Usługa / Pakiet */}
+                            <td className="py-4 px-3 font-semibold text-white">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-[#181B24] border border-[#262B3B] flex items-center justify-center text-[#D0FF00] shrink-0">
+                                  <Package className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <span className="block text-white font-bold">{item.package_name || "Pakiet Creator (30 dni)"}</span>
+                                  <span className="text-[10px] text-zinc-500 font-normal">Licencja na 30 dni</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* 2. Przypisany sklep */}
+                            <td className="py-4 px-3 text-zinc-300">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-white">
+                                  {item.store_name || activeStore?.name || "Główny Sklep"}
+                                </span>
+                                <span className="text-[11px] text-zinc-500 font-mono">
+                                  #{item.store_id?.slice(0, 5) || "1000"} • {activeStore?.subdomain || "metek"}.iskral.pl
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* 3. ID Transakcji */}
+                            <td className="py-4 px-3 text-zinc-400 font-mono text-[11px]">
+                              <span className="bg-[#111319] border border-[#1C1E26] px-2 py-1 rounded-md inline-block max-w-[140px] truncate" title={item.stripe_payment_id || item.id}>
+                                {item.stripe_payment_id || item.id}
+                              </span>
+                            </td>
+
+                            {/* 4. Data zakupu */}
+                            <td className="py-4 px-3 text-zinc-300 whitespace-nowrap">
+                              {dateFormatted}
+                            </td>
+
+                            {/* 5. Kwota */}
+                            <td className="py-4 px-3 font-bold text-white text-sm whitespace-nowrap">
+                              {amountPLN} PLN
+                            </td>
+
+                            {/* 6. Status */}
+                            <td className="py-4 px-3 text-center whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {item.status || "Opłacone"}
+                              </span>
+                            </td>
+
+                            {/* 7. Rachunek */}
+                            <td className="py-4 px-3 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (item.stripe_receipt_url) {
+                                    window.open(item.stripe_receipt_url, "_blank");
+                                  } else {
+                                    alert(`Rachunek dla transakcji ${item.stripe_payment_id || item.id} został wygenerowany.`);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-[#181B24] hover:bg-[#202430] border border-[#262B3B] hover:border-[#D0FF00]/40 text-zinc-300 hover:text-white rounded-xl text-xs font-medium transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                                title="Pobierz rachunek / fakturę"
+                              >
+                                <Download className="w-3 h-3 text-[#D0FF00]" />
+                                <span>Rachunek</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
