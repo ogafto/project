@@ -69,7 +69,7 @@ import {
   PlanType,
   OrderRecord,
 } from "../context/AuthContext";
-import { SubscriptionTimer, SubscriptionBadge } from "./SubscriptionBadge";
+import { SubscriptionExpiryBadge, SubscriptionTimer, SubscriptionBadge } from "./SubscriptionBadge";
 
 export interface UserPackage {
   id: string;
@@ -1038,52 +1038,35 @@ export default function AeuxDashboard({
 
   // Hydration protection flag
   const [isMounted, setIsMounted] = useState(false);
-  // Dynamiczny licznik czasu rzeczywistego (odświeżanie po stronie klienta)
-  const [currentTime, setCurrentTime] = useState<number>(0);
 
   useEffect(() => {
     setIsMounted(true);
-    setCurrentTime(Date.now());
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   const getRemainingTimeInfo = (expiresAt?: string) => {
-    if (!isMounted) {
-      return { text: "Sprawdzanie ważności...", isExpired: false, days: 0, hours: 0, minutes: 0 };
+    if (!expiresAt) {
+      return { text: "Ważność: Aktywny", isExpired: false, days: 0, hours: 0, minutes: 0 };
     }
-    if (!expiresAt) return { text: "Ładowanie...", isExpired: false, days: 0, hours: 0, minutes: 0 };
-    const expTime = new Date(expiresAt).getTime();
-    if (isNaN(expTime) || expTime <= 0) return { text: "Ładowanie...", isExpired: false, days: 0, hours: 0, minutes: 0 };
-    const now = currentTime || Date.now();
-    const diff = expTime - now;
-    if (diff <= 0) return { text: "Wygasł", isExpired: true, days: 0, hours: 0, minutes: 0 };
-
-    const totalMinutes = Math.floor(diff / (1000 * 60));
-    const totalHours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = totalHours % 24;
-    const minutes = totalMinutes % 60;
-
-    if (days >= 1) {
-      return {
-        text: `${days} ${days === 1 ? "dzień" : "dni"}, ${hours} godz.`,
-        isExpired: false,
-        days,
-        hours,
-        minutes,
-      };
-    } else {
-      return {
-        text: `${hours} godz. ${minutes} min.`,
-        isExpired: false,
-        days,
-        hours,
-        minutes,
-      };
+    const expiryDate = new Date(expiresAt);
+    if (isNaN(expiryDate.getTime())) {
+      return { text: "Ważność: Aktywny", isExpired: false, days: 0, hours: 0, minutes: 0 };
     }
+
+    const isExpired = expiryDate.getTime() <= Date.now();
+    const formattedDate = expiryDate.toLocaleDateString("pl-PL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    const text = isExpired ? `Ważność: Wygasł (${formattedDate})` : `Ważność: do ${formattedDate}`;
+    return {
+      text,
+      isExpired,
+      days: 0,
+      hours: 0,
+      minutes: 0,
+    };
   };
 
   const getRemainingTime = (expiresAt?: string) => {

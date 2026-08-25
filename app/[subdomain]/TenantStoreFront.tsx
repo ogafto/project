@@ -792,13 +792,21 @@ export function TenantStoreFront({
     }
   };
 
+  const isExpiredStore = Boolean(
+    targetStore &&
+    ((targetStore as any).expires_at || (targetStore as any).expiresAt || targetStore.planExpiresAt) &&
+    new Date((targetStore as any).expires_at || (targetStore as any).expiresAt || targetStore.planExpiresAt).getTime() <= Date.now()
+  );
+
   const isStoreActive = targetStore
     ? (targetStore as any).is_active !== false &&
       (targetStore as any).isActive !== false &&
       targetStore.status !== "canceled" &&
       targetStore.status !== "suspended" &&
-      targetStore.planStatus !== "canceled" &&
-      targetStore.planStatus !== "suspended"
+      (targetStore.planStatus as string) !== "canceled" &&
+      (targetStore.planStatus as string) !== "suspended" &&
+      (targetStore.planStatus as string) !== "expired" &&
+      !isExpiredStore
     : false;
 
   // Initial mounting state
