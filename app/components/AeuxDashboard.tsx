@@ -371,6 +371,13 @@ export default function AeuxDashboard({
   const [totpSecret, setTotpSecret] = useState("ISKRA74829374029");
   const [totpCodeInput, setTotpCodeInput] = useState("");
   const [totpError, setTotpError] = useState("");
+  // Payment Success Banner State (komunikat sukcesu po powrocie ze Stripe)
+  const [paymentBannerData, setPaymentBannerData] = useState<{
+    planName: string;
+    expiresAt: string;
+    storeName?: string;
+    isRenewal?: boolean;
+  } | null>(null);
 
   // Purchases History state
   const [purchasesList, setPurchasesList] = useState<PurchaseRecord[]>([]);
@@ -380,7 +387,8 @@ export default function AeuxDashboard({
     if (!user) return;
     setIsLoadingPurchases(true);
     try {
-      const res = await fetch(`/api/stores/purchases?userId=${encodeURIComponent(user.id || "")}&email=${encodeURIComponent(user.email || "")}`);
+      const storeParam = activeStore?.id ? `&storeId=${encodeURIComponent(activeStore.id)}` : "";
+      const res = await fetch(`/api/stores/purchases?userId=${encodeURIComponent(user.id || "")}&email=${encodeURIComponent(user.email || "")}${storeParam}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.purchases) && data.purchases.length > 0) {
@@ -1066,20 +1074,38 @@ export default function AeuxDashboard({
     syncRemoteUserResources();
   }, [user?.id, user?.email, user?.services?.length, userStores.length]);
 
-  // Handle return from Stripe Checkout (?checkout=success or ?checkout=cancelled)
+  // Handle return from Stripe Checkout (?payment=success or ?checkout=success or ?payment=cancelled)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment");
     const checkoutStatus = params.get("checkout");
+    const isSuccess = paymentStatus === "success" || checkoutStatus === "success";
+    const isCancelled = paymentStatus === "cancelled" || checkoutStatus === "cancelled";
 
-    if (checkoutStatus === "success") {
+    if (isSuccess) {
       const plan = (params.get("plan") as any) || "Creator";
       const billing = (params.get("billing") as any) || "miesiac";
       const action = params.get("action") || "buy";
-      const pkgId = params.get("package_id");
+      const pkgId = params.get("package_id") || params.get("packageId");
+      const sessionId = params.get("session_id") || params.get("sessionId");
 
+      const days = billing === "rok" ? 365 : 30;
+      const formattedPlan = plan.toLowerCase().startsWith("pakiet") ? plan : `Pakiet ${plan}`;
+
+      // 1. Weryfikacja sesji po stronie serwera w Supabase i synchronizacja bazy
+      if (sessionId) {
+        fetch(`/api/checkout/verify?session_id=${encodeURIComponent(sessionId)}`)
+          .then(async (res) => {
+            if (res.ok) {
+              fetchPurchases();
+            }
+          })
+          .catch(() => {});
+      }
+
+      // 2. Aktualizacja lokalnego stanu pakietów użytkownika
       if (action === "buy") {
-        const days = billing === "rok" ? 365 : 30;
         const priceText =
           billing === "rok"
             ? plan === "Creator"
@@ -1092,7 +1118,7 @@ export default function AeuxDashboard({
         const newPkg: UserPackage = {
           id: `pkg_${Date.now()}`,
           number: Math.floor(1000 + Math.random() * 9000),
-          name: `Pakiet ${plan}`,
+          name: formattedPlan,
           planType: plan,
           price: priceText,
           expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
@@ -1111,13 +1137,18 @@ export default function AeuxDashboard({
         if (buyPlan) {
           buyPlan(plan, billing);
         }
-      } else if (action === "extend" && pkgId) {
+      } else if (action === "extend" || action === "renew" || action === "upgrade") {
         setUserPackages((prev) => {
           const updated = prev.map((p) => {
-            if (p.id === pkgId) {
+            if (!pkgId || p.id === pkgId) {
               const currentExp = new Date(p.expiresAt || Date.now()).getTime();
               const base = currentExp > Date.now() ? currentExp : Date.now();
-              return { ...p, expiresAt: new Date(base + 30 * 86400000).toISOString() };
+              return {
+                ...p,
+                planType: plan,
+                name: formattedPlan,
+                expiresAt: new Date(base + days * 86400000).toISOString(),
+              };
             }
             return p;
           });
@@ -1129,18 +1160,34 @@ export default function AeuxDashboard({
         });
       }
 
+      // 3. Obliczenie nowej daty ważności (+30 dni)
+      const currentExpiry = activeStore?.expires_at ? new Date(activeStore.expires_at).getTime() : Date.now();
+      const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+      const newExpiresAtDate = new Date(baseTime + days * 86400000);
+
+      // 4. Ustawienie banera sukcesu
+      setPaymentBannerData({
+        planName: formattedPlan,
+        expiresAt: newExpiresAtDate.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" }),
+        storeName: activeStore?.name || "Twój Sklep",
+        isRenewal: action === "extend" || action === "renew",
+      });
+
+      // 5. Odświeżenie historii transakcji
+      fetchPurchases();
+
       if (setMessage) {
         setMessage({
           type: "success",
-          text: "🎉 Płatność Stripe zakończona sukcesem! Twój pakiet został pomyślnie aktywowany.",
+          text: `🎉 Płatność Stripe zakończona sukcesem! Twój ${formattedPlan} został pomyślnie aktywowany.`,
         });
       }
 
-      // Clean query parameter from address bar
+      // Clean query parameter from address bar bez przekierowań
       try {
-        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || "#pulpit"));
+        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || ""));
       } catch {}
-    } else if (checkoutStatus === "cancelled") {
+    } else if (isCancelled) {
       if (setMessage) {
         setMessage({
           type: "warning",
@@ -1148,10 +1195,10 @@ export default function AeuxDashboard({
         });
       }
       try {
-        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || "#pulpit"));
+        window.history.replaceState(null, "", window.location.pathname + (window.location.hash || ""));
       } catch {}
     }
-  }, [user?.email, user?.id]);
+  }, [user?.email, user?.id, activeStore?.id]);
 
   // Hydration protection flag
   const [isMounted, setIsMounted] = useState(false);
@@ -1219,6 +1266,26 @@ export default function AeuxDashboard({
     try {
       if (setMessage) setMessage({ type: "success", text: "Inicjalizacja przedłużenia pakietu przez Stripe..." });
       const priceCents = pkg.planType === "Creator" ? 2999 : 5999;
+      const targetStoreId = pkg.subdomain || pkg.id || activeStore?.id || "";
+
+      if (createStripeCheckout) {
+        const checkoutUrl = await createStripeCheckout({
+          title: `Przedłużenie Pakietu ${pkg.planType} (+30 dni)`,
+          priceCents,
+          planType: pkg.planType,
+          customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
+          packageId: pkg.id,
+          action: "extend",
+          billingCycle: "miesiac",
+        });
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
 
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -1227,10 +1294,14 @@ export default function AeuxDashboard({
           title: `Przedłużenie Pakietu ${pkg.planType} (+30 dni)`,
           priceCents,
           customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
           isPlan: true,
           planType: pkg.planType,
           packageId: pkg.id,
           action: "extend",
+          billingCycle: "miesiac",
         }),
       });
       const data = await res.json();
@@ -1271,6 +1342,7 @@ export default function AeuxDashboard({
 
   const handleBuyPackage = async (planType: "Start" | "Creator" | "Brand", cycle?: "miesiac" | "rok") => {
     const currentCycle = cycle || billingInterval;
+    const targetStoreId = activeStore?.id || (userPackages.length > 0 ? (userPackages[0].subdomain || userPackages[0].id) : "");
 
     if (planType === "Start") {
       if (buyPlan) {
@@ -1317,6 +1389,11 @@ export default function AeuxDashboard({
           priceCents,
           planType,
           customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
+          action: "buy",
+          billingCycle: currentCycle,
         });
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
@@ -1331,6 +1408,9 @@ export default function AeuxDashboard({
           title: `Pakiet ${planType} (${currentCycle === "rok" ? "Roczny -50%" : "Miesięczny"})`,
           priceCents,
           customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
           isPlan: true,
           planType,
           billingCycle: currentCycle,
@@ -1354,6 +1434,26 @@ export default function AeuxDashboard({
     try {
       if (setMessage) setMessage({ type: "success", text: `Inicjalizacja ulepszenia do Pakietu ${targetPlan} przez Stripe...` });
       const priceCents = targetPlan === "Creator" ? 2999 : 5999;
+      const targetStoreId = upgradingPackage.subdomain || upgradingPackage.id || activeStore?.id || "";
+
+      if (createStripeCheckout) {
+        const checkoutUrl = await createStripeCheckout({
+          title: `Ulepszenie do Pakietu ${targetPlan}`,
+          priceCents,
+          planType: targetPlan,
+          customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
+          packageId: upgradingPackage.id,
+          action: "upgrade",
+          billingCycle: "miesiac",
+        });
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
 
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -1362,6 +1462,9 @@ export default function AeuxDashboard({
           title: `Ulepszenie do Pakietu ${targetPlan}`,
           priceCents,
           customerEmail: user?.email || "",
+          userId: user?.id,
+          storeId: targetStoreId,
+          tenantId: targetStoreId,
           isPlan: true,
           planType: targetPlan,
           packageId: upgradingPackage.id,
@@ -3139,6 +3242,57 @@ export default function AeuxDashboard({
             </div>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* BANER SUKCESU PŁATNOŚCI STRIPE (ZAKUP / PRZEDŁUŻENIE PAKIETU +30 DNI) */}
+        {/* ========================================================================= */}
+        {paymentBannerData && (
+          <div className="mb-8 p-5 sm:p-6 bg-gradient-to-r from-[#0D0E12] via-[#12151E] to-[#0D0E12] border border-[#D0FF00]/30 hover:border-[#D0FF00]/50 rounded-[24px] shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500 font-sans">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#D0FF00]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#D0FF00]/15 border border-[#D0FF00]/30 flex items-center justify-center text-[#D0FF00] shrink-0 shadow-lg shadow-[#D0FF00]/10">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="text-base sm:text-lg font-bold text-white tracking-tight">
+                      {paymentBannerData.isRenewal ? "Pomyślnie przedłużono pakiet!" : "Płatność Stripe zrealizowana pomyślnie!"}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#D0FF00]/15 border border-[#D0FF00]/40 text-[#D0FF00] text-[11px] font-bold">
+                      Ważność +30 dni
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-zinc-300">
+                    <strong className="text-white font-semibold">{paymentBannerData.planName}</strong> został aktywowany dla Twojego sklepu. Ważność subskrypcji: <span className="text-[#D0FF00] font-medium font-mono">{paymentBannerData.expiresAt}</span>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("purchases");
+                    setPaymentBannerData(null);
+                  }}
+                  className="px-4 py-2.5 bg-[#17181F] hover:bg-[#20232E] text-zinc-200 hover:text-white border border-[#262835] rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-[#D0FF00]" />
+                  <span>Zobacz w "Zakupy"</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentBannerData(null)}
+                  className="p-2.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl transition-colors cursor-pointer"
+                  title="Zamknij powiadomienie"
+                  aria-label="Zamknij"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* WIDOK 1: STRONA GŁÓWNA (DYNAMICZNIE DLA NOWYCH VS POSIADAJĄCYCH PAKIET) */}

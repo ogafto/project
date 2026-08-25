@@ -77,54 +77,114 @@ export async function POST(req: NextRequest) {
     console.log('STORE ID AKTYWNEGO SKLEPU:', resolvedStoreId);
     console.log('TWORZENIE REKORDU ZAMÓWIENIA DLA STORE_ID:', tenantId);
     const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10) || 1);
-    const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
-    const rawPlanName = metadata.plan_type || "Creator";
+    const isPlan =
+      metadata.type === "plan" ||
+      metadata.type === "plan_purchase" ||
+      metadata.type === "plan_renewal" ||
+      Boolean(metadata.plan_type) ||
+      Boolean(metadata.planType) ||
+      Boolean(metadata.planName);
+    const rawPlanName = metadata.plan_type || metadata.planType || metadata.planName || "Creator";
     const planNameFormatted = rawPlanName.toLowerCase().startsWith("pakiet") ? rawPlanName : `Pakiet ${rawPlanName}`;
     const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 2999);
-    const customerEmail = session.customer_details?.email || metadata.customer_email || session.customer_email || "klient@iskral.pl";
+    const customerEmail = session.customer_details?.email || metadata.customer_email || metadata.customerEmail || session.customer_email || "klient@iskral.pl";
     const paymentStatus = isPlan ? "active" : "Niewysłane";
     const productTitle = metadata.title || metadata.product_title || (isPlan ? planNameFormatted : "Zamówienie w sklepie");
+    const planDurationDays = parseInt(metadata.planDurationDays || metadata.plan_duration_days || "30", 10) || 30;
 
     console.log(`[Stripe Webhook] ${isPlan ? "SaaS Plan Subscription" : "Product Payment"} received: ${amountTotalCents} cents for store: ${tenantId}`);
 
     if (dbAdmin && tenantId) {
       try {
         if (isPlan) {
-          const expirationDate = new Date();
-          expirationDate.setDate(expirationDate.getDate() + 30); // 30 dni ważności subskrypcji
+          // Pobierz obecny stan sklepu w celu obliczenia przedłużenia ważności
+          const { data: currentStore } = await dbAdmin
+            .from("stores")
+            .select("id, name, expires_at, owner_id")
+            .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
+            .maybeSingle();
 
-          // 1. Create/update subscription record
+          const currentExpiry = currentStore?.expires_at ? new Date(currentStore.expires_at).getTime() : Date.now();
+          const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+          const newExpiresAt = new Date(baseTime + planDurationDays * 24 * 60 * 60 * 1000).toISOString();
+
+          // 1. Zapis/aktualizacja subskrypcji w tabeli subscriptions
           await dbAdmin.from("subscriptions").insert({
             tenant_id: tenantId,
+            user_id: metadata.userId || metadata.user_id || currentStore?.owner_id || null,
             user_email: customerEmail,
-            plan_name: rawPlanName,
+            plan_name: planNameFormatted,
+            plan_id: rawPlanName,
             status: "active",
+            billing_cycle: metadata.billingCycle || metadata.billing_cycle || "miesiac",
             stripe_customer_id: String(session.customer || ""),
             stripe_subscription_id: String(session.subscription || session.id),
             amount_paid_cents: amountTotalCents,
-            current_period_end: expirationDate.toISOString(),
+            current_period_end: newExpiresAt,
             created_at: new Date().toISOString(),
           });
 
-          // 2. Update store in stores table
+          // 2. Zapis do historii transakcji platform_purchases
+          try {
+            await dbAdmin.from("platform_purchases").upsert({
+              id: `purch_${session.id || Date.now()}`,
+              user_id: metadata.userId || metadata.user_id || currentStore?.owner_id || null,
+              user_email: customerEmail,
+              store_id: tenantId,
+              store_name: currentStore?.name || `Sklep ${tenantId}`,
+              package_name: `${planNameFormatted} (${planDurationDays} dni)`,
+              plan_type: rawPlanName,
+              amount_cents: amountTotalCents,
+              currency: "PLN",
+              stripe_payment_id: String(session.payment_intent || session.id),
+              status: "Opłacone",
+              created_at: new Date().toISOString(),
+            });
+          } catch (purchErr) {
+            console.warn("[Stripe Webhook] platform_purchases record warning:", purchErr);
+          }
+
+          // 3. Aktualizacja sklepu w tabeli stores (+30 dni do expires_at)
           await dbAdmin
             .from("stores")
             .update({
+              plan: planNameFormatted,
               plan_type: rawPlanName,
               plan_status: "active",
+              status: "active",
               is_active: true,
-              expires_at: expirationDate.toISOString(),
-              trial_ends_at: expirationDate.toISOString(),
+              expires_at: newExpiresAt,
+              trial_ends_at: newExpiresAt,
               updated_at: new Date().toISOString(),
             })
             .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
 
-          console.log(`[Stripe Webhook] Successfully activated SaaS Plan [${rawPlanName}] for store ID: ${tenantId}`);
+          // 4. Aktualizacja profilu użytkownika w tabeli profiles
+          const profileUserId = metadata.userId || metadata.user_id || currentStore?.owner_id;
+          if (profileUserId) {
+            await dbAdmin
+              .from("profiles")
+              .update({
+                plan: rawPlanName,
+                account_status: "Active",
+              })
+              .eq("id", profileUserId);
+          } else if (customerEmail) {
+            await dbAdmin
+              .from("profiles")
+              .update({
+                plan: rawPlanName,
+                account_status: "Active",
+              })
+              .eq("email", customerEmail);
+          }
 
-          // 3. Wysyłanie e-maila transakcyjnego z potwierdzeniem zakupu przez Resend
+          console.log(`[Stripe Webhook] Successfully activated SaaS Plan [${planNameFormatted}] for store ID: ${tenantId}, expires: ${newExpiresAt}`);
+
+          // 5. Wysyłanie e-maila transakcyjnego z potwierdzeniem zakupu przez Resend
           if (customerEmail) {
             const amountFormatted = `${(amountTotalCents / 100).toFixed(2).replace(".", ",")} zł`;
-            const expiresAtFormatted = formatDatePL(expirationDate);
+            const expiresAtFormatted = formatDatePL(new Date(newExpiresAt));
 
             sendPurchaseConfirmationEmail({
               to: customerEmail,

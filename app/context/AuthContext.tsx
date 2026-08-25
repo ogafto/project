@@ -146,9 +146,12 @@ export interface StoreConfig {
   domainVerified: boolean;
   stripeStatus: "disconnected" | "pending" | "connected";
   balanceCents: number;
+  plan?: string;
   planType: PlanType;
   planStatus: "active" | "trialing" | "past_due" | "canceled" | "suspended";
   status?: "active" | "suspended" | "canceled";
+  expires_at?: string;
+  expiresAt?: string;
   planExpiresAt?: string;
   trialEndsAt?: string;
   gracePeriodEndsAt?: string;
@@ -346,7 +349,19 @@ interface AuthContextType {
   verifyDomainRecords: () => void;
   recordOrder: (tenantId: string, productId: string, customerEmail: string, amountCents: number) => void;
   recordSaaSSubscription: (tenantId: string, userId: string, userEmail: string, planName: string, amountPaidCents: number) => void;
-  createStripeCheckout: (params: { productId?: string; planType?: PlanType; title: string; priceCents: number; customerEmail?: string; tenantId?: string }) => Promise<string | null>;
+  createStripeCheckout: (params: {
+    productId?: string;
+    planType?: PlanType;
+    title: string;
+    priceCents: number;
+    customerEmail?: string;
+    tenantId?: string;
+    storeId?: string;
+    userId?: string;
+    action?: string;
+    packageId?: string;
+    billingCycle?: "miesiac" | "rok";
+  }) => Promise<string | null>;
   createOrUpdateStoreFull: (params: {
     serviceId?: string;
     name: string;
@@ -1620,18 +1635,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     priceCents: number;
     customerEmail?: string;
     tenantId?: string;
+    storeId?: string;
+    userId?: string;
+    action?: string;
+    packageId?: string;
+    billingCycle?: "miesiac" | "rok";
   }): Promise<string | null> => {
     try {
+      const isPlan = Boolean(params.planType);
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tenantId: params.tenantId || activeStore?.id || "demo-tenant",
+          userId: params.userId || user?.id,
+          storeId: params.storeId || params.tenantId || activeStore?.id || "demo-tenant",
+          tenantId: params.storeId || params.tenantId || activeStore?.id || "demo-tenant",
           productId: params.productId,
           planType: params.planType,
+          isPlan,
           title: params.title,
           priceCents: params.priceCents,
           customerEmail: params.customerEmail || user?.email,
+          action: params.action || "buy",
+          packageId: params.packageId,
+          billingCycle: params.billingCycle || "miesiac",
         }),
       });
       const data = await res.json();

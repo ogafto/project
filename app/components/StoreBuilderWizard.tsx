@@ -238,6 +238,10 @@ export default function StoreBuilderWizard({ onComplete, initialStep = 1 }: Stor
           title: `Subskrypcja Iskral SaaS - Pakiet ${selectedPlan} (${billingCycle})`,
           priceCents: saasPriceCents,
           tenantId: createdStore.id,
+          storeId: createdStore.id,
+          userId: user?.id,
+          billingCycle,
+          action: "buy",
         });
 
         if (checkoutUrl) {

@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId") || searchParams.get("user_id");
     const email = searchParams.get("email");
+    const storeId = searchParams.get("storeId") || searchParams.get("store_id");
 
     const cleanEmail = (email || "").trim().toLowerCase();
     const dbClient: any = supabaseAdmin || supabase;
@@ -19,11 +20,13 @@ export async function GET(req: NextRequest) {
         // 1. Sprawdź tabelę platform_purchases
         let query = dbClient.from("platform_purchases").select("*");
         if (userId && cleanEmail) {
-          query = query.or(`user_id.eq.${userId},user_email.eq.${cleanEmail}`);
+          query = query.or(`user_id.eq.${userId},user_email.eq.${cleanEmail}${storeId ? `,store_id.eq.${storeId}` : ""}`);
         } else if (userId) {
-          query = query.eq("user_id", userId);
+          query = query.or(`user_id.eq.${userId}${storeId ? `,store_id.eq.${storeId}` : ""}`);
         } else if (cleanEmail) {
-          query = query.eq("user_email", cleanEmail);
+          query = query.or(`user_email.eq.${cleanEmail}${storeId ? `,store_id.eq.${storeId}` : ""}`);
+        } else if (storeId) {
+          query = query.eq("store_id", storeId);
         }
 
         const { data, error } = await query.order("created_at", { ascending: false });
@@ -38,8 +41,12 @@ export async function GET(req: NextRequest) {
       if (purchases.length === 0) {
         try {
           let subQuery = dbClient.from("subscriptions").select("*");
-          if (cleanEmail) {
+          if (cleanEmail && storeId) {
+            subQuery = subQuery.or(`user_email.eq.${cleanEmail},tenant_id.eq.${storeId}`);
+          } else if (cleanEmail) {
             subQuery = subQuery.eq("user_email", cleanEmail);
+          } else if (storeId) {
+            subQuery = subQuery.eq("tenant_id", storeId);
           }
           const { data: subData, error: subErr } = await subQuery.order("created_at", { ascending: false });
           if (!subErr && subData && subData.length > 0) {

@@ -122,17 +122,14 @@ export async function POST(req: NextRequest) {
     let successUrl: string;
     let cancelUrl: string;
 
+    const planId = planType || "Creator";
+    const planNameFormatted = planId.toLowerCase().startsWith("pakiet") ? planId : `Pakiet ${planId}`;
+    const isRenewal = action === "extend" || action === "renew";
+
     if (isPlan) {
-      // 1. ZAKUP PAKIETU / SUBSKRYPCJI SAAS -> ZAWSZE KIERUJE NA GŁÓWNĄ DOMENĘ /dashboard
-      const successQuery = new URLSearchParams({
-        checkout: "success",
-        action: action || "buy",
-        package_id: packageId || "",
-        plan: planType || "Creator",
-        billing: billingCycle || "miesiac",
-      });
-      successUrl = `${rootDashboardOrigin}/dashboard?${successQuery.toString()}&session_id={CHECKOUT_SESSION_ID}`;
-      cancelUrl = `${rootDashboardOrigin}/dashboard?checkout=cancelled`;
+      // 1. ZAKUP / PRZEDŁUŻENIE PAKIETU SAAS -> ZAWSZE KIERUJE DO DASHBOARDU Z PARAMETREM SUKCESU
+      successUrl = `${origin}/dashboard?payment=success&plan=${encodeURIComponent(planId)}&session_id={CHECKOUT_SESSION_ID}&action=${action || "buy"}`;
+      cancelUrl = `${origin}/dashboard/store?payment=cancelled`;
     } else {
       // 2. ZAKUP PRODUKTU W SKLEPIE NA SUBDOMENIE -> ZAWSZE NA STRONĘ DANEGO SKLEPU Z POTWIERDZENIEM
       successUrl = `${cleanOrigin}/?checkout=success&payment=success&session_id={CHECKOUT_SESSION_ID}&product_id=${productId || ""}`;
@@ -148,18 +145,26 @@ export async function POST(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
-        storeId: String(resolvedTenantId || "demo-tenant"),
-        store_id: String(resolvedTenantId || "demo-tenant"),
-        tenantId: String(resolvedTenantId || "demo-tenant"),
-        tenant_id: String(resolvedTenantId || "demo-tenant"),
+        userId: String(body.userId || body.user_id || customerEmail || ""),
+        user_id: String(body.userId || body.user_id || customerEmail || ""),
+        storeId: String(resolvedTenantId || ""),
+        store_id: String(resolvedTenantId || ""),
+        tenantId: String(resolvedTenantId || ""),
+        tenant_id: String(resolvedTenantId || ""),
+        planName: planNameFormatted,
+        plan_name: planNameFormatted,
+        planDurationDays: "30",
+        plan_duration_days: "30",
+        type: isPlan ? (isRenewal ? "plan_renewal" : "plan_purchase") : "product",
         productId: String(productId || "demo-product"),
         product_id: String(productId || "demo-product"),
-        type: isPlan ? "plan" : "product",
-        plan_type: planType || "",
-        planType: planType || "",
+        plan_type: planId,
+        planType: planId,
         action: action || "buy",
         package_id: packageId || "",
         packageId: packageId || "",
+        billingCycle: billingCycle || "miesiac",
+        billing_cycle: billingCycle || "miesiac",
         customerEmail: customerEmail || "",
         customer_email: customerEmail || "",
         customerName: customerName || "",

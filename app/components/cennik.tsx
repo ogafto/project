@@ -121,6 +121,9 @@ export default function Cennik() {
         planType: planId,
         title: `Subskrypcja Iskral SaaS - Pakiet ${planId} (${billingCycle})`,
         priceCents,
+        userId: user.id,
+        billingCycle,
+        action: "buy",
       });
 
       if (checkoutUrl) {

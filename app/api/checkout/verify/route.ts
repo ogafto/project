@@ -60,7 +60,13 @@ async function processStripeSession(sessionId: string) {
 
   const dbAdmin: any = supabaseAdmin || supabase;
   const metadata = session.metadata || {};
-  const isPlan = metadata.type === "plan" || Boolean(metadata.plan_type);
+  const isPlan =
+    metadata.type === "plan" ||
+    metadata.type === "plan_purchase" ||
+    metadata.type === "plan_renewal" ||
+    Boolean(metadata.plan_type) ||
+    Boolean(metadata.planType) ||
+    Boolean(metadata.planName);
   let rawStoreId = session.client_reference_id || metadata.storeId || metadata.store_id || metadata.tenantId || metadata.tenant_id;
   const productId = metadata.productId || metadata.product_id;
   let resolvedStoreId = rawStoreId;
@@ -104,38 +110,56 @@ async function processStripeSession(sessionId: string) {
 
   const amountTotalCents = session.amount_total || Number(metadata.amount_cents || 24900);
   const customerEmail = session.customer_details?.email || metadata.customerEmail || metadata.customer_email || session.customer_email || "klient@iskral.pl";
+  const planDurationDays = parseInt(metadata.planDurationDays || metadata.plan_duration_days || "30", 10) || 30;
 
   if (!dbAdmin || !tenantId) {
     return { success: true, verified: true, isPlan, tenantId, customerEmail };
   }
 
   if (isPlan) {
-    const rawPlanName = metadata.plan_type || "Creator";
+    const rawPlanName = metadata.plan_type || metadata.planType || metadata.planName || "Creator";
     const planNameFormatted = rawPlanName.toLowerCase().startsWith("pakiet") ? rawPlanName : `Pakiet ${rawPlanName}`;
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
 
-    // Create or update subscription
-    await dbAdmin.from("subscriptions").insert({
-      tenant_id: tenantId,
-      user_email: customerEmail,
-      plan_name: rawPlanName,
-      status: "active",
-      stripe_customer_id: String(session.customer || ""),
-      stripe_subscription_id: String(session.subscription || session.id),
-      amount_paid_cents: amountTotalCents,
-      current_period_end: expirationDate.toISOString(),
-      created_at: new Date().toISOString(),
-    });
+    // Pobierz obecny stan sklepu do obliczenia ważności
+    const { data: currentStore } = await dbAdmin
+      .from("stores")
+      .select("id, name, expires_at, owner_id")
+      .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
+      .maybeSingle();
 
-    // Record in platform_purchases
+    const currentExpiry = currentStore?.expires_at ? new Date(currentStore.expires_at).getTime() : Date.now();
+    const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+    const newExpiresAt = new Date(baseTime + planDurationDays * 24 * 60 * 60 * 1000).toISOString();
+
+    // 1. Zapis/aktualizacja rekordu w subscriptions
     try {
-      await dbAdmin.from("platform_purchases").insert({
+      await dbAdmin.from("subscriptions").insert({
+        tenant_id: tenantId,
+        user_id: metadata.userId || metadata.user_id || currentStore?.owner_id || null,
+        user_email: customerEmail,
+        plan_name: planNameFormatted,
+        plan_id: rawPlanName,
+        status: "active",
+        billing_cycle: metadata.billingCycle || metadata.billing_cycle || "miesiac",
+        stripe_customer_id: String(session.customer || ""),
+        stripe_subscription_id: String(session.subscription || session.id),
+        amount_paid_cents: amountTotalCents,
+        current_period_end: newExpiresAt,
+        created_at: new Date().toISOString(),
+      });
+    } catch (subErr) {
+      console.warn("[Checkout Verify] subscriptions insert warning:", subErr);
+    }
+
+    // 2. Zapis w platform_purchases
+    try {
+      await dbAdmin.from("platform_purchases").upsert({
         id: `purch_${session.id || Date.now()}`,
+        user_id: metadata.userId || metadata.user_id || currentStore?.owner_id || null,
         user_email: customerEmail,
         store_id: tenantId,
-        store_name: `Sklep ${tenantId}`,
-        package_name: `${planNameFormatted} (30 dni)`,
+        store_name: currentStore?.name || `Sklep ${tenantId}`,
+        package_name: `${planNameFormatted} (${planDurationDays} dni)`,
         plan_type: rawPlanName,
         amount_cents: amountTotalCents,
         currency: "PLN",
@@ -147,21 +171,44 @@ async function processStripeSession(sessionId: string) {
       console.warn("[Checkout Verify] platform_purchases insert warning:", purchErr);
     }
 
+    // 3. Aktualizacja sklepu w tabeli stores
     await dbAdmin
       .from("stores")
       .update({
+        plan: planNameFormatted,
         plan_type: rawPlanName,
         plan_status: "active",
+        status: "active",
         is_active: true,
-        expires_at: expirationDate.toISOString(),
-        trial_ends_at: expirationDate.toISOString(),
+        expires_at: newExpiresAt,
+        trial_ends_at: newExpiresAt,
         updated_at: new Date().toISOString(),
       })
       .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
 
+    // 4. Aktualizacja profilu użytkownika
+    const profileUserId = metadata.userId || metadata.user_id || currentStore?.owner_id;
+    if (profileUserId) {
+      await dbAdmin
+        .from("profiles")
+        .update({
+          plan: rawPlanName,
+          account_status: "Active",
+        })
+        .eq("id", profileUserId);
+    } else if (customerEmail) {
+      await dbAdmin
+        .from("profiles")
+        .update({
+          plan: rawPlanName,
+          account_status: "Active",
+        })
+        .eq("email", customerEmail);
+    }
+
     if (customerEmail && customerEmail.includes("@")) {
       const amountFormatted = `${(amountTotalCents / 100).toFixed(2).replace(".", ",")} zł`;
-      const expiresAtFormatted = formatDatePL(expirationDate);
+      const expiresAtFormatted = formatDatePL(new Date(newExpiresAt));
       sendPurchaseConfirmationEmail({
         to: customerEmail,
         planName: planNameFormatted,
@@ -170,7 +217,16 @@ async function processStripeSession(sessionId: string) {
       }).catch(() => {});
     }
 
-    return { success: true, verified: true, isPlan: true, plan: rawPlanName, storeId: tenantId };
+    return {
+      success: true,
+      verified: true,
+      isPlan: true,
+      plan: rawPlanName,
+      planName: planNameFormatted,
+      expiresAt: newExpiresAt,
+      storeId: tenantId,
+      storeName: currentStore?.name || `Sklep ${tenantId}`
+    };
   } else {
     // Check if order already recorded
     const { data: existingOrders } = await dbAdmin
