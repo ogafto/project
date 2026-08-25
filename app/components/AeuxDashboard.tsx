@@ -2430,6 +2430,18 @@ export default function AeuxDashboard({
                       <BookOpen className="w-5 h-5 shrink-0" />
                       <span className="text-[15px]">Szablony</span>
                     </button>
+
+                    <button
+                      onClick={() => setActiveTab("purchases")}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                        activeTab === "purchases" || activeTab === "zakupy"
+                          ? "bg-[#D0FF00]/10 text-[#D0FF00] font-bold"
+                          : "text-[#5B5B62] hover:text-white"
+                      }`}
+                    >
+                      <ShoppingBag className="w-5 h-5 shrink-0" />
+                      <span className="text-[15px]">Zakupy</span>
+                    </button>
                   </nav>
                 </>
               )}
@@ -2447,6 +2459,15 @@ export default function AeuxDashboard({
                 <UserIcon className="w-5 h-5 shrink-0" />
                 <span className="text-[15px]">Twój profil</span>
               </button>
+
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors cursor-pointer text-[#5B5B62] hover:text-white"
+              >
+                <FileText className="w-5 h-5 shrink-0" />
+                <span className="text-[15px]">Regulamin</span>
+              </Link>
 
               {logout && (
                 <button
@@ -2790,6 +2811,16 @@ export default function AeuxDashboard({
               Twój profil
             </span>
           </button>
+
+          <Link
+            href="/"
+            className="relative w-full flex items-center gap-[8px] px-[48px] py-[4px] text-left transition-colors cursor-pointer group mb-[8px] text-[#5B5B62] hover:text-[#8E8E98]"
+          >
+            <FileText className="w-5 h-5 shrink-0 transition-colors text-[#22222A] group-hover:text-[#5B5B62]" />
+            <span className="text-[15px] font-medium tracking-tight">
+              Regulamin
+            </span>
+          </Link>
 
           {logout && (
             <button
