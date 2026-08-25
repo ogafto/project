@@ -2823,7 +2823,7 @@ export default function AeuxDashboard({
               </div>
             ) : (
               /* DLA UŻYTKOWNIKA Z PAKIETEM: CZYSTA SIATKA KART PAKIETÓW */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl">
                 {userPackages.map((pkg) => {
                   const targetDate = pkg.expiresAt ? new Date(pkg.expiresAt).getTime() : 0;
                   const isExp = isMounted && targetDate > 0 && targetDate - Date.now() <= 0;
@@ -2831,7 +2831,7 @@ export default function AeuxDashboard({
                   return (
                     <div
                       key={pkg.id}
-                      className={`bg-[#0D0E12] border ${isExp ? "border-rose-500/30" : "border-[#17181F] hover:border-[#222530]"} rounded-[24px] p-7 flex flex-col justify-between transition-all space-y-6`}
+                      className={`bg-[#0D0E12] border ${isExp ? "border-rose-500/30" : "border-[#17181F] hover:border-[#222530]"} rounded-[24px] p-7 flex flex-col justify-between transition-all space-y-6 w-full min-w-0 sm:min-w-[360px]`}
                     >
                       {/* HEADER KARTY: BADGE PAKIETU + DYSKRETNY UPGRADE */}
                       <div className="flex items-center justify-between gap-2">
@@ -2887,12 +2887,12 @@ export default function AeuxDashboard({
                       </div>
 
                       {/* WAŻNOŚĆ SKLEPU + PRZYCISK PRZEDŁUŻ (+30 DNI) */}
-                      <div className={`p-4 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-3`}>
+                      <div className={`p-4 ${isExp ? "bg-rose-500/10 border-rose-500/30" : "bg-[#111319] border-[#1C1E26]"} border rounded-2xl flex items-center justify-between gap-4`}>
                         <div className="min-w-0 flex-1 space-y-1">
                           <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block font-sans">
                             Ważność sklepu
                           </span>
-                          <div className="flex items-center">
+                          <div className="flex items-center whitespace-nowrap">
                             <SubscriptionBadge expiresAt={pkg.expiresAt} />
                           </div>
                         </div>
@@ -2901,7 +2901,7 @@ export default function AeuxDashboard({
                           <button
                             type="button"
                             onClick={() => handleExtendPackage(pkg.id)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-semibold font-sans transition-all cursor-pointer shadow-sm whitespace-nowrap ${
                               isExp
                                 ? "bg-[#D0FF00] hover:bg-[#bce600] text-black font-bold"
                                 : "bg-[#181B24] hover:bg-[#202430] text-zinc-200 hover:text-white border border-[#262B3B] hover:border-zinc-500"

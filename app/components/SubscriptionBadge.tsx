@@ -10,12 +10,12 @@ export function SubscriptionExpiryBadge({
   className?: string;
 }) {
   if (!expiresAt) {
-    return <span className={`text-xs text-zinc-400 font-medium ${className || ''}`}>Aktywny</span>;
+    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Aktywny</span>;
   }
 
   const expiryDate = new Date(expiresAt);
   if (isNaN(expiryDate.getTime())) {
-    return <span className={`text-xs text-zinc-400 font-medium ${className || ''}`}>Aktywny</span>;
+    return <span className={`text-xs text-zinc-400 font-medium whitespace-nowrap ${className || ''}`}>Aktywny</span>;
   }
 
   const isExpired = expiryDate.getTime() <= Date.now();
@@ -33,14 +33,14 @@ export function SubscriptionExpiryBadge({
 
   if (isExpired) {
     return (
-      <span className={`text-xs font-semibold text-rose-400 ${className || ''}`}>
+      <span className={`text-xs font-semibold text-rose-400 whitespace-nowrap ${className || ''}`}>
         Wygasł ({formattedDate}, {formattedTime})
       </span>
     );
   }
 
   return (
-    <span className={`text-xs font-medium text-zinc-200 ${className || ''}`}>
+    <span className={`text-xs font-medium text-zinc-200 whitespace-nowrap ${className || ''}`}>
       {formattedDate}, {formattedTime}
     </span>
   );
