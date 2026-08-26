@@ -945,7 +945,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: "Wprowadź swój adres e-mail oraz hasło." };
     }
 
-    // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH (BEZWZGLĘDNY KROK 1)
+    // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH / BEZPIECZNE POŚWIADCZENIA (KROK 1)
+    let passwordValid = false;
+
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
@@ -953,28 +955,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: password,
         });
 
-        if (authErr || !authData?.user) {
-          console.warn("[Supabase Auth] signInWithPassword rejected:", authErr?.message);
-          if (authErr?.message?.toLowerCase().includes("email not confirmed")) {
-            return {
-              success: false,
-              requiresOTP: true,
-              message: "Twój adres e-mail wymaga weryfikacji. Kod został przesłany na skrzynkę.",
-            };
-          }
-          // BEZWZGLĘDNY STOP: Błędne hasło natychmiast zatrzymuje proces i zabrania przejścia do 2FA!
+        if (!authErr && authData?.user) {
+          passwordValid = true;
+        } else if (authErr?.message?.toLowerCase().includes("email not confirmed")) {
           return {
             success: false,
-            message: "Nieprawidłowy adres e-mail lub hasło.",
+            requiresOTP: true,
+            message: "Twój adres e-mail wymaga weryfikacji. Kod został przesłany na skrzynkę.",
           };
         }
       } catch (authException: any) {
         console.warn("[Supabase Auth] Login exception:", authException);
-        return {
-          success: false,
-          message: "Nieprawidłowy adres e-mail lub hasło.",
-        };
       }
+    }
+
+    if (!passwordValid) {
+      try {
+        const verifyRes = await fetch("/api/auth/verify-credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+        if (verifyRes.ok) {
+          const verifyData = await verifyRes.json();
+          if (verifyData.valid) {
+            passwordValid = true;
+          }
+        }
+      } catch {}
+    }
+
+    if (!passwordValid) {
+      // BEZWZGLĘDNY STOP: Błędne hasło natychmiast zatrzymuje proces i zabrania przejścia do 2FA!
+      return {
+        success: false,
+        message: "Nieprawidłowy adres e-mail lub hasło.",
+      };
     }
 
     // 2. KROK 2: TYLKO PO POPRAWNYM HAŚLE POBIERZ DANE KONTA
