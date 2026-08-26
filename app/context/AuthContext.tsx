@@ -1241,64 +1241,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem("iskra_pending_email", cleanEmail);
     }
 
-    if (password && isSupabaseConfigured && supabase) {
-      try {
-        const { error: signUpErr } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: password,
-          options: {
-            data: { name: name.trim() },
-          },
-        });
-        if (signUpErr && !signUpErr.message?.toLowerCase().includes("already registered")) {
-          console.warn("[Supabase Auth] signUp warning:", signUpErr.message);
-        }
-      } catch (e) {
-        console.warn("[Supabase Auth] signUp exception:", e);
-      }
-    }
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password }),
+      });
 
-    const existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      if (!existing.isEmailVerified) {
-        setPendingUserToVerify(existing);
-        const sent = await sendOTP(cleanEmail);
-        return sent;
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setMessage({ type: "error", text: data.error || "Wystąpił błąd podczas rejestracji." });
+        return false;
       }
-      setMessage({ type: "error", text: "Konto o tym adresie e-mail już istnieje!" });
+
+      const isSuperadmin = cleanEmail === "projekt@motywo.pl" || cleanEmail.includes("admin");
+
+      const newUser: User = {
+        id: `usr_${Date.now()}`,
+        name,
+        email: cleanEmail,
+        role: isSuperadmin ? "superadmin" : "user",
+        plan: isSuperadmin ? "Brand" : "Start",
+        hasStore: isSuperadmin,
+        planExpiresAt: isSuperadmin ? new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+        accountStatus: "Active",
+        is2FAEnabled: false,
+        isEmailVerified: false,
+        createdAt: new Date().toISOString().split("T")[0],
+        activeStoreId: isSuperadmin ? "t_admin_projekt" : undefined,
+        stores: isSuperadmin ? ADMIN_USER.stores : [],
+        store: isSuperadmin ? ADMIN_USER.store : undefined,
+      };
+
+      setPendingUserToVerify(newUser);
+      setAllUsers((prev) => {
+        const exists = prev.some((u) => u.email.toLowerCase() === cleanEmail);
+        return exists ? prev : [...prev, newUser];
+      });
+
+      setMessage({
+        type: "success",
+        text: data.message || "Konto zostało utworzone. Sprawdź swoją skrzynkę e-mail.",
+      });
+
+      // Wyślij także zapasowy kod OTP na email jeśli użytkownik korzysta z ekranu wpisania kodu
+      sendOTP(cleanEmail).catch(() => {});
+
+      return true;
+    } catch (err: any) {
+      console.warn("[Register error]:", err);
+      setMessage({ type: "error", text: "Błąd połączenia z serwerem: " + (err.message || "Spróbuj ponownie.") });
       return false;
     }
-
-    const isSuperadmin = cleanEmail === "projekt@motywo.pl" || cleanEmail.includes("admin");
-
-    const newUser: User = {
-      id: `usr_${Date.now()}`,
-      name,
-      email: cleanEmail,
-      role: isSuperadmin ? "superadmin" : "user",
-      plan: isSuperadmin ? "Brand" : "Start",
-      hasStore: isSuperadmin,
-      planExpiresAt: isSuperadmin ? new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      accountStatus: "Active",
-      is2FAEnabled: false,
-      isEmailVerified: false,
-      createdAt: new Date().toISOString().split("T")[0],
-      activeStoreId: isSuperadmin ? "t_admin_projekt" : undefined,
-      stores: isSuperadmin ? ADMIN_USER.stores : [],
-      store: isSuperadmin ? ADMIN_USER.store : undefined,
-    };
-
-    setPendingUserToVerify(newUser);
-    setAllUsers((prev) => [...prev, newUser]);
-
-    fetch("/api/auth/sync-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user: newUser }),
-    }).catch(() => {});
-
-    const sent = await sendOTP(cleanEmail);
-    return sent;
   };
 
   const verifyEmail = async (code: string): Promise<boolean> => {
