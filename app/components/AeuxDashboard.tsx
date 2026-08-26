@@ -17,6 +17,7 @@ import {
   Settings,
   Bell,
   Plus,
+  PlusCircle,
   Search,
   ChevronDown,
   Check,
@@ -64,6 +65,7 @@ import {
   BellOff,
   Receipt,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
   User,
   StoreConfig,
@@ -595,6 +597,172 @@ export default function AeuxDashboard({
 
   // Upgrade Modal State
   const [upgradingPackage, setUpgradingPackage] = useState<UserPackage | null>(null);
+
+  // Dynamic New Store Creator State
+  const [isCreateStoreModalOpen, setIsCreateStoreModalOpen] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreSlug, setNewStoreSlug] = useState("");
+  const [isSlugEditedManually, setIsSlugEditedManually] = useState(false);
+  const [slugError, setSlugError] = useState("");
+  const [isCreatingStore, setIsCreatingStore] = useState(false);
+
+  const handleStoreNameChange = (val: string) => {
+    setNewStoreName(val);
+    setSlugError("");
+    if (!isSlugEditedManually) {
+      const generated = val
+        .toLowerCase()
+        .trim()
+        .replace(/[\s_]+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-");
+      setNewStoreSlug(generated);
+    }
+  };
+
+  const handleStoreSlugChange = (val: string) => {
+    setIsSlugEditedManually(true);
+    const clean = val.toLowerCase().replace(/[\s_]+/g, "-").replace(/[^a-z0-9-]/g, "");
+    setNewStoreSlug(clean);
+    setSlugError("");
+  };
+
+  const handleCreateStoreSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = newStoreName.trim();
+    const cleanSlug = newStoreSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+
+    if (!trimmedName) {
+      if (setMessage) setMessage({ type: "error", text: "Wpisz nazwę sklepu" });
+      return;
+    }
+    if (!cleanSlug) {
+      setSlugError("Podaj prawidłową subdomenę");
+      return;
+    }
+
+    setIsCreatingStore(true);
+    setSlugError("");
+
+    try {
+      // 1. Sprawdzenie w Supabase, czy subdomena jest wolna
+      if (supabase) {
+        try {
+          const { data: existing } = await supabase
+            .from("stores")
+            .select("id, subdomain")
+            .eq("subdomain", cleanSlug)
+            .neq("status", "deleted")
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            setSlugError("Ta subdomena jest już zajęta");
+            setIsCreatingStore(false);
+            return;
+          }
+        } catch (checkErr) {
+          console.warn("[Check Slug Error]:", checkErr);
+        }
+      }
+
+      // 2. Zapis do bazy Supabase z 14 dniami okresu startowego
+      const duration14d = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      const storeId = `store_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+      if (supabase) {
+        try {
+          // Próba zapisu ze wszystkimi polami
+          const fullPayload = {
+            id: storeId,
+            owner_id: user?.id,
+            user_id: user?.id,
+            name: trimmedName,
+            slug: cleanSlug,
+            subdomain: cleanSlug,
+            plan_type: "Creator",
+            plan: "Pakiet Creator",
+            plan_status: "active",
+            status: "active",
+            is_active: true,
+            theme_config: { template: "Dark Vibe", accentColor: "#FF5B28", expires_at: duration14d },
+          };
+
+          const { error: insertErr } = await supabase.from("stores").insert([fullPayload]);
+          if (insertErr) {
+            // Fallback do kompatybilnego schematu
+            await supabase.from("stores").insert([
+              {
+                id: storeId,
+                owner_id: user?.id,
+                name: trimmedName,
+                subdomain: cleanSlug,
+                plan_type: "Creator",
+                plan_status: "active",
+                status: "active",
+                is_active: true,
+                theme_config: { template: "Dark Vibe", accentColor: "#FF5B28", expires_at: duration14d },
+              },
+            ]);
+          }
+        } catch (dbErr) {
+          console.warn("[Supabase Store Insert Warning]:", dbErr);
+        }
+      }
+
+      // 3. Aktualizacja stanu w AuthContext i lokalnych pakietów
+      if (createOrUpdateStoreFull) {
+        createOrUpdateStoreFull({
+          name: trimmedName,
+          subdomain: cleanSlug,
+          plan: "Creator",
+          billingCycle: "miesiac",
+          template: "Dark Vibe",
+          accentColor: "#D0FF00",
+        });
+      }
+
+      const newPkg: UserPackage = {
+        id: storeId,
+        number: 1000 + userPackages.length,
+        name: trimmedName,
+        storeName: trimmedName,
+        subdomain: cleanSlug,
+        planType: "Creator",
+        price: "14 dni za darmo",
+        expiresAt: duration14d,
+        isConfigured: true,
+        logoUrl: "",
+      };
+
+      const updatedPkgs = [...userPackages, newPkg];
+      setUserPackages(updatedPkgs);
+      setActiveStorePackage(newPkg);
+
+      if (typeof window !== "undefined" && user) {
+        const key = getUserKey(user);
+        localStorage.setItem(`iskra_user_packages_${key}`, JSON.stringify(updatedPkgs));
+      }
+
+      setIsCreateStoreModalOpen(false);
+      setNewStoreName("");
+      setNewStoreSlug("");
+      setIsSlugEditedManually(false);
+
+      if (setMessage) {
+        setMessage({
+          type: "success",
+          text: `🎉 Sklep "${trimmedName}" (${cleanSlug}.iskral.pl) został pomyślnie utworzony!`,
+        });
+      }
+
+      setActiveTab("zarzadzaj-sklepem");
+    } catch (err: any) {
+      console.error("Error creating store:", err);
+      if (setMessage) setMessage({ type: "error", text: "Wystąpił błąd podczas tworzenia sklepu: " + err.message });
+    } finally {
+      setIsCreatingStore(false);
+    }
+  };
 
   // Active Store / Subdomain logic
   const configuredPackage = activeStorePackage || userPackages.find((p) => p.isConfigured && p.subdomain);
@@ -3349,64 +3517,33 @@ export default function AeuxDashboard({
         {activeTab === "pulpit" && (
           <div className="space-y-6 max-w-5xl">
             {userPackages.length === 0 ? (
-              /* DLA NOWEGO UŻYTKOWNIKA BEZ PAKIETU: 2 KAFELKI ONBOARDINGOWE */
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* KARTA 1 (LEWA): BRAK PAKIETU */}
-                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
-                  <div className="space-y-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-zinc-400">
-                      <ShoppingBag className="w-5 h-5 text-[#D0FF00]" />
-                    </div>
-                    <h2 className="text-xl font-bold text-white tracking-tight font-sans">
-                      Nie posiadasz żadnego pakietu
-                    </h2>
-                    <p className="text-sm text-zinc-400 leading-relaxed font-sans">
-                      Aby stworzyć swój sklep internetowy, dodawać produkty i uruchomić sprzedaż, wybierz jeden z dostępnych pakietów platformy.
-                    </p>
+              /* DLA NOWEGO UŻYTKOWNIKA BEZ SKLEPU: WYCENTROWANY MINIMALISTYCZNY KAFELEK ONBOARDINGOWY */
+              <div className="w-full flex items-center justify-center py-10">
+                <div className="w-full max-w-md bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-8 sm:p-10 text-center flex flex-col items-center shadow-2xl">
+                  <div className="w-16 h-16 rounded-2xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00] mb-5 shadow-lg shadow-black/50">
+                    <Store className="w-8 h-8" />
                   </div>
-
-                  <div className="pt-7">
-                    <button
-                      onClick={() => setActiveTab("produkty")}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#D0FF00] hover:bg-[#bce600] text-black text-[14px] font-medium font-sans rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span>Przejdź dalej</span>
-                      <ArrowUpRight className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-sans">
+                    Nie posiadasz jeszcze żadnego sklepu
+                  </h2>
+                  <p className="text-sm text-zinc-400 mt-2.5 leading-relaxed font-sans">
+                    Wpisz nazwę, wybierz subdomenę i uruchom swój sklep internetowy.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewStoreName("");
+                      setNewStoreSlug("");
+                      setIsSlugEditedManually(false);
+                      setSlugError("");
+                      setIsCreateStoreModalOpen(true);
+                    }}
+                    className="mt-8 px-6 py-3.5 bg-[#D0FF00] hover:bg-[#bce600] text-black text-sm font-bold font-sans rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#D0FF00]/10 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>+ Stwórz sklep</span>
+                  </button>
                 </div>
-
-                {/* KARTA 2 (PRAWA): SKLEP NA 14 DNI (DLA NOWYCH OSÓB) */}
-                <div className="bg-[#0D0E12] border border-[#17181F] hover:border-[#222530] rounded-[24px] p-7 flex flex-col justify-between transition-all">
-                  <div className="space-y-3.5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D0FF00]/10 border border-[#D0FF00]/25 text-[#D0FF00] text-[11px] font-medium font-sans">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Dla nowych użytkowników • Tylko raz</span>
-                    </div>
-
-                    <h2 className="text-xl font-bold text-white tracking-tight font-sans">
-                      Sklep na 14 dni
-                    </h2>
-
-                    <p className="text-sm text-zinc-400 leading-relaxed font-sans">
-                      Wypróbuj możliwości platformy za darmo przez 14 dni z Pakietem Start. Uruchom swój sklep bez żadnych opłat wstępnych i przetestuj sprzedaż.
-                    </p>
-                  </div>
-
-                  <div className="pt-7">
-                    <button
-                      onClick={() => {
-                        setActiveTab("produkty");
-                      }}
-                      className="w-full sm:w-auto px-[24px] py-[12px] bg-[#141722] hover:bg-[#1A1F2C] text-white text-[14px] font-medium font-sans rounded-xl border border-[#22283A] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span>Wypróbuj za darmo (14 dni)</span>
-                      <ArrowUpRight className="w-4 h-4 text-[#D0FF00]" />
-                    </button>
-                  </div>
-                </div>
-
               </div>
             ) : (
               /* DLA UŻYTKOWNIKA Z PAKIETEM: CZYSTA SIATKA KART PAKIETÓW */
@@ -7087,6 +7224,103 @@ export default function AeuxDashboard({
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CZYSTY KREATOR PIERWSZEGO / KOLEJNEGO SKLEPU */}
+      {/* ========================================================================= */}
+      {isCreateStoreModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0D0E12] border border-[#17181F] rounded-[24px] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 relative overflow-hidden font-sans">
+            <div className="flex items-center justify-between border-b border-[#17181F] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#111319] border border-[#1C1E26] flex items-center justify-center text-[#D0FF00]">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white tracking-tight">Stwórz swój sklep</h3>
+                  <span className="text-xs text-zinc-400">14 dni darmowego okresu startowego</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateStoreModalOpen(false)}
+                className="w-8 h-8 rounded-lg bg-[#111319] hover:bg-[#181B24] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer border border-[#1C1E26] transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStoreSubmit} className="space-y-4">
+              {/* POLE: NAZWA SKLEPU */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-2">Nazwa sklepu</label>
+                <input
+                  type="text"
+                  value={newStoreName}
+                  onChange={(e) => handleStoreNameChange(e.target.value)}
+                  placeholder="Wpisz nazwę swojego sklepu..."
+                  required
+                  autoFocus
+                  className="w-full px-4 py-3 bg-[#111319] border border-[#1C1E26] focus:border-[#D0FF00] rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* POLE: SUBDOMENA */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-2">Subdomena sklepu</label>
+                <div className="flex items-center bg-[#111319] border border-[#1C1E26] focus-within:border-[#D0FF00] rounded-xl overflow-hidden transition-colors">
+                  <input
+                    type="text"
+                    value={newStoreSlug}
+                    onChange={(e) => handleStoreSlugChange(e.target.value)}
+                    placeholder="nazwa-sklepu"
+                    required
+                    className="flex-1 px-4 py-3 bg-transparent text-sm text-white placeholder-zinc-600 focus:outline-none font-mono"
+                  />
+                  <span className="px-3 py-3 bg-[#181B24] text-xs text-zinc-400 font-mono border-l border-[#1C1E26] select-none">
+                    .iskral.pl
+                  </span>
+                </div>
+                {slugError ? (
+                  <p className="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{slugError}</span>
+                  </p>
+                ) : newStoreSlug ? (
+                  <p className="text-[11px] text-zinc-500 mt-1.5 font-mono">
+                    Adres: <span className="text-[#D0FF00]">https://{newStoreSlug}.iskral.pl</span>
+                  </p>
+                ) : null}
+              </div>
+
+              {/* PRZYCISKI AKCJI */}
+              <div className="pt-4 border-t border-[#17181F] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateStoreModalOpen(false)}
+                  className="px-4 py-2.5 bg-[#111319] hover:bg-[#181B24] text-zinc-300 hover:text-white text-xs font-semibold rounded-xl border border-[#1C1E26] transition-colors cursor-pointer"
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingStore || !newStoreName.trim() || !newStoreSlug.trim()}
+                  className="px-6 py-2.5 bg-[#D0FF00] hover:bg-[#bce600] disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-[#D0FF00]/10"
+                >
+                  {isCreatingStore ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Tworzenie...</span>
+                    </>
+                  ) : (
+                    <span>Stwórz sklep</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
