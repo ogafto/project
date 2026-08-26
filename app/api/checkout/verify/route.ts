@@ -154,11 +154,11 @@ async function processStripeSession(sessionId: string) {
     // Pobierz obecny stan sklepu do obliczenia ważności
     const { data: currentStore } = await dbAdmin
       .from("stores")
-      .select("id, name, expires_at, owner_id")
+      .select("id, name, theme_config, owner_id")
       .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
       .maybeSingle();
 
-    const currentExpiry = currentStore?.expires_at ? new Date(currentStore.expires_at).getTime() : Date.now();
+    const currentExpiry = currentStore?.theme_config?.expires_at ? new Date(currentStore.theme_config.expires_at).getTime() : Date.now();
     const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
     const newExpiresAt = new Date(baseTime + planDurationDays * 24 * 60 * 60 * 1000).toISOString();
 
@@ -202,18 +202,21 @@ async function processStripeSession(sessionId: string) {
       console.warn("[Checkout Verify] platform_purchases insert warning:", purchErr);
     }
 
-    // 3. Aktualizacja sklepu w tabeli stores
+    // 3. Aktualizacja istniejącego sklepu w tabeli stores (BEZWZGLĘDNY UPDATE, BRAK INSERTU)
+    const prevThemeConfig = currentStore?.theme_config || {};
+    const updatedThemeConfig = {
+      ...prevThemeConfig,
+      expires_at: newExpiresAt,
+    };
+
     await dbAdmin
       .from("stores")
       .update({
-        plan: planNameFormatted,
         plan_type: rawPlanName,
         plan_status: "active",
         status: "active",
         is_active: true,
-        expires_at: newExpiresAt,
-        trial_ends_at: newExpiresAt,
-        updated_at: new Date().toISOString(),
+        theme_config: updatedThemeConfig,
       })
       .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
 

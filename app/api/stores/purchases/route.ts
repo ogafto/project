@@ -50,21 +50,30 @@ export async function GET(req: NextRequest) {
           }
           const { data: subData, error: subErr } = await subQuery.order("created_at", { ascending: false });
           if (!subErr && subData && subData.length > 0) {
-            purchases = subData.map((s: any) => ({
-              id: s.id || `purch_${s.stripe_subscription_id || Date.now()}`,
-              user_id: userId || null,
-              user_email: s.user_email || cleanEmail,
-              store_id: s.tenant_id,
-              store_name: s.tenant_id ? `Sklep ${s.tenant_id}` : "Główny sklep",
-              package_name: `Pakiet ${s.plan_name || "Creator"} (30 dni)`,
-              plan_type: s.plan_name || "Creator",
-              amount_cents: s.amount_paid_cents || 4900,
-              currency: "PLN",
-              stripe_payment_id: s.stripe_subscription_id || `pi_${Math.random().toString(36).substring(2, 10)}`,
-              stripe_receipt_url: null,
-              status: s.status === "active" ? "Opłacone" : s.status || "Opłacone",
-              created_at: s.created_at || new Date().toISOString(),
-            }));
+            // Filtrujemy tylko realne subskrypcje (usuwamy zduplikowane 0-kwotowe generacje)
+            const realSubs = subData.filter((s: any) => s.tenant_id || s.stripe_customer_id || s.amount_paid_cents > 0);
+            const targetSubs = realSubs.length > 0 ? [realSubs[0]] : [subData[0]]; // 1 aktywny zakup na 1 subskrypcję
+
+            purchases = targetSubs.map((s: any) => {
+              const rawPlan = s.plan_name || "Creator";
+              const cleanPlan = rawPlan.replace(/^Pakiet\s+/i, "");
+              const planPrice = cleanPlan === "Brand" ? 5999 : cleanPlan === "Start" ? 0 : 2999;
+              return {
+                id: s.id || `purch_${s.stripe_subscription_id || Date.now()}`,
+                user_id: userId || null,
+                user_email: s.user_email || cleanEmail,
+                store_id: s.tenant_id || storeId || "store_1000",
+                store_name: s.tenant_id ? `Sklep #${s.tenant_id.slice(-4)}` : "Twój Sklep",
+                package_name: `Pakiet ${cleanPlan} (30 dni)`,
+                plan_type: cleanPlan,
+                amount_cents: s.amount_paid_cents > 0 ? s.amount_paid_cents : planPrice,
+                currency: "PLN",
+                stripe_payment_id: s.stripe_subscription_id || s.stripe_customer_id || `pi_${Math.random().toString(36).substring(2, 10)}`,
+                stripe_receipt_url: null,
+                status: "Opłacone",
+                created_at: s.created_at || new Date().toISOString(),
+              };
+            });
           }
         } catch (subException) {
           console.warn("[Purchases API] subscriptions query warning:", subException);

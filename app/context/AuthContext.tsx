@@ -941,64 +941,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password?: string): Promise<{ success: boolean; requires2FA?: boolean; requiresOTP?: boolean; message?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanEmail) {
-      return { success: false, message: "Wprowadź swój adres e-mail." };
+    if (!cleanEmail || !password) {
+      return { success: false, message: "Wprowadź swój adres e-mail oraz hasło." };
     }
 
-    // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH
-    let authPassed = false;
-    let authNeedVerify = false;
-
-    if (password && isSupabaseConfigured && supabase) {
+    // 1. TWARDA WALIDACJA HASŁA PRZEZ SUPABASE AUTH (BEZWZGLĘDNY KROK 1)
+    if (isSupabaseConfigured && supabase) {
       try {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password: password,
         });
 
-        if (!authErr && authData?.user) {
-          authPassed = true;
-        } else if (authErr) {
-          console.warn("[Supabase Auth] signInWithPassword note:", authErr.message);
-
-          if (authErr.message?.toLowerCase().includes("email not confirmed")) {
-            authNeedVerify = true;
-          } else if (authErr.message?.toLowerCase().includes("invalid login credentials")) {
-            // Próba automatycznego seedu/naprawy konta (jeśli to admin lub użytkownik z bazy profiles)
-            try {
-              const repairRes = await fetch("/api/auth/setup-admin", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  email: cleanEmail,
-                  password: password,
-                  name: cleanEmail.split("@")[0],
-                }),
-              });
-              if (repairRes.ok) {
-                const repairData = await repairRes.json();
-                if (repairData.success) {
-                  const retry = await supabase.auth.signInWithPassword({
-                    email: cleanEmail,
-                    password: password,
-                  });
-                  if (!retry.error && retry.data?.user) {
-                    authPassed = true;
-                  }
-                }
-              }
-            } catch (repairErr) {
-              console.warn("[Auth] Auto-repair attempt error:", repairErr);
-            }
+        if (authErr || !authData?.user) {
+          console.warn("[Supabase Auth] signInWithPassword rejected:", authErr?.message);
+          if (authErr?.message?.toLowerCase().includes("email not confirmed")) {
+            return {
+              success: false,
+              requiresOTP: true,
+              message: "Twój adres e-mail wymaga weryfikacji. Kod został przesłany na skrzynkę.",
+            };
           }
+          // BEZWZGLĘDNY STOP: Błędne hasło natychmiast zatrzymuje proces i zabrania przejścia do 2FA!
+          return {
+            success: false,
+            message: "Nieprawidłowy adres e-mail lub hasło.",
+          };
         }
       } catch (authException: any) {
         console.warn("[Supabase Auth] Login exception:", authException);
+        return {
+          success: false,
+          message: "Nieprawidłowy adres e-mail lub hasło.",
+        };
       }
-    } else if (!password && cleanEmail !== "projekt@motywo.pl" && cleanEmail !== "projekt@iskral.pl") {
-      return { success: false, message: "Wprowadź swoje hasło." };
     }
 
+    // 2. KROK 2: TYLKO PO POPRAWNYM HAŚLE POBIERZ DANE KONTA
     if (cleanEmail === "projekt@motywo.pl" || cleanEmail === "projekt@iskral.pl") {
       let adminUser = allUsers.find(
         (u) => u.email.toLowerCase() === "projekt@motywo.pl" || u.email.toLowerCase() === "projekt@iskral.pl"
@@ -1015,7 +994,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== "undefined") {
           sessionStorage.setItem("iskra_pending_login_email", cleanEmail);
         }
-        return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
+        return { success: true, requires2FA: true, message: "Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod." };
       }
       setAuthCookie("iskra_session", JSON.stringify(adminUser));
       setUser(adminUser);
@@ -1025,7 +1004,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let existing = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
 
-    // Jeśli użytkownika nie ma w pamięci tego urządzenia (np. logowanie na telefonie), pobierz z bazy Supabase
     if (!existing) {
       try {
         const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(cleanEmail)}`);
@@ -1053,7 +1031,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let targetUser: User = existing;
 
-    // Pobierz najświeższe sklepy i usługi z bazy danych dla spójności
     try {
       const res = await fetch(`/api/auth/sync-user?email=${encodeURIComponent(cleanEmail)}`);
       if (res.ok) {
@@ -1116,7 +1093,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("iskra_pending_login_email", cleanEmail);
       }
-      return { success: true, requires2FA: true, message: "Wprowadź 6-cyfrowy kod z aplikacji Authenticator 2FA." };
+      return { success: true, requires2FA: true, message: "Konto posiada aktywny Authenticator 2FA. Wprowadź 6-cyfrowy kod." };
     }
 
     setAuthCookie("iskra_session", JSON.stringify(loggedInUser));
@@ -1511,6 +1488,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(updatedUser);
     setAllUsers((prev) => prev.map((u) => (u.id === user.id ? updatedUser : u)));
+
+    if (updatedStores[0]) {
+      upsertStoreInSupabase(updatedStores[0], user.id).catch(console.warn);
+    }
 
     fetch("/api/auth/sync-user", {
       method: "POST",

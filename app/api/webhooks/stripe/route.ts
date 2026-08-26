@@ -131,11 +131,11 @@ export async function POST(req: NextRequest) {
           // Pobierz obecny stan sklepu w celu obliczenia przedłużenia ważności
           const { data: currentStore } = await dbAdmin
             .from("stores")
-            .select("id, name, expires_at, owner_id")
+            .select("id, name, theme_config, owner_id")
             .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`)
             .maybeSingle();
 
-          const currentExpiry = currentStore?.expires_at ? new Date(currentStore.expires_at).getTime() : Date.now();
+          const currentExpiry = currentStore?.theme_config?.expires_at ? new Date(currentStore.theme_config.expires_at).getTime() : Date.now();
           const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
           const newExpiresAt = new Date(baseTime + planDurationDays * 24 * 60 * 60 * 1000).toISOString();
 
@@ -175,18 +175,21 @@ export async function POST(req: NextRequest) {
             console.warn("[Stripe Webhook] platform_purchases record warning:", purchErr);
           }
 
-          // 3. Aktualizacja sklepu w tabeli stores (+30 dni do expires_at)
+          // 3. Aktualizacja sklepu w tabeli stores (BEZWZGLĘDNY UPDATE, BRAK INSERTU)
+          const prevThemeConfig = currentStore?.theme_config || {};
+          const updatedThemeConfig = {
+            ...prevThemeConfig,
+            expires_at: newExpiresAt,
+          };
+
           await dbAdmin
             .from("stores")
             .update({
-              plan: planNameFormatted,
               plan_type: rawPlanName,
               plan_status: "active",
               status: "active",
               is_active: true,
-              expires_at: newExpiresAt,
-              trial_ends_at: newExpiresAt,
-              updated_at: new Date().toISOString(),
+              theme_config: updatedThemeConfig,
             })
             .or(`id.eq.${tenantId},subdomain.eq.${tenantId}`);
 

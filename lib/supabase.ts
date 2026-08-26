@@ -131,19 +131,10 @@ export async function fetchStoreFromSupabase(subdomain: string): Promise<any | n
     }, 3, 250);
 
     if (store) {
-      let resolvedExp = store.expires_at || store.planExpiresAt || store.trial_ends_at || null;
+      let resolvedExp = store.theme_config?.expires_at || store.theme_config?.planExpiresAt || store.expires_at || store.planExpiresAt || store.trial_ends_at || null;
       const expTime = resolvedExp ? new Date(resolvedExp).getTime() : 0;
-      if (!resolvedExp || isNaN(expTime) || expTime <= Date.now()) {
+      if (!resolvedExp || isNaN(expTime)) {
         resolvedExp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        const client: any = supabaseAdmin || supabase;
-        if (client) {
-          client
-            .from("stores")
-            .update({ expires_at: resolvedExp, plan_status: "active", is_active: true })
-            .eq("id", store.id)
-            .then(() => {})
-            .catch(() => {});
-        }
       }
 
       return {
@@ -221,15 +212,30 @@ export async function fetchProductsFromSupabase(storeId: string): Promise<any[]>
           }
 
           return {
-            ...p,
-            image: safeImgs[0] || p.image_url || "",
-            image_url: safeImgs[0] || p.image_url || "",
+            id: p.id,
+            name: p.name,
+            price: p.price || `${((p.price_cents || 0) / 100).toFixed(2)} zł`,
+            priceCents: p.price_cents || 0,
+            comparePrice: p.compare_price,
+            comparePriceCents: p.compare_price_cents,
+            type: p.type || "Fizyczny",
+            status: p.status || "Aktywny",
+            sales: p.sales || 0,
+            stock: p.stock !== undefined ? p.stock : 50,
+            description: p.description || "",
+            image: p.image_url,
             images: safeImgs,
+            isDigital: p.is_digital || p.type === "Cyfrowy",
+            digitalFileName: p.digital_file_name,
+            digitalFileSize: p.digital_file_size,
+            digitalFileUrl: p.digital_file_url,
+            isDropOnly: p.is_drop_only,
+            dropTargetDate: p.drop_target_date,
           };
         });
       }
       return null;
-    }, 3, 250);
+    }, 2, 300);
 
     if (products) return products;
   }
@@ -374,12 +380,15 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
 
     const resolvedOwnerId = ownerId || storeData.owner_id || storeData.ownerId || null;
 
-    // Pobierz istniejący rekord sklepu, aby NIGDY nie nadpisać expires_at przy logowaniu lub odświeżaniu
+    // Pobierz istniejący rekord sklepu, aby NIGDY nie zresetować expires_at
     const { data: existingStore } = await client
       .from("stores")
-      .select("id, expires_at, trial_ends_at")
+      .select("id, theme_config")
       .eq("subdomain", subdomain)
       .maybeSingle();
+
+    const existingExpiresAt = existingStore?.theme_config?.expires_at || null;
+    const resolvedExpiresAt = existingExpiresAt || storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const dbPayload: any = {
       id: existingStore?.id || storeData.id || `t_${Date.now()}`,
@@ -400,22 +409,14 @@ export async function upsertStoreInSupabase(storeData: any, ownerId?: string): P
       status: storeData.status || "active",
       is_active: storeData.is_active !== false && storeData.status !== "deleted",
       social_links: storeData.socials || {},
-      theme_config: { template: storeData.template, accentColor: storeData.accentColor, ownerEmail: storeData.ownerEmail },
+      theme_config: { 
+        template: storeData.template, 
+        accentColor: storeData.accentColor, 
+        ownerEmail: storeData.ownerEmail,
+        expires_at: resolvedExpiresAt
+      },
       drop_config: storeData.dropConfig || { enabled: false },
     };
-
-    // ZASADA BEZWZGLĘDNA: Zachowaj istniejącą datę ważności z bazy
-    if (existingStore?.expires_at) {
-      dbPayload.expires_at = existingStore.expires_at;
-    } else if (storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at) {
-      dbPayload.expires_at = storeData.expiresAt || storeData.planExpiresAt || storeData.expires_at;
-    }
-
-    if (existingStore?.trial_ends_at) {
-      dbPayload.trial_ends_at = existingStore.trial_ends_at;
-    } else if (storeData.trialEndsAt || storeData.trial_ends_at) {
-      dbPayload.trial_ends_at = storeData.trialEndsAt || storeData.trial_ends_at;
-    }
 
     console.log(`[Supabase] Upserting store '${subdomain}' (id=${dbPayload.id}, owner=${resolvedOwnerId})...`);
     const { error } = await client.from("stores").upsert(dbPayload, { onConflict: "subdomain" });
